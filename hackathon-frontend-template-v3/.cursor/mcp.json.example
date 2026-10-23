@@ -1,0 +1,8 @@
+{
+	"mcpServers": {
+		"figma-developer": {
+			"command": "node",
+			"args": ["scripts/figma-mcp.mjs"]
+		}
+	}
+}
