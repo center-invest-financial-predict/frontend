@@ -215,6 +215,9 @@ export type OperationDto = {
 export type OperationsQueryArgs = {
 	dir?: "all" | "in" | "out";
 	category?: string;
+	source?: string;
+	page?: number;
+	size?: number;
 };
 
 export type OperationsDto = {

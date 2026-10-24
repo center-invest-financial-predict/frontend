@@ -40,6 +40,22 @@ const noInnError = (): FetchBaseQueryError => ({
 const asError = (result: { error?: FetchBaseQueryError }): FetchBaseQueryError =>
 	result.error ?? { status: 500, data: { message: "Request failed" } };
 
+const normalizeSourceCode = (value: string): string =>
+	value.trim().toUpperCase().replace(/-/g, "_");
+
+/** Query param `source` for GET .../operations (per-source totals in `totalElements`). */
+const operationsSourceParam = (code: string): string | undefined => {
+	const c = normalizeSourceCode(code);
+	if (c === "ONE_C" || c === "1C") return "1C";
+	if (c === "CSV") return "CSV";
+	if (c === "GOS_SERVICE") return "GOS_SERVICE";
+	return undefined;
+};
+
+type OperationsPageMeta = {
+	totalElements?: number;
+};
+
 type ForecastPointRaw = {
 	date: string;
 	baseBalance?: number;
@@ -562,10 +578,15 @@ const financeApi = rtkApi.injectEndpoints({
 				if (!inn) return { error: noInnError() };
 				const result = await baseQuery({
 					url: `/api/companies/${inn}/operations`,
-					params: { size: 100, sort: "operationDate,DESC" },
+					params: {
+						...(args?.source ? { source: args.source } : {}),
+						page: args?.page ?? 0,
+						size: args?.size ?? 100,
+						sort: "operationDate,DESC",
+					},
 				});
 				if (result.error) return { error: asError(result) };
-				const page = result.data as {
+				const page = result.data as OperationsPageMeta & {
 					content?: {
 						id?: number;
 						operationDate?: string;
@@ -595,6 +616,8 @@ const financeApi = rtkApi.injectEndpoints({
 				const categories = [...new Set(items.map((i) => i.category).filter(Boolean))];
 				const inflow = items.filter((i) => i.amount > 0).reduce((s, i) => s + i.amount, 0);
 				const outflow = items.filter((i) => i.amount < 0).reduce((s, i) => s + Math.abs(i.amount), 0);
+				const totalCount =
+					typeof page.totalElements === "number" ? page.totalElements : items.length;
 				return {
 					data: {
 						items,
@@ -604,7 +627,7 @@ const financeApi = rtkApi.injectEndpoints({
 							total: inflow - outflow,
 							inflow,
 							outflow,
-							count: items.length,
+							count: totalCount,
 						},
 					},
 				};
@@ -749,26 +772,39 @@ const financeApi = rtkApi.injectEndpoints({
 						lastDataDate?: string | null;
 					}[];
 				};
-				return {
-					data: {
-						items: (body.sources ?? []).map((s) => {
-							const code = String(s.code ?? s.name ?? "")
-								.trim()
-								.toUpperCase()
-								.replace(/-/g, "_");
-							const operationCount =
-								typeof s.operationCount === "number" ? s.operationCount : undefined;
-							return {
-								id: code,
-								name: code || String(s.name ?? ""),
-								description: operationCount != null ? String(operationCount) : "",
-								connected: Boolean(s.connected),
-								operationCount,
-								lastDataDate: s.lastDataDate ?? null,
-							};
-						}),
-					},
-				};
+				const rawSources = body.sources ?? [];
+				const items = await Promise.all(
+					rawSources.map(async (s) => {
+						const code = normalizeSourceCode(String(s.code ?? s.name ?? ""));
+						let operationCount =
+							typeof s.operationCount === "number" ? s.operationCount : undefined;
+						const sourceParam = operationsSourceParam(code);
+						if (sourceParam) {
+							const countRes = await baseQuery({
+								url: `/api/companies/${inn}/operations`,
+								params: {
+									source: sourceParam,
+									page: 0,
+									size: 1,
+									sort: "operationDate,DESC",
+								},
+							});
+							if (!countRes.error && countRes.data) {
+								const total = (countRes.data as OperationsPageMeta).totalElements;
+								if (typeof total === "number") operationCount = total;
+							}
+						}
+						return {
+							id: code,
+							name: code || String(s.name ?? ""),
+							description: operationCount != null ? String(operationCount) : "",
+							connected: Boolean(s.connected),
+							operationCount,
+							lastDataDate: s.lastDataDate ?? null,
+						};
+					}),
+				);
+				return { data: { items } };
 			},
 			providesTags: ["Sources"],
 		}),

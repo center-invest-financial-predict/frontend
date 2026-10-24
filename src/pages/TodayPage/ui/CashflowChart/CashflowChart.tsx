@@ -137,7 +137,9 @@ export const CashflowChart: FC<Props> = memo(
 		}
 
 		const todayX = getX(todayIndex);
-		const todayLabelX = Math.min(Math.max(todayX, 28), W - 28);
+		const todayLabelAnchor = todayIndex <= 0 ? "start" : todayIndex >= dayCount - 1 ? "end" : "middle";
+		const todayLabelX =
+			todayIndex <= 0 ? pad.left + 2 : todayIndex >= dayCount - 1 ? W - pad.right - 2 : todayX;
 
 		const axisLabel = (iso: string) =>
 			isHistory
@@ -275,24 +277,26 @@ export const CashflowChart: FC<Props> = memo(
 							strokeLinejoin="round"
 						/>
 
-						{dateTicks.map((item) => (
-							<text
-								key={`${item.label}-${item.i}`}
-								x={getX(item.i)}
-								y={H - 6}
-								textAnchor={item.i === dayCount - 1 ? "end" : "middle"}
-								fontSize={labelFs}
-								fill="var(--color-text-faint)"
-							>
-								{item.label}
-							</text>
-						))}
+						{dateTicks
+							.filter((item) => !(showToday && item.i === todayIndex))
+							.map((item) => (
+								<text
+									key={`${item.label}-${item.i}`}
+									x={getX(item.i)}
+									y={H - 6}
+									textAnchor={item.i === dayCount - 1 ? "end" : "middle"}
+									fontSize={labelFs}
+									fill="var(--color-text-faint)"
+								>
+									{item.label}
+								</text>
+							))}
 
 						{showToday ? (
 							<>
 								<line
 									x1={todayX}
-									y1={pad.top - 6}
+									y1={pad.top}
 									x2={todayX}
 									y2={H - pad.bottom}
 									stroke="var(--color-text-faint)"
@@ -301,8 +305,8 @@ export const CashflowChart: FC<Props> = memo(
 								/>
 								<text
 									x={todayLabelX}
-									y={12}
-									textAnchor="middle"
+									y={H - 6}
+									textAnchor={todayLabelAnchor}
 									fontSize={labelFs}
 									fontWeight="600"
 									fill="var(--color-text)"
