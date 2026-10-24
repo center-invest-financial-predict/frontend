@@ -2,7 +2,17 @@ import { memo, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { useGetTodayDashboardQuery, type TodayDayRowDto } from "@/entities/Finance";
+import {
+	mapTodayDashboard,
+	useGetTodayAlertsQuery,
+	useGetTodayCategoriesQuery,
+	useGetTodayForecastBlockQuery,
+	useGetTodayOverviewQuery,
+	useGetTodayRecommendationsQuery,
+	useGetTodayUpcomingQuery,
+	useGetTodayWeeklyQuery,
+	type TodayDayRowDto,
+} from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
 import { StateBanner } from "@/shared/ui/StateBanner";
@@ -23,14 +33,42 @@ const TodayPage = memo(() => {
 	const locale = i18n.language?.startsWith("en") ? "en-US" : "ru-RU";
 	const navigate = useNavigate();
 	const reduceMotion = useReducedMotion();
-	const { data, isLoading, isError, refetch } = useGetTodayDashboardQuery();
+	const overview = useGetTodayOverviewQuery();
+	const forecast = useGetTodayForecastBlockQuery();
+	const weekly = useGetTodayWeeklyQuery();
+	const categoriesQ = useGetTodayCategoriesQuery();
+	const alertsQ = useGetTodayAlertsQuery();
+	const upcomingQ = useGetTodayUpcomingQuery();
+	const recommendationsQ = useGetTodayRecommendationsQuery();
 	const [mode, setMode] = useState<Mode>("forecast");
 	const [view, setView] = useState<View>("chart");
 	const [aboutOpen, setAboutOpen] = useState(false);
 	const [period, setPeriod] = useState<"day" | "week" | "month">("week");
 	const [dayOpen, setDayOpen] = useState<TodayDayRowDto | null>(null);
 
-	const buckets = data?.periods?.[period] ?? [];
+	const data = useMemo(
+		() =>
+			mapTodayDashboard({
+				dashboard: overview.data,
+				forecast: forecast.data,
+				weeks: weekly.data,
+				categories: categoriesQ.data,
+				alerts: alertsQ.data,
+				upcoming: upcomingQ.data,
+				recommendations: recommendationsQ.data,
+			}),
+		[
+			overview.data,
+			forecast.data,
+			weekly.data,
+			categoriesQ.data,
+			alertsQ.data,
+			upcomingQ.data,
+			recommendationsQ.data,
+		],
+	);
+
+	const buckets = data.periods[period] ?? [];
 	const maxBucket = useMemo(() => {
 		let m = 1;
 		buckets.forEach((b) => {
@@ -39,38 +77,43 @@ const TodayPage = memo(() => {
 		return m;
 	}, [buckets]);
 
-	const maxCat = useMemo(() => Math.max(1, ...(data?.categories.map((c) => c.amount) ?? [1])), [data?.categories]);
-	const maxStrip = useMemo(() => {
-		if (!data?.strip) return 1;
-		return Math.max(data.strip.today, data.strip.min, data.strip.day30, 1);
-	}, [data?.strip]);
-	const maxFlowBar = useMemo(() => {
-		if (!data?.flows) return 1;
-		return Math.max(1, ...data.flows.inflowBars, ...data.flows.outflowBars);
-	}, [data?.flows]);
+	const maxCat = useMemo(() => Math.max(1, ...data.categories.map((c) => c.amount), 1), [data.categories]);
+	const maxStrip = useMemo(
+		() => Math.max(data.strip.today, data.strip.min, data.strip.day30, 1),
+		[data.strip],
+	);
+	const maxFlowBar = useMemo(
+		() => Math.max(1, ...data.flows.inflowBars, ...data.flows.outflowBars, 1),
+		[data.flows],
+	);
 
-	if (isLoading) {
-		return (
-			<Page className={styles["today-page"]}>
-				<StateBanner variant="loading" title={t("states.loading")} />
-			</Page>
-		);
-	}
+	const queries = [overview, forecast, weekly, categoriesQ, alertsQ, upcomingQ, recommendationsQ];
+	const allSettled = queries.every((q) => !q.isLoading);
+	const allFailed = queries.every((q) => q.isError);
+	const refetchAll = () => {
+		queries.forEach((q) => {
+			void q.refetch();
+		});
+	};
 
-	if (isError || !data) {
+	const periodLoading = period === "day" ? forecast.isLoading : weekly.isLoading;
+	const periodError = period === "day" ? forecast.isError : weekly.isError;
+	const periodRefetch = period === "day" ? forecast.refetch : weekly.refetch;
+
+	if (allFailed) {
 		return (
 			<Page className={styles["today-page"]}>
 				<StateBanner
 					variant="error"
 					title={t("states.errorTitle")}
 					actionLabel={t("states.errorRetry")}
-					onAction={() => refetch()}
+					onAction={refetchAll}
 				/>
 			</Page>
 		);
 	}
 
-	if (!data.kpis.length && !data.cashflow.points.length) {
+	if (allSettled && !data.kpis.length && !data.cashflow.points.length) {
 		return (
 			<Page className={styles["today-page"]}>
 				<StateBanner
@@ -88,6 +131,14 @@ const TodayPage = memo(() => {
 		<Page className={styles["today-page"]}>
 			<h1 className={styles["today-page__title"]}>{t("today.title")}</h1>
 
+			{overview.isError ? (
+				<StateBanner
+					variant="error"
+					title={t("states.errorTitle")}
+					actionLabel={t("states.errorRetry")}
+					onAction={() => overview.refetch()}
+				/>
+			) : null}
 			{data.risk ? (
 				<div className={styles["today-page__risk"]}>
 					<div className={styles["today-page__risk-text"]}>
@@ -118,6 +169,7 @@ const TodayPage = memo(() => {
 				</div>
 			) : null}
 
+			{overview.isLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
 			{data.kpis.length > 0 ? <KpiCards items={data.kpis} /> : null}
 
 			<div className={styles["today-page__main"]}>
@@ -168,11 +220,21 @@ const TodayPage = memo(() => {
 
 					{aboutOpen ? <div className={styles["today-page__about"]}>{t("today.aboutText")}</div> : null}
 
-					{view === "chart" ? (
+					{forecast.isLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
+					{forecast.isError ? (
+						<StateBanner
+							variant="error"
+							title={t("states.errorTitle")}
+							actionLabel={t("states.errorRetry")}
+							onAction={() => forecast.refetch()}
+						/>
+					) : null}
+					{!forecast.isLoading && !forecast.isError && view === "chart" ? (
 						<div className={styles["today-page__chart-plot"]}>
 							<CashflowChart series={data.cashflow} showRisk={mode === "forecast"} />
 						</div>
-					) : (
+					) : null}
+					{!forecast.isLoading && !forecast.isError && view === "days" ? (
 						<div className={styles["today-page__days"]}>
 							<div className={styles["today-page__days-head"]}>
 								<span>{t("today.colDate")}</span>
@@ -207,28 +269,32 @@ const TodayPage = memo(() => {
 								</button>
 							))}
 						</div>
-					)}
+					) : null}
 
-					<div className={styles["today-page__strip"]}>
-						{(
-							[
-								["today.stripToday", data.strip.today],
-								["today.stripMin", data.strip.min],
-								["today.strip30", data.strip.day30],
-							] as const
-						).map(([label, value]) => {
-							const w = toWidthLevel(value / maxStrip);
-							return (
-								<div key={label} className={styles["today-page__strip-item"]}>
-									<span className={styles["today-page__strip-label"]}>{t(label)}</span>
-									<span className={styles["today-page__strip-value"]}>{formatMoneyAbs(value, locale)}</span>
-									<div className={styles["today-page__strip-bar"]}>
-										<div className={cn(styles["today-page__strip-fill"], styles[`today-page__strip-fill--${w}`])} />
+					{overview.data || forecast.data ? (
+						<div className={styles["today-page__strip"]}>
+							{(
+								[
+									["today.stripToday", data.strip.today],
+									["today.stripMin", data.strip.min],
+									["today.strip30", data.strip.day30],
+								] as const
+							).map(([label, value]) => {
+								const w = toWidthLevel(value / maxStrip);
+								return (
+									<div key={label} className={styles["today-page__strip-item"]}>
+										<span className={styles["today-page__strip-label"]}>{t(label)}</span>
+										<span className={styles["today-page__strip-value"]}>{formatMoneyAbs(value, locale)}</span>
+										<div className={styles["today-page__strip-bar"]}>
+											<div
+												className={cn(styles["today-page__strip-fill"], styles[`today-page__strip-fill--${w}`])}
+											/>
+										</div>
 									</div>
-								</div>
-							);
-						})}
-					</div>
+								);
+							})}
+						</div>
+					) : null}
 				</Card>
 
 				<div className={styles["today-page__side"]}>
@@ -239,35 +305,55 @@ const TodayPage = memo(() => {
 								{t("today.allVariants")}
 							</button>
 						</div>
-						{data.actions.map((a) => (
-							<div key={a.id} className={styles["today-page__action"]}>
-								<span className={styles["today-page__action-title"]}>{a.title}</span>
-								<span className={styles["today-page__action-concl"]}>{a.conclusion}</span>
-								<div className={styles["today-page__action-pills"]}>
-									{a.comparable ? (
-										<button
-											type="button"
-											className={styles["today-page__action-pill--primary"]}
-											onClick={() => navigate(getRouteForecast())}
-										>
-											{t("today.compareScens")}
-										</button>
-									) : null}
-									<button
-										type="button"
-										className={styles["today-page__action-pill"]}
-										onClick={() => navigate(getRouteAssistant())}
-									>
-										{t("today.askAssist")}
-									</button>
-								</div>
-							</div>
-						))}
+						{recommendationsQ.isLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
+						{recommendationsQ.isError ? (
+							<StateBanner
+								variant="error"
+								title={t("states.errorTitle")}
+								actionLabel={t("states.errorRetry")}
+								onAction={() => recommendationsQ.refetch()}
+							/>
+						) : null}
+						{!recommendationsQ.isLoading && !recommendationsQ.isError
+							? data.actions.map((a) => (
+									<div key={a.id} className={styles["today-page__action"]}>
+										<span className={styles["today-page__action-title"]}>{a.title}</span>
+										<span className={styles["today-page__action-concl"]}>{a.conclusion}</span>
+										<div className={styles["today-page__action-pills"]}>
+											{a.comparable ? (
+												<button
+													type="button"
+													className={styles["today-page__action-pill--primary"]}
+													onClick={() => navigate(getRouteForecast())}
+												>
+													{t("today.compareScens")}
+												</button>
+											) : null}
+											<button
+												type="button"
+												className={styles["today-page__action-pill"]}
+												onClick={() => navigate(getRouteAssistant())}
+											>
+												{t("today.askAssist")}
+											</button>
+										</div>
+									</div>
+								))
+							: null}
 					</Card>
 				</div>
 			</div>
 
-			{data.alerts.length > 0 ? (
+			{alertsQ.isLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
+			{alertsQ.isError ? (
+				<StateBanner
+					variant="error"
+					title={t("states.errorTitle")}
+					actionLabel={t("states.errorRetry")}
+					onAction={() => alertsQ.refetch()}
+				/>
+			) : null}
+			{!alertsQ.isLoading && !alertsQ.isError && data.alerts.length > 0 ? (
 				<div className={styles["today-page__alerts"]}>
 					{data.alerts.map((a) => (
 						<button
@@ -313,124 +399,177 @@ const TodayPage = memo(() => {
 							))}
 						</div>
 					</div>
-					<div className={styles["today-page__week-chart"]}>
-						<span className={styles["today-page__peak"]}>{t("today.peak")}</span>
-						{buckets.map((w) => (
-							<button key={w.id} type="button" className={styles["today-page__week"]}>
-								<div className={styles["today-page__week-bars"]}>
-									<div className={styles["today-page__week-col"]}>
-										<span>{Math.round(w.inflow / 1000)}</span>
-										<div
-											className={cn(
-												styles["today-page__week-bar"],
-												styles["today-page__week-bar--in"],
-												styles[`today-page__week-bar--${toHeightLevel(w.inflow / maxBucket)}`],
-											)}
-										/>
-									</div>
-									<div className={styles["today-page__week-col"]}>
-										<span>{Math.round(w.outflow / 1000)}</span>
-										<div
-											className={cn(
-												styles["today-page__week-bar"],
-												styles["today-page__week-bar--out"],
-												styles[`today-page__week-bar--${toHeightLevel(w.outflow / maxBucket)}`],
-											)}
-										/>
-									</div>
-								</div>
-								<span className={styles["today-page__week-label"]}>{w.label}</span>
-							</button>
-						))}
-					</div>
-					<div className={styles["today-page__week-legend"]}>
-						<span>
-							<span className={cn(styles["today-page__swatch"], styles["today-page__swatch--in"])} />
-							{t("today.came")}
-						</span>
-						<span>
-							<span className={cn(styles["today-page__swatch"], styles["today-page__swatch--out"])} />
-							{t("today.went")}
-						</span>
-					</div>
+					{periodLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
+					{periodError ? (
+						<StateBanner
+							variant="error"
+							title={t("states.errorTitle")}
+							actionLabel={t("states.errorRetry")}
+							onAction={() => periodRefetch()}
+						/>
+					) : null}
+					{!periodLoading && !periodError ? (
+						<>
+							<div className={styles["today-page__week-chart"]}>
+								<span className={styles["today-page__peak"]}>{t("today.peak")}</span>
+								{buckets.map((w) => (
+									<button key={w.id} type="button" className={styles["today-page__week"]}>
+										<div className={styles["today-page__week-bars"]}>
+											<div className={styles["today-page__week-col"]}>
+												<span>{Math.round(w.inflow / 1000)}</span>
+												<div
+													className={cn(
+														styles["today-page__week-bar"],
+														styles["today-page__week-bar--in"],
+														styles[`today-page__week-bar--${toHeightLevel(w.inflow / maxBucket)}`],
+													)}
+												/>
+											</div>
+											<div className={styles["today-page__week-col"]}>
+												<span>{Math.round(w.outflow / 1000)}</span>
+												<div
+													className={cn(
+														styles["today-page__week-bar"],
+														styles["today-page__week-bar--out"],
+														styles[`today-page__week-bar--${toHeightLevel(w.outflow / maxBucket)}`],
+													)}
+												/>
+											</div>
+										</div>
+										<span className={styles["today-page__week-label"]}>{w.label}</span>
+									</button>
+								))}
+							</div>
+							<div className={styles["today-page__week-legend"]}>
+								<span>
+									<span className={cn(styles["today-page__swatch"], styles["today-page__swatch--in"])} />
+									{t("today.came")}
+								</span>
+								<span>
+									<span className={cn(styles["today-page__swatch"], styles["today-page__swatch--out"])} />
+									{t("today.went")}
+								</span>
+							</div>
+						</>
+					) : null}
 				</Card>
 
 				<Card className={styles["today-page__cats"]}>
 					<div className={styles["today-page__chart-title"]}>{t("today.whereMoney")}</div>
-					{data.categories.map((c) => (
-						<div key={c.id} className={styles["today-page__cat"]}>
-							<div className={styles["today-page__cat-row"]}>
-								<span>{c.name}</span>
-								<span>{formatMoneyAbs(c.amount, locale)}</span>
-							</div>
-							<div className={styles["today-page__cat-track"]}>
-								<div
-									className={cn(
-										styles["today-page__cat-fill"],
-										styles[`today-page__cat-fill--${toWidthLevel(c.amount / maxCat)}`],
-									)}
-								/>
-							</div>
-						</div>
-					))}
+					{categoriesQ.isLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
+					{categoriesQ.isError ? (
+						<StateBanner
+							variant="error"
+							title={t("states.errorTitle")}
+							actionLabel={t("states.errorRetry")}
+							onAction={() => categoriesQ.refetch()}
+						/>
+					) : null}
+					{!categoriesQ.isLoading && !categoriesQ.isError
+						? data.categories.map((c) => (
+								<div key={c.id} className={styles["today-page__cat"]}>
+									<div className={styles["today-page__cat-row"]}>
+										<span>{c.name}</span>
+										<span>{formatMoneyAbs(c.amount, locale)}</span>
+									</div>
+									<div className={styles["today-page__cat-track"]}>
+										<div
+											className={cn(
+												styles["today-page__cat-fill"],
+												styles[`today-page__cat-fill--${toWidthLevel(c.amount / maxCat)}`],
+											)}
+										/>
+									</div>
+								</div>
+							))
+						: null}
 				</Card>
 
 				<Card className={styles["today-page__pays"]}>
 					<div className={styles["today-page__chart-title"]}>{t("today.upcomingTitle")}</div>
-					{data.upcoming.map((p) => (
-						<div key={p.id} className={styles["today-page__pay"]}>
-							<div className={styles["today-page__pay-date"]}>
-								<span>{dayOfMonth(p.date)}</span>
-								<span>{formatMonthShort(p.date, locale)}</span>
-							</div>
-							<span className={styles["today-page__pay-name"]}>{p.name}</span>
-							<span className={styles["today-page__pay-amt"]}>{formatMoneyAbs(p.amount, locale)}</span>
-						</div>
-					))}
+					{upcomingQ.isLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
+					{upcomingQ.isError ? (
+						<StateBanner
+							variant="error"
+							title={t("states.errorTitle")}
+							actionLabel={t("states.errorRetry")}
+							onAction={() => upcomingQ.refetch()}
+						/>
+					) : null}
+					{!upcomingQ.isLoading && !upcomingQ.isError
+						? data.upcoming.map((p) => (
+								<div key={p.id} className={styles["today-page__pay"]}>
+									<div className={styles["today-page__pay-date"]}>
+										<span>{dayOfMonth(p.date)}</span>
+										<span>{formatMonthShort(p.date, locale)}</span>
+									</div>
+									<span className={styles["today-page__pay-name"]}>{p.name}</span>
+									<span className={styles["today-page__pay-amt"]}>{formatMoneyAbs(p.amount, locale)}</span>
+								</div>
+							))
+						: null}
 				</Card>
 
 				<Card className={styles["today-page__flows"]}>
 					<div className={styles["today-page__chart-title"]}>{t("today.flows")}</div>
-					<div className={styles["today-page__flow"]}>
-						<div className={styles["today-page__flow-row"]}>
-							<span>{t("today.in30")}</span>
-							<span className={cn(styles["today-page__flow-value"], styles["today-page__flow-value--in"])}>
-								{formatMoneyAbs(data.flows.inflow30, locale)}
-							</span>
-						</div>
-						<div className={styles["today-page__flow-bars"]}>
-							{data.flows.inflowBars.map((h, i) => (
-								<div
-									key={`in-${i}`}
-									className={cn(
-										styles["today-page__flow-bar"],
-										styles["today-page__flow-bar--in"],
-										styles[`today-page__flow-bar--${toHeightLevel(h / maxFlowBar)}`],
-									)}
-								/>
-							))}
-						</div>
-					</div>
-					<div className={styles["today-page__flow"]}>
-						<div className={styles["today-page__flow-row"]}>
-							<span>{t("today.out30")}</span>
-							<span className={styles["today-page__flow-value"]}>
-								{formatMoneyAbs(data.flows.outflow30, locale)}
-							</span>
-						</div>
-						<div className={styles["today-page__flow-bars"]}>
-							{data.flows.outflowBars.map((h, i) => (
-								<div
-									key={`out-${i}`}
-									className={cn(
-										styles["today-page__flow-bar"],
-										styles["today-page__flow-bar--out"],
-										styles[`today-page__flow-bar--${toHeightLevel(h / maxFlowBar)}`],
-									)}
-								/>
-							))}
-						</div>
-					</div>
+					{(weekly.isLoading || forecast.isLoading) && !weekly.data && !forecast.data ? (
+						<StateBanner variant="loading" title={t("states.loading")} />
+					) : null}
+					{weekly.isError && forecast.isError ? (
+						<StateBanner
+							variant="error"
+							title={t("states.errorTitle")}
+							actionLabel={t("states.errorRetry")}
+							onAction={() => {
+								void weekly.refetch();
+								void forecast.refetch();
+							}}
+						/>
+					) : null}
+					{weekly.data || forecast.data ? (
+						<>
+							<div className={styles["today-page__flow"]}>
+								<div className={styles["today-page__flow-row"]}>
+									<span>{t("today.in30")}</span>
+									<span className={cn(styles["today-page__flow-value"], styles["today-page__flow-value--in"])}>
+										{formatMoneyAbs(data.flows.inflow30, locale)}
+									</span>
+								</div>
+								<div className={styles["today-page__flow-bars"]}>
+									{data.flows.inflowBars.map((h, i) => (
+										<div
+											key={`in-${i}`}
+											className={cn(
+												styles["today-page__flow-bar"],
+												styles["today-page__flow-bar--in"],
+												styles[`today-page__flow-bar--${toHeightLevel(h / maxFlowBar)}`],
+											)}
+										/>
+									))}
+								</div>
+							</div>
+							<div className={styles["today-page__flow"]}>
+								<div className={styles["today-page__flow-row"]}>
+									<span>{t("today.out30")}</span>
+									<span className={styles["today-page__flow-value"]}>
+										{formatMoneyAbs(data.flows.outflow30, locale)}
+									</span>
+								</div>
+								<div className={styles["today-page__flow-bars"]}>
+									{data.flows.outflowBars.map((h, i) => (
+										<div
+											key={`out-${i}`}
+											className={cn(
+												styles["today-page__flow-bar"],
+												styles["today-page__flow-bar--out"],
+												styles[`today-page__flow-bar--${toHeightLevel(h / maxFlowBar)}`],
+											)}
+										/>
+									))}
+								</div>
+							</div>
+						</>
+					) : null}
 				</Card>
 			</div>
 

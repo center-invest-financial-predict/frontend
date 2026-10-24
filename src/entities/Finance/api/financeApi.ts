@@ -1,7 +1,15 @@
 import type { FetchBaseQueryError } from "@reduxjs/toolkit/query";
 import { rtkApi } from "@/shared/api/rtkApi";
 import { getActiveInn } from "@/shared/lib/companyInn";
-import { mapTodayDashboard } from "./mapTodayDashboard";
+import type {
+	AlertDto,
+	CategoryBucket,
+	CashEventDto,
+	DashboardResponse,
+	ForecastSeriesResponse,
+	RecommendationDto,
+	WeekBucket,
+} from "./mapTodayDashboard";
 import type {
 	CalendarDto,
 	CreateEventArgs,
@@ -17,7 +25,6 @@ import type {
 	SavedScenarioDto,
 	SourcesDto,
 	StrategiesDto,
-	TodayDashboardDto,
 	UpdateStrategiesArgs,
 } from "../model/types";
 
@@ -31,42 +38,84 @@ const asError = (result: { error?: FetchBaseQueryError }): FetchBaseQueryError =
 
 const financeApi = rtkApi.injectEndpoints({
 	endpoints: (build) => ({
-		getTodayDashboard: build.query<TodayDashboardDto, void>({
+		getTodayOverview: build.query<DashboardResponse, void>({
 			async queryFn(_arg, _api, _extra, baseQuery) {
 				const inn = getActiveInn();
 				if (!inn) return { error: noInnError() };
+				const result = await baseQuery(`/api/companies/${inn}/dashboard`);
+				if (result.error) return { error: asError(result) };
+				return { data: (result.data as DashboardResponse) ?? {} };
+			},
+			providesTags: ["Today"],
+		}),
 
-				const [dashboard, forecast, weekly, categories, alerts, upcoming, recommendations] =
-					await Promise.all([
-						baseQuery(`/api/companies/${inn}/dashboard`),
-						baseQuery({ url: `/api/companies/${inn}/forecast`, params: { horizonDays: 30 } }),
-						baseQuery(`/api/companies/${inn}/cashflow/weekly`),
-						baseQuery(`/api/companies/${inn}/cashflow/by-category`),
-						baseQuery(`/api/companies/${inn}/alerts`),
-						baseQuery(`/api/companies/${inn}/payments/upcoming`),
-						baseQuery(`/api/companies/${inn}/recommendations`),
-					]);
+		getTodayForecastBlock: build.query<ForecastSeriesResponse, void>({
+			async queryFn(_arg, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
+				const result = await baseQuery({
+					url: `/api/companies/${inn}/forecast`,
+					params: { horizonDays: 30 },
+				});
+				if (result.error) return { error: asError(result) };
+				return { data: (result.data as ForecastSeriesResponse) ?? { points: [] } };
+			},
+			providesTags: ["Today"],
+		}),
 
-				for (const part of [dashboard, forecast, weekly, categories, alerts, upcoming, recommendations]) {
-					if (part.error) return { error: asError(part) };
-				}
+		getTodayWeekly: build.query<WeekBucket[], void>({
+			async queryFn(_arg, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
+				const result = await baseQuery(`/api/companies/${inn}/cashflow/weekly`);
+				if (result.error) return { error: asError(result) };
+				return { data: ((result.data as { weeks?: WeekBucket[] })?.weeks ?? []) };
+			},
+			providesTags: ["Today"],
+		}),
 
+		getTodayCategories: build.query<CategoryBucket[], void>({
+			async queryFn(_arg, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
+				const result = await baseQuery(`/api/companies/${inn}/cashflow/by-category`);
+				if (result.error) return { error: asError(result) };
 				return {
-					data: mapTodayDashboard({
-						dashboard: dashboard.data as Parameters<typeof mapTodayDashboard>[0]["dashboard"],
-						forecast: forecast.data as Parameters<typeof mapTodayDashboard>[0]["forecast"],
-						weeks: ((weekly.data as { weeks?: unknown[] })?.weeks ?? []) as Parameters<
-							typeof mapTodayDashboard
-						>[0]["weeks"],
-						categories: ((categories.data as { categories?: unknown[] })?.categories ??
-							[]) as Parameters<typeof mapTodayDashboard>[0]["categories"],
-						alerts: (alerts.data as Parameters<typeof mapTodayDashboard>[0]["alerts"]) ?? [],
-						upcoming: (upcoming.data as Parameters<typeof mapTodayDashboard>[0]["upcoming"]) ?? [],
-						recommendations:
-							(recommendations.data as Parameters<typeof mapTodayDashboard>[0]["recommendations"]) ??
-							[],
-					}),
+					data: ((result.data as { categories?: CategoryBucket[] })?.categories ?? []),
 				};
+			},
+			providesTags: ["Today"],
+		}),
+
+		getTodayAlerts: build.query<AlertDto[], void>({
+			async queryFn(_arg, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
+				const result = await baseQuery(`/api/companies/${inn}/alerts`);
+				if (result.error) return { error: asError(result) };
+				return { data: (result.data as AlertDto[]) ?? [] };
+			},
+			providesTags: ["Today"],
+		}),
+
+		getTodayUpcoming: build.query<CashEventDto[], void>({
+			async queryFn(_arg, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
+				const result = await baseQuery(`/api/companies/${inn}/payments/upcoming`);
+				if (result.error) return { error: asError(result) };
+				return { data: (result.data as CashEventDto[]) ?? [] };
+			},
+			providesTags: ["Today"],
+		}),
+
+		getTodayRecommendations: build.query<RecommendationDto[], void>({
+			async queryFn(_arg, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
+				const result = await baseQuery(`/api/companies/${inn}/recommendations`);
+				if (result.error) return { error: asError(result) };
+				return { data: (result.data as RecommendationDto[]) ?? [] };
 			},
 			providesTags: ["Today"],
 		}),
@@ -670,7 +719,13 @@ const financeApi = rtkApi.injectEndpoints({
 });
 
 export const {
-	useGetTodayDashboardQuery,
+	useGetTodayOverviewQuery,
+	useGetTodayForecastBlockQuery,
+	useGetTodayWeeklyQuery,
+	useGetTodayCategoriesQuery,
+	useGetTodayAlertsQuery,
+	useGetTodayUpcomingQuery,
+	useGetTodayRecommendationsQuery,
 	useGetForecastQuery,
 	useGetSavedScenariosQuery,
 	useGetMyScenariosQuery,

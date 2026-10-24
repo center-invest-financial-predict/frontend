@@ -1,6 +1,6 @@
 import type { TodayDashboardDto } from "../model/types";
 
-type DashboardResponse = {
+export type DashboardResponse = {
 	currentBalance?: number;
 	balanceChange7d?: number;
 	balanceSparkline?: number[];
@@ -16,7 +16,7 @@ type DashboardResponse = {
 	calculatedAt?: string;
 };
 
-type DayPoint = {
+export type DayPoint = {
 	date: string;
 	baseBalance?: number;
 	negativeBalance?: number;
@@ -26,23 +26,23 @@ type DayPoint = {
 	expense?: number;
 };
 
-type ForecastSeriesResponse = {
+export type ForecastSeriesResponse = {
 	points?: DayPoint[];
 };
 
-type WeekBucket = {
+export type WeekBucket = {
 	weekStart: string;
 	weekEnd: string;
 	income: number;
 	expense: number;
 };
 
-type CategoryBucket = {
+export type CategoryBucket = {
 	category: string;
 	amount: number;
 };
 
-type AlertDto = {
+export type AlertDto = {
 	id: string;
 	title: string;
 	description?: string;
@@ -50,7 +50,7 @@ type AlertDto = {
 	date?: string;
 };
 
-type CashEventDto = {
+export type CashEventDto = {
 	id?: number | null;
 	title?: string;
 	amount?: number;
@@ -58,7 +58,7 @@ type CashEventDto = {
 	direction?: string;
 };
 
-type RecommendationDto = {
+export type RecommendationDto = {
 	id: string;
 	title: string;
 	description?: string;
@@ -71,17 +71,42 @@ const severityTone = (severity?: string): "danger" | "warning" | "ok" | "muted" 
 	return "muted";
 };
 
+const emptyDashboard = (): TodayDashboardDto => ({
+	risk: null,
+	kpis: [],
+	cashflow: { points: [], gap: null, todayIndex: 0 },
+	days: [],
+	periods: { day: [], week: [], month: [] },
+	categories: [],
+	upcoming: [],
+	alerts: [],
+	actions: [],
+	strip: { today: 0, min: 0, day30: 0 },
+	flows: { inflow30: 0, outflow30: 0, inflowBars: [], outflowBars: [] },
+});
+
 export const mapTodayDashboard = (args: {
-	dashboard: DashboardResponse;
-	forecast: ForecastSeriesResponse;
-	weeks: WeekBucket[];
-	categories: CategoryBucket[];
-	alerts: AlertDto[];
-	upcoming: CashEventDto[];
-	recommendations: RecommendationDto[];
+	dashboard?: DashboardResponse | null;
+	forecast?: ForecastSeriesResponse | null;
+	weeks?: WeekBucket[] | null;
+	categories?: CategoryBucket[] | null;
+	alerts?: AlertDto[] | null;
+	upcoming?: CashEventDto[] | null;
+	recommendations?: RecommendationDto[] | null;
 }): TodayDashboardDto => {
-	const { dashboard: d, forecast, weeks, categories, alerts, upcoming, recommendations } = args;
-	const points = (forecast.points ?? []).map((p) => ({
+	const d = args.dashboard;
+	const forecast = args.forecast;
+	const weeks = args.weeks ?? [];
+	const categories = args.categories ?? [];
+	const alerts = args.alerts ?? [];
+	const upcoming = args.upcoming ?? [];
+	const recommendations = args.recommendations ?? [];
+
+	if (!d && !forecast && !weeks.length && !categories.length && !alerts.length && !upcoming.length && !recommendations.length) {
+		return emptyDashboard();
+	}
+
+	const points = (forecast?.points ?? []).map((p) => ({
 		date: p.date,
 		balance: p.baseBalance ?? 0,
 		pessimisticBalance: p.negativeBalance ?? null,
@@ -89,8 +114,8 @@ export const mapTodayDashboard = (args: {
 		upperBound: p.confidenceHigh ?? null,
 	}));
 
-	const gapAmount = d.gapAmount ?? 0;
-	const gapDate = d.gapDate ?? "";
+	const gapAmount = d?.gapAmount ?? 0;
+	const gapDate = d?.gapDate ?? "";
 
 	const weekBuckets = weeks.map((w, i) => ({
 		id: `w${i}`,
@@ -99,7 +124,7 @@ export const mapTodayDashboard = (args: {
 		outflow: w.expense,
 	}));
 
-	const dayRows = (forecast.points ?? []).slice(0, 14).map((p, i) => ({
+	const dayRows = (forecast?.points ?? []).slice(0, 14).map((p, i) => ({
 		id: `d${i}`,
 		date: p.date,
 		inflow: p.income ?? 0,
@@ -111,35 +136,45 @@ export const mapTodayDashboard = (args: {
 		events: [] as { id: string; name: string; amount: number; source: string }[],
 	}));
 
-	const inflow30 = (forecast.points ?? []).reduce((s, p) => s + (p.income ?? 0), 0);
-	const outflow30 = (forecast.points ?? []).reduce((s, p) => s + (p.expense ?? 0), 0);
+	const inflow30 = (forecast?.points ?? []).reduce((s, p) => s + (p.income ?? 0), 0);
+	const outflow30 = (forecast?.points ?? []).reduce((s, p) => s + (p.expense ?? 0), 0);
+
+	const kpis = d
+		? [
+				{
+					id: "balance" as const,
+					value: d.currentBalance ?? 0,
+					trendValue: d.balanceChange7d ?? null,
+					sparkline: d.balanceSparkline,
+				},
+				{
+					id: "min30" as const,
+					value: d.minBalance30d ?? 0,
+					trendValue: null,
+				},
+				{
+					id: "in30" as const,
+					value: inflow30 || (d.weeklyIncome ?? 0) * 4,
+				},
+				{
+					id: "out30" as const,
+					value: outflow30 || (d.weeklyExpense ?? 0) * 4,
+				},
+			]
+		: [];
 
 	return {
-		risk: gapDate
+		risk: d && gapDate
 			? {
 					amount: -Math.abs(gapAmount),
 					date: gapDate,
 					subtitle: d.calculatedAt ? `Расчёт от ${d.calculatedAt}` : "",
 				}
 			: null,
-		kpis: [
-			{
-				id: "balance",
-				value: d.currentBalance ?? 0,
-				trendValue: d.balanceChange7d ?? null,
-				sparkline: d.balanceSparkline,
-			},
-			{
-				id: "min30",
-				value: d.minBalance30d ?? 0,
-				trendValue: null,
-			},
-			{ id: "in30", value: inflow30 || (d.weeklyIncome ?? 0) * 4 },
-			{ id: "out30", value: outflow30 || (d.weeklyExpense ?? 0) * 4 },
-		],
+		kpis,
 		cashflow: {
 			points,
-			gap: gapDate ? { date: gapDate, balance: -Math.abs(gapAmount) } : null,
+			gap: d && gapDate ? { date: gapDate, balance: -Math.abs(gapAmount) } : null,
 			todayIndex: 0,
 		},
 		days: dayRows,
@@ -177,13 +212,13 @@ export const mapTodayDashboard = (args: {
 			comparable: true,
 		})),
 		strip: {
-			today: d.currentBalance ?? 0,
-			min: d.minBalance30d ?? 0,
-			day30: points[points.length - 1]?.balance ?? d.currentBalance ?? 0,
+			today: d?.currentBalance ?? 0,
+			min: d?.minBalance30d ?? 0,
+			day30: points[points.length - 1]?.balance ?? d?.currentBalance ?? 0,
 		},
 		flows: {
-			inflow30: inflow30 || (d.weeklyIncome ?? 0) * 4,
-			outflow30: outflow30 || (d.weeklyExpense ?? 0) * 4,
+			inflow30: inflow30 || (d?.weeklyIncome ?? 0) * 4,
+			outflow30: outflow30 || (d?.weeklyExpense ?? 0) * 4,
 			inflowBars: weeks.map((w) => w.income),
 			outflowBars: weeks.map((w) => w.expense),
 		},

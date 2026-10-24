@@ -2,7 +2,7 @@ import { FC, memo, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Home, TrendingUp, FileText, Plus, AlignLeft, Database, MessageSquarePlus, LucideIcon } from "lucide-react";
-import { CompanyDto, useListCompaniesQuery, useUserActions } from "@/entities/User";
+import { useListCompaniesQuery, useUserActions } from "@/entities/User";
 import {
 	getRouteAdd,
 	getRouteAssistant,
@@ -17,8 +17,7 @@ import {
 	getRouteToday,
 } from "@/shared/consts/router";
 import { cn } from "@/shared/lib/classNames/classNames";
-import { useAppDispatch, useAppSelector } from "@/shared/lib/hooks";
-import { rtkApi } from "@/shared/api/rtkApi";
+import { useAppSelector } from "@/shared/lib/hooks";
 import {
 	ASSISTANT_CHATS_EVENT,
 	getActiveAssistantChatId,
@@ -74,28 +73,15 @@ const WORK_LINKS: WorkLink[] = [
 	},
 ];
 
-const COMPANY_TAGS = [
-	"Today",
-	"Forecast",
-	"Scenarios",
-	"PlanFact",
-	"Operations",
-	"Events",
-	"Sources",
-	"Strategies",
-] as const;
-
 export const Sidebar: FC = memo(() => {
 	const { t } = useTranslation();
 	const location = useLocation();
 	const navigate = useNavigate();
-	const dispatch = useAppDispatch();
 	const [searchParams] = useSearchParams();
 	const profile = useAppSelector((state) => state.user.profile);
 	const { setProfile } = useUserActions();
 	const { data: companies = [] } = useListCompaniesQuery();
 	const currentPath = location.pathname;
-	const [bizOpen, setBizOpen] = useState(false);
 	const [workOpen, setWorkOpen] = useState(true);
 	const [assistSectionOpen, setAssistSection] = useState(true);
 	const [chats, setChats] = useState<AssistantThread[]>([]);
@@ -117,25 +103,6 @@ export const Sidebar: FC = memo(() => {
 			},
 		});
 	}, [companies, profile, setProfile]);
-
-	const selectCompany = (company: CompanyDto) => {
-		if (company.inn === activeInn) {
-			setBizOpen(false);
-			return;
-		}
-		setProfile({
-			...profile,
-			business: {
-				inn: company.inn,
-				name: company.name || company.inn,
-				form: company.legalForm || "",
-				tax: "",
-				city: "",
-			},
-		});
-		dispatch(rtkApi.util.invalidateTags([...COMPANY_TAGS]));
-		setBizOpen(false);
-	};
 
 	const refreshChats = useCallback(() => {
 		setChats(listAssistantHistory());
@@ -167,34 +134,11 @@ export const Sidebar: FC = memo(() => {
 	return (
 		<aside className={styles.sidebar}>
 			<div className={styles["sidebar__company-wrap"]}>
-				<button
-					type="button"
-					className={styles.sidebar__company}
-					onClick={() => setBizOpen((v) => !v)}
-					aria-expanded={bizOpen}
-					disabled={!companies.length && !activeInn}
-				>
+				<div className={styles.sidebar__company}>
 					<span className={styles["sidebar__company-name"]}>
 						{activeInn ? t("company.innLabel", { inn: activeInn }) : t("company.innEmpty")}
 					</span>
-				</button>
-				{bizOpen ? (
-					<div className={styles["sidebar__biz-list"]}>
-						{companies.map((company) => (
-							<button
-								key={company.inn}
-								type="button"
-								className={cn(
-									styles["sidebar__biz-item"],
-									company.inn === activeInn && styles["sidebar__biz-item--active"],
-								)}
-								onClick={() => selectCompany(company)}
-							>
-								{t("company.innLabel", { inn: company.inn })}
-							</button>
-						))}
-					</div>
-				) : null}
+				</div>
 			</div>
 
 			<nav className={styles.sidebar__nav}>
