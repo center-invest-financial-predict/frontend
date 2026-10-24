@@ -1,0 +1,83 @@
+.cashflow-chart {
+	display: flex;
+	flex-direction: column;
+
+	&__top {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+		margin-bottom: 14px;
+	}
+
+	&__title {
+		color: var(--color-text);
+		font-size: var(--font-size-xl);
+		font-weight: 700;
+		letter-spacing: -0.3px;
+	}
+
+	&__sub {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: var(--space-5);
+	}
+
+	&__link {
+		color: var(--color-primary-text);
+		font-size: var(--font-size-md);
+		font-weight: 500;
+		text-decoration: underline;
+		cursor: pointer;
+
+		&:hover {
+			color: #166534;
+		}
+	}
+
+	&__canvas {
+		position: relative;
+		width: 100%;
+		height: 220px;
+	}
+
+	&__svg {
+		overflow: visible;
+	}
+
+	&__metrics {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: var(--space-4);
+		margin-top: var(--space-4);
+		padding-top: 14px;
+		border-top: 1px solid #f3f4f6;
+	}
+
+	&__metric {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	&__metric-label {
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+	}
+
+	&__metric-value {
+		color: var(--color-text);
+		font-size: var(--font-size-xl);
+		font-weight: 700;
+	}
+
+	&__metric-line {
+		width: 100%;
+		height: 3px;
+		margin-top: 3px;
+		border-radius: 2px;
+		background: var(--color-accent);
+	}
+}

@@ -1,0 +1,12 @@
+.today-page {
+	&__grid {
+		display: grid;
+		grid-template-columns: 1fr 360px;
+		gap: var(--space-4);
+		margin-top: var(--space-1);
+
+		@media (max-width: 1080px) {
+			grid-template-columns: 1fr;
+		}
+	}
+}

@@ -1,13 +1,11 @@
 import { FC } from "react";
 import { Loader } from "@/shared/ui/Loader";
-import { SPageLoader } from "./PageLoader.style";
+import styles from "./PageLoader.module.scss";
 
-interface Props {}
-
-export const PageLoader: FC<Props> = () => {
+export const PageLoader: FC = () => {
 	return (
-		<SPageLoader>
+		<div className={styles["page-loader"]}>
 			<Loader />
-		</SPageLoader>
+		</div>
 	);
 };

@@ -1,0 +1,45 @@
+---
+description: BEM + CSS Modules / SCSS — нейминг, вложенность, единицы, шрифты
+globs: "**/*.{scss,css,module.scss,module.css}"
+alwaysApply: false
+---
+
+# BEM + CSS Modules (SCSS)
+
+Схема: block, block__element, block--modifier, block__element--modifier.
+
+## Обязательно
+
+- Только `.module.scss` (не `.css`), вложенность от родителя через `&`.
+- Один блок на файл; имя блока = компонент в kebab-case (UserCard → `.user-card`).
+- Элемент без блока запрещён; нет элементов элементов (`__a__b`).
+- Цвета, отступы, радиусы, шрифты — из токенов (`var(--…)`); не выдумывать «на глаз».
+- Высота вьюпорта: `dvh` или `%` по цепочке родителей. **Запрещён `vh`.**
+- **Запрещён `calc()`** — решать через flex/grid/`%`/`dvh`.
+- Шрифты: файлы в `src/shared/assets/fonts/`, подключение через `@font-face` там же. В токенах только короткое имя (`--font-family: "Inter", sans-serif`), без длинного стека fallback.
+- Без `!important` (кроме сброса сторонней либы) и без «магических» z-index.
+- Порядок свойств: position → box → flex/grid → размеры → отступы → типографика → визуал.
+
+```scss
+// ❌ BAD — плоский список, vh, calc
+.app { height: 100vh; }
+.app__main { height: calc(100vh - 60px); }
+
+// ✅ GOOD — вложенность от блока, dvh / %
+.app {
+  height: 100%;
+
+  &__main {
+    flex: 1;
+    min-height: 0;
+  }
+
+  &__content {
+    overflow-y: auto;
+  }
+
+  @media (max-width: 860px) {
+    &__aside { display: none; }
+  }
+}
+```

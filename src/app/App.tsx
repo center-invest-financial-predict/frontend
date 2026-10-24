@@ -1,32 +1,24 @@
-import { Suspense, useEffect } from "react";
+import { Suspense } from "react";
 import { AppRouter } from "./providers/router";
 import { PageLoader } from "@/widgets/PageLoader";
-import { GlobalStyles } from "./styles/globalStyles";
-import { useGetMeQuery } from "@/entities/User/api/userApi";
-import { useUserActions } from "@/entities/User";
+import { Sidebar } from "@/widgets/Sidebar";
+import { Header } from "@/widgets/Header";
+import { CashAssistantBar } from "@/widgets/CashAssistantBar";
+import styles from "./App.module.scss";
 
 const App = () => {
-	const { data: user, isLoading } = useGetMeQuery(undefined);
-	const { setAuthData } = useUserActions();
-
-	useEffect(() => {
-		if (user) setAuthData(user);
-	}, [user]);
-
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	return (
-		<div>
-			<GlobalStyles />
-			<Suspense fallback={<PageLoader />}>
-				{/* <Navbar /> */}
-				<div className="content-page">
-					{/* <Sidebar /> */}
-					<AppRouter />
+		<div className={styles.app}>
+			<Sidebar />
+			<div className={styles.app__main}>
+				<Header />
+				<div className={styles.app__content}>
+					<Suspense fallback={<PageLoader />}>
+						<AppRouter />
+					</Suspense>
+					<CashAssistantBar />
 				</div>
-			</Suspense>
+			</div>
 		</div>
 	);
 };

@@ -1,9 +1,12 @@
-import { FC, ReactNode } from "react";
-import { ThemeProvider as ThemeProviderSC } from "styled-components";
+import { FC, ReactNode, useEffect } from "react";
 import { useAppSelector } from "@/shared/lib/hooks/useAppSelector/useAppSelector";
 
 export const ThemeProvider: FC<{ children: ReactNode }> = ({ children }) => {
-	const { themeStyles } = useAppSelector((state) => state.ui);
+	const theme = useAppSelector((state) => state.ui.theme);
 
-	return <ThemeProviderSC theme={themeStyles}>{children}</ThemeProviderSC>;
+	useEffect(() => {
+		document.documentElement.setAttribute("data-theme", theme);
+	}, [theme]);
+
+	return <>{children}</>;
 };

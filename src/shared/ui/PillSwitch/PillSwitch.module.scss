@@ -1,0 +1,30 @@
+.pill-switch {
+	display: flex;
+	gap: 2px;
+	padding: 3px;
+	background: var(--color-control-strong);
+	border-radius: var(--radius-md);
+
+	&__option {
+		padding: 5px var(--space-3);
+		border: none;
+		border-radius: var(--radius-sm);
+		background: transparent;
+		color: var(--color-text-muted);
+		font-family: inherit;
+		font-size: var(--font-size-md);
+		font-weight: 500;
+		cursor: pointer;
+		transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+
+		&:hover {
+			color: var(--color-text);
+		}
+
+		&--active {
+			background: var(--color-surface);
+			color: var(--color-text);
+			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+		}
+	}
+}

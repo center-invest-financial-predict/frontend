@@ -47,3 +47,4 @@ Thumbs.db
 # Cursor / AI
 .cursor/mcp/figma/figma.env
 .cursor/mcp.json
+.cursor/rules/local/

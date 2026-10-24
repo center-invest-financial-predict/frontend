@@ -1,8 +1,5 @@
-import { DefaultTheme } from "styled-components";
-
-export type ScrollSchema = Record<string, number>;
+export type AppTheme = "light" | "dark";
 
 export interface UISchema {
-	scroll: ScrollSchema;
-	themeStyles: DefaultTheme;
+	theme: AppTheme;
 }

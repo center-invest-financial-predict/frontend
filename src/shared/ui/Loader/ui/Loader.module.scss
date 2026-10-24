@@ -1,0 +1,45 @@
+.loader {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	&__spinner {
+		display: inline-block;
+		position: relative;
+		width: 64px;
+		height: 64px;
+	}
+
+	&__dot {
+		transform-origin: 32px 32px;
+		animation: loader-spin 1.2s linear infinite;
+
+		&::after {
+			content: " ";
+			display: block;
+			position: absolute;
+			top: 3px;
+			left: 29px;
+			width: 5px;
+			height: 14px;
+			border-radius: 20%;
+			background: var(--color-primary);
+		}
+
+		@for $i from 1 through 12 {
+			&:nth-child(#{$i}) {
+				animation-delay: #{(-1.2 + ($i - 1) * 0.1)}s;
+				transform: rotate(#{($i - 1) * 30}deg);
+			}
+		}
+	}
+}
+
+@keyframes loader-spin {
+	0% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}

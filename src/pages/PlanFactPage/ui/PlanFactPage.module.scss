@@ -1,0 +1,172 @@
+.plan-fact-page {
+	&__header {
+		margin-bottom: var(--space-5);
+	}
+
+	&__grid {
+		display: grid;
+		grid-template-columns: 1fr 360px;
+		gap: var(--space-4);
+
+		@media (max-width: 1024px) {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	&__card {
+		padding: var(--space-6);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-2xl);
+		background: var(--color-surface);
+		box-shadow: var(--shadow-md);
+	}
+
+	&__side {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+	}
+
+	&__card-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: var(--space-5);
+	}
+
+	&__card-title {
+		color: var(--color-text);
+		font-size: var(--font-size-xl);
+		font-weight: 700;
+
+		&--sm {
+			font-size: var(--font-size-lg);
+		}
+	}
+
+	&__hint {
+		color: var(--color-text-faint);
+		font-size: var(--font-size-sm);
+	}
+
+	&__legend {
+		display: flex;
+		gap: var(--space-4);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+	}
+
+	&__legend-item {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+
+		&::before {
+			content: "";
+			width: 14px;
+			height: 2px;
+		}
+
+		&--fact::before {
+			background: var(--color-accent);
+		}
+
+		&--plan::before {
+			height: 0;
+			border-top: 2px dashed var(--color-text-faint);
+			background: transparent;
+		}
+	}
+
+	&__chart {
+		position: relative;
+		width: 100%;
+		height: 260px;
+	}
+
+	&__stats {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: var(--space-4);
+		margin-top: var(--space-6);
+		padding-top: 18px;
+		border-top: 1px solid var(--color-neutral-soft);
+	}
+
+	&__stat {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+	}
+
+	&__stat-label {
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+	}
+
+	&__stat-value {
+		color: var(--color-text);
+		font-size: var(--font-size-2xl);
+		font-weight: 700;
+
+		&--danger {
+			color: var(--color-danger);
+		}
+	}
+
+	&__overdue {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		padding-top: var(--space-3);
+	}
+
+	&__overdue-name {
+		color: var(--color-text);
+		font-size: var(--font-size-base);
+		font-weight: 600;
+	}
+
+	&__overdue-meta {
+		margin-top: 2px;
+		color: var(--color-text-faint);
+		font-size: var(--font-size-sm);
+	}
+
+	&__overdue-amount {
+		color: var(--color-danger);
+		font-size: var(--font-size-lg);
+		font-weight: 700;
+	}
+
+	&__log-list {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+		margin-top: 14px;
+	}
+
+	&__log-item {
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+		padding-bottom: 10px;
+		border-bottom: 1px solid var(--color-neutral-soft);
+		font-size: var(--font-size-md);
+
+		&:last-child {
+			padding-bottom: 0;
+			border-bottom: none;
+		}
+	}
+
+	&__log-date {
+		color: var(--color-text-faint);
+		font-size: var(--font-size-xs);
+	}
+
+	&__log-text {
+		color: var(--color-text);
+		line-height: 1.4;
+	}
+}

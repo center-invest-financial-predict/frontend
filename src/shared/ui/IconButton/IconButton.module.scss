@@ -1,0 +1,17 @@
+.icon-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 6px;
+	border: none;
+	border-radius: var(--radius-md);
+	background: transparent;
+	color: var(--color-text-secondary);
+	cursor: pointer;
+	transition: background 0.15s, color 0.15s;
+
+	&:hover {
+		background: var(--color-neutral-soft);
+		color: var(--color-text);
+	}
+}
