@@ -55,12 +55,17 @@
 		display: flex;
 		flex-direction: column;
 		gap: 14px;
+		width: 100%;
 	}
 
 	&__row {
 		display: flex;
-		justify-content: flex-start;
+		width: 100%;
 		animation: assistant-row-in 0.24s ease-out both;
+
+		&--bot {
+			justify-content: flex-start;
+		}
 
 		&--user {
 			justify-content: flex-end;
@@ -71,21 +76,29 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2);
-		max-width: 640px;
+		width: fit-content;
+		max-width: 78%;
 		padding: 14px 18px;
 		border-radius: var(--radius-2xl);
 		font-size: 18px;
 		line-height: 28px;
 
 		&--bot {
+			margin-right: auto;
 			border: 1px solid var(--color-border);
+			border-bottom-left-radius: 6px;
 			background: var(--color-surface);
+			text-align: left;
 		}
 
 		&--user {
-			background: var(--color-shape);
+			margin-left: auto;
+			border-bottom-right-radius: 6px;
+			background: var(--color-primary-soft);
+			color: var(--color-primary-text);
 			font-size: var(--font-size-lg);
 			line-height: 24px;
+			text-align: left;
 		}
 	}
 

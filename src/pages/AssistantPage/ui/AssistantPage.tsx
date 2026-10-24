@@ -1,25 +1,21 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Page } from "@/widgets/Page";
 import { getRouteToday } from "@/shared/consts/router";
 import { cn } from "@/shared/lib/classNames/classNames";
+import {
+	appendAssistantMessages,
+	createAssistantThread,
+	getActiveAssistantChatId,
+	getAssistantThread,
+	setActiveAssistantChatId,
+	type AssistantMessage,
+	type AssistantThread,
+} from "@/shared/lib/assistantChats";
 import styles from "./AssistantPage.module.scss";
 
-type Msg = {
-	from: "user" | "bot";
-	text: string;
-	refs?: string[];
-};
-
-const DEFAULT_THREAD: Msg[] = [
-	{
-		from: "bot",
-		text: "Спросите про деньги: остаток, платежи, сценарии.",
-	},
-];
-
-const replyFor = (q: string, t: (k: string) => string): Msg => {
+const replyFor = (q: string, t: (k: string) => string): Omit<AssistantMessage, "id" | "at"> => {
 	const lower = q.toLowerCase();
 	if (lower.includes("дельт") || lower.includes("задерж")) {
 		return {
@@ -35,27 +31,74 @@ const replyFor = (q: string, t: (k: string) => string): Msg => {
 	};
 };
 
-type LocState = { question?: string; reset?: boolean } | null;
+type LocState = { question?: string; reset?: boolean; chatId?: string } | null;
 
 export const AssistantPage = memo(() => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const location = useLocation();
+	const [searchParams, setSearchParams] = useSearchParams();
 	const state = (location.state as LocState) || null;
-	const [messages, setMessages] = useState<Msg[]>(DEFAULT_THREAD);
-	const [ctx, setCtx] = useState<string | null>(t("assist.ctxGap"));
+	const [thread, setThread] = useState<AssistantThread | null>(null);
+	const handledState = useRef<LocState>(null);
+
+	const greeting = t("assist.welcome");
+
+	const openThread = useCallback(
+		(next: AssistantThread) => {
+			setThread(next);
+			setActiveAssistantChatId(next.id);
+			if (searchParams.get("c") !== next.id) {
+				setSearchParams({ c: next.id }, { replace: true });
+			}
+		},
+		[searchParams, setSearchParams],
+	);
+
+	const resolveThread = useCallback((): AssistantThread => {
+		const fromUrl = searchParams.get("c");
+		const activeId = fromUrl || getActiveAssistantChatId();
+		if (activeId) {
+			const existing = getAssistantThread(activeId);
+			if (existing) return existing;
+		}
+		return createAssistantThread(greeting);
+	}, [greeting, searchParams]);
 
 	useEffect(() => {
+		if (state && handledState.current === state) return;
+
 		if (state?.reset) {
-			setMessages(DEFAULT_THREAD);
+			handledState.current = state;
+			openThread(createAssistantThread(greeting));
 			navigate(location.pathname, { replace: true, state: null });
 			return;
 		}
+
+		if (state?.chatId) {
+			handledState.current = state;
+			const existing = getAssistantThread(state.chatId);
+			openThread(existing ?? createAssistantThread(greeting));
+			navigate(location.pathname, { replace: true, state: null });
+			return;
+		}
+
 		const q = state?.question?.trim();
-		if (!q) return;
-		setMessages((prev) => [...prev, { from: "user", text: q }, replyFor(q, t)]);
-		navigate(location.pathname, { replace: true, state: null });
-	}, [state, t, navigate, location.pathname]);
+		if (q) {
+			handledState.current = state;
+			const current = resolveThread();
+			const updated = appendAssistantMessages(current.id, [{ from: "user", text: q }, replyFor(q, t)]);
+			openThread(updated ?? current);
+			navigate(location.pathname, { replace: true, state: null });
+			return;
+		}
+
+		if (!thread) {
+			openThread(resolveThread());
+		}
+	}, [state, t, navigate, location.pathname, greeting, openThread, resolveThread, thread]);
+
+	const messages = thread?.messages ?? [];
 
 	return (
 		<Page className={styles["assistant-page"]}>
@@ -65,25 +108,14 @@ export const AssistantPage = memo(() => {
 					<p className={styles["assistant-page__sub"]}>{t("assist.pageHint")}</p>
 				</div>
 
-				{ctx ? (
-					<div className={styles["assistant-page__ctx"]}>
-						{ctx}
-						<button
-							type="button"
-							className={styles["assistant-page__ctx-clear"]}
-							aria-label={t("assist.ctxClear")}
-							onClick={() => setCtx(null)}
-						>
-							×
-						</button>
-					</div>
-				) : null}
-
 				<div className={styles["assistant-page__thread"]}>
-					{messages.map((m, i) => (
+					{messages.map((m) => (
 						<div
-							key={`${m.from}-${i}`}
-							className={cn(styles["assistant-page__row"], m.from === "user" && styles["assistant-page__row--user"])}
+							key={m.id}
+							className={cn(
+								styles["assistant-page__row"],
+								m.from === "user" ? styles["assistant-page__row--user"] : styles["assistant-page__row--bot"],
+							)}
 						>
 							<div
 								className={cn(

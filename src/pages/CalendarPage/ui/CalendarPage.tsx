@@ -1,24 +1,44 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import { useGetCalendarQuery } from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
+import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
 import { getRouteAdd, getRouteEvents } from "@/shared/consts/router";
 import styles from "./CalendarPage.module.scss";
 
-const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-
-const EVENTS: Record<number, string> = {
-	27: "Дельта +340",
-	28: "ЕНП −186",
-	30: "Зерно −214",
-	5: "Зарплата",
-};
-
 export const CalendarPage = memo(() => {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const navigate = useNavigate();
+	const now = useMemo(() => new Date(), []);
+	const year = now.getFullYear();
+	const month = now.getMonth() + 1;
+	const { data, isLoading, isError, refetch } = useGetCalendarQuery({ year, month });
+
+	const weekdays = useMemo(() => {
+		const locale = i18n.language?.startsWith("en") ? "en-US" : "ru-RU";
+		const base = new Date(2024, 0, 1);
+		return Array.from({ length: 7 }, (_, i) => {
+			const d = new Date(base);
+			d.setDate(base.getDate() + i);
+			return d.toLocaleDateString(locale, { weekday: "short" });
+		});
+	}, [i18n.language]);
+
+	const eventsByDay = useMemo(() => {
+		const map: Record<number, string> = {};
+		data?.events.forEach((e) => {
+			const day = Number(e.date.slice(8, 10));
+			map[day] = e.label;
+		});
+		return map;
+	}, [data?.events]);
+
+	const todayDay = data?.today ? Number(data.today.slice(8, 10)) : now.getDate();
+	const daysInMonth = new Date(year, month, 0).getDate();
+	const startWeekday = (new Date(year, month - 1, 1).getDay() + 6) % 7;
 
 	return (
 		<Page className={styles["calendar-page"]}>
@@ -41,35 +61,48 @@ export const CalendarPage = memo(() => {
 					</button>
 				</div>
 			</div>
-			<Card className={styles["calendar-page__card"]}>
-				<div className={styles["calendar-page__weekdays"]}>
-					{WEEKDAYS.map((w) => (
-						<span key={w}>{w}</span>
-					))}
-				</div>
-				<div className={styles["calendar-page__grid"]}>
-					{Array.from({ length: 35 }, (_, i) => {
-						const day = i - 2;
-						const show = day >= 1 && day <= 31;
-						const ev = show ? EVENTS[day] : "";
-						const weekend = i % 7 >= 5;
-						const today = day === 23;
-						return (
-							<div
-								key={i}
-								className={cn(
-									styles["calendar-page__day"],
-									weekend && styles["calendar-page__day--weekend"],
-									today && styles["calendar-page__day--today"],
-								)}
-							>
-								{show ? <span>{day}</span> : null}
-								{ev ? <span className={styles["calendar-page__ev"]}>{ev}</span> : null}
-							</div>
-						);
-					})}
-				</div>
-			</Card>
+
+			{isLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
+			{isError ? (
+				<StateBanner
+					variant="error"
+					title={t("states.errorTitle")}
+					actionLabel={t("states.errorRetry")}
+					onAction={() => refetch()}
+				/>
+			) : null}
+
+			{!isLoading && !isError ? (
+				<Card className={styles["calendar-page__card"]}>
+					<div className={styles["calendar-page__weekdays"]}>
+						{weekdays.map((w) => (
+							<span key={w}>{w}</span>
+						))}
+					</div>
+					<div className={styles["calendar-page__grid"]}>
+						{Array.from({ length: 42 }, (_, i) => {
+							const day = i - startWeekday + 1;
+							const show = day >= 1 && day <= daysInMonth;
+							const ev = show ? eventsByDay[day] : "";
+							const weekend = i % 7 >= 5;
+							const today = show && day === todayDay;
+							return (
+								<div
+									key={i}
+									className={cn(
+										styles["calendar-page__day"],
+										weekend && styles["calendar-page__day--weekend"],
+										today && styles["calendar-page__day--today"],
+									)}
+								>
+									{show ? <span>{day}</span> : null}
+									{ev ? <span className={styles["calendar-page__ev"]}>{ev}</span> : null}
+								</div>
+							);
+						})}
+					</div>
+				</Card>
+			) : null}
 		</Page>
 	);
 });

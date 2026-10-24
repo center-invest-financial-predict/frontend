@@ -303,12 +303,24 @@
 		border-radius: 4px;
 		background: var(--color-primary-bright);
 
+		&--w40 {
+			width: 40%;
+		}
+
 		&--w55 {
 			width: 55%;
 		}
 
 		&--w70 {
 			width: 70%;
+		}
+
+		&--w80 {
+			width: 80%;
+		}
+
+		&--w90 {
+			width: 90%;
 		}
 
 		&--w100 {
@@ -735,8 +747,24 @@
 			height: 50%;
 		}
 
+		&--h55 {
+			height: 55%;
+		}
+
+		&--h60 {
+			height: 60%;
+		}
+
+		&--h65 {
+			height: 65%;
+		}
+
 		&--h70 {
 			height: 70%;
+		}
+
+		&--h80 {
+			height: 80%;
 		}
 
 		&--h90 {

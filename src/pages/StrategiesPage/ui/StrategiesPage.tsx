@@ -1,43 +1,82 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import { useGetStrategiesQuery, useUpdateStrategiesMutation, type StrategyKey } from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
+import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
 import { getRouteForecast } from "@/shared/consts/router";
 import { CashflowChart } from "@/pages/TodayPage/ui/CashflowChart/CashflowChart";
 import styles from "./StrategiesPage.module.scss";
 
-type Strat = "cons" | "base" | "opt" | "own";
-
-const STRATS: { key: Strat; labelKey: string }[] = [
+const STRATS: { key: StrategyKey; labelKey: string }[] = [
 	{ key: "cons", labelKey: "strategies.cons" },
 	{ key: "base", labelKey: "strategies.base" },
 	{ key: "opt", labelKey: "strategies.opt" },
 	{ key: "own", labelKey: "strategies.own" },
 ];
 
-const PRESETS: Record<Strat, { hair: number; delay: number; min: number; prob: string; gap: string }> = {
-	cons: { hair: 10, delay: 14, min: 300, prob: "63%", gap: "разрыв 5 ноя, −107 300 ₽" },
-	base: { hair: 0, delay: 0, min: 200, prob: "41%", gap: "разрыв 5 ноя, −30 100 ₽" },
-	opt: { hair: -10, delay: 0, min: 150, prob: "22%", gap: "разрыва нет" },
-	own: { hair: 5, delay: 7, min: 250, prob: "48%", gap: "разрыв 5 ноя, −48 200 ₽" },
-};
-
-const RULES = [
-	{ key: "a", tKey: "strategies.ruleA" },
-	{ key: "b", tKey: "strategies.ruleB" },
-	{ key: "c", tKey: "strategies.ruleC" },
-];
-
 export const StrategiesPage = memo(() => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
-	const [strat, setStrat] = useState<Strat>("base");
-	const [own, setOwn] = useState({ hair: 5, delay: 7, min: 250 });
-	const [rulesOn, setRulesOn] = useState({ a: true, b: true, c: false });
-	const cur = strat === "own" ? { ...PRESETS.own, ...own } : PRESETS[strat];
+	const { data, isLoading, isError, refetch } = useGetStrategiesQuery();
+	const [updateStrategies] = useUpdateStrategiesMutation();
+	const [strat, setStrat] = useState<StrategyKey>("base");
+	const [own, setOwn] = useState({ haircutPct: 5, delayDays: 7, minBalanceK: 250 });
+	const [rulesOn, setRulesOn] = useState<Record<string, boolean>>({});
+
+	useEffect(() => {
+		if (!data) return;
+		setStrat(data.active);
+		if (data.presets.own) {
+			setOwn(data.presets.own);
+		}
+		const next: Record<string, boolean> = {};
+		data.rules.forEach((r) => {
+			next[r.id] = r.enabled;
+		});
+		setRulesOn(next);
+	}, [data]);
+
+	const cur = strat === "own" ? own : data?.presets[strat];
 	const isOwn = strat === "own";
+
+	const persist = (next: {
+		active?: StrategyKey;
+		own?: typeof own;
+		rules?: Record<string, boolean>;
+	}) => {
+		const active = next.active ?? strat;
+		const ownParams = next.own ?? own;
+		const rulesMap = next.rules ?? rulesOn;
+		void updateStrategies({
+			active,
+			own: active === "own" ? ownParams : undefined,
+			rules: Object.entries(rulesMap).map(([id, enabled]) => ({ id, enabled })),
+		});
+	};
+
+	if (isLoading) {
+		return (
+			<Page className={styles["strat-page"]}>
+				<StateBanner variant="loading" title={t("states.loading")} />
+			</Page>
+		);
+	}
+
+	if (isError || !data || !cur) {
+		return (
+			<Page className={styles["strat-page"]}>
+				<StateBanner
+					variant="error"
+					title={t("states.errorTitle")}
+					actionLabel={t("states.errorRetry")}
+					onAction={() => refetch()}
+				/>
+			</Page>
+		);
+	}
 
 	return (
 		<Page className={styles["strat-page"]}>
@@ -55,7 +94,10 @@ export const StrategiesPage = memo(() => {
 							key={s.key}
 							type="button"
 							className={cn(styles["strat-page__pill"], strat === s.key && styles["strat-page__pill--on"])}
-							onClick={() => setStrat(s.key)}
+							onClick={() => {
+								setStrat(s.key);
+								persist({ active: s.key });
+							}}
 						>
 							{t(s.labelKey)}
 						</button>
@@ -69,9 +111,9 @@ export const StrategiesPage = memo(() => {
 					<p className={styles["strat-page__hint"]}>{t(`strategies.${strat}`)}</p>
 					{(
 						[
-							["hair", "strategies.paramHair", -10, 30, 5, "%"],
-							["delay", "strategies.paramDelayDays", 0, 21, 7, " дн."],
-							["min", "strategies.paramMinK", 0, 500, 50, " тыс"],
+							["haircutPct", "strategies.paramHair", -10, 30, 5, "%"],
+							["delayDays", "strategies.paramDelayDays", 0, 21, 7, " дн."],
+							["minBalanceK", "strategies.paramMinK", 0, 500, 50, " тыс"],
 						] as const
 					).map(([key, label, min, max, step, unit]) => (
 						<div key={key} className={styles["strat-page__slider"]}>
@@ -89,7 +131,12 @@ export const StrategiesPage = memo(() => {
 								step={step}
 								value={cur[key]}
 								disabled={!isOwn}
-								onChange={(e) => setOwn((p) => ({ ...p, [key]: Number(e.target.value) }))}
+								onChange={(e) => {
+									const value = Number(e.target.value);
+									const next = { ...own, [key]: value };
+									setOwn(next);
+									persist({ own: next, active: "own" });
+								}}
 							/>
 						</div>
 					))}
@@ -99,32 +146,28 @@ export const StrategiesPage = memo(() => {
 					<div className={styles["strat-page__card-title"]}>{t("strategies.impact")}</div>
 					<p className={styles["strat-page__hint"]}>{t("strategies.impactSub")}</p>
 					<div className={styles["strat-page__prob"]}>
-						<span>{cur.prob}</span>
-						<span>{cur.gap}</span>
+						<span>{data.impact.probabilityPct}%</span>
+						<span>{data.impact.gapLabel}</span>
 					</div>
-					<CashflowChart showRisk={strat !== "opt"} range={30} />
+					<CashflowChart series={data.impact.cashflow} showRisk={data.impact.showRisk} />
 				</Card>
 			</div>
 
 			<Card className={styles["strat-page__rules"]}>
 				<div className={styles["strat-page__card-title"]}>{t("strategies.notify")}</div>
 				<p className={styles["strat-page__hint"]}>{t("strategies.notifyWhen")}</p>
-				{RULES.map((r) => (
-					<div key={r.key} className={styles["strat-page__rule"]}>
-						<span>{t(r.tKey)}</span>
+				{data.rules.map((r) => (
+					<div key={r.id} className={styles["strat-page__rule"]}>
+						<span>{r.label}</span>
 						<button
 							type="button"
-							className={cn(
-								styles["strat-page__toggle"],
-								rulesOn[r.key as "a" | "b" | "c"] && styles["strat-page__toggle--on"],
-							)}
-							onClick={() =>
-								setRulesOn((p) => ({
-									...p,
-									[r.key]: !p[r.key as "a" | "b" | "c"],
-								}))
-							}
-							aria-pressed={rulesOn[r.key as "a" | "b" | "c"]}
+							className={cn(styles["strat-page__toggle"], rulesOn[r.id] && styles["strat-page__toggle--on"])}
+							onClick={() => {
+								const next = { ...rulesOn, [r.id]: !rulesOn[r.id] };
+								setRulesOn(next);
+								persist({ rules: next });
+							}}
+							aria-pressed={Boolean(rulesOn[r.id])}
 						>
 							<span />
 						</button>

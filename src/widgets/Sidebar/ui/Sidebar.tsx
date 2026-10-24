@@ -1,6 +1,6 @@
-import { FC, memo, useState } from "react";
+import { FC, memo, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Home, TrendingUp, FileText, Plus, AlignLeft, Database, MessageSquarePlus, LucideIcon } from "lucide-react";
 import {
 	getRouteAdd,
@@ -17,6 +17,13 @@ import {
 } from "@/shared/consts/router";
 import { cn } from "@/shared/lib/classNames/classNames";
 import { useAppSelector } from "@/shared/lib/hooks";
+import {
+	ASSISTANT_CHATS_EVENT,
+	getActiveAssistantChatId,
+	listAssistantHistory,
+	titleOfThread,
+	type AssistantThread,
+} from "@/shared/lib/assistantChats";
 import styles from "./Sidebar.module.scss";
 
 type WorkLink = {
@@ -68,19 +75,31 @@ const WORK_LINKS: WorkLink[] = [
 	},
 ];
 
-const CHATS = ["nav.chat1", "nav.chat2", "nav.chat3"] as const;
-
 export const Sidebar: FC = memo(() => {
 	const { t } = useTranslation();
 	const location = useLocation();
 	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
 	const profile = useAppSelector((state) => state.user.profile);
 	const currentPath = location.pathname;
 	const [bizOpen, setBizOpen] = useState(false);
 	const [workOpen, setWorkOpen] = useState(true);
 	const [assistSectionOpen, setAssistSection] = useState(true);
+	const [chats, setChats] = useState<AssistantThread[]>([]);
+	const [activeChatId, setActiveChatId] = useState<string | null>(null);
 	const companyName = profile?.business?.name || t("company.name");
 	const companyInn = profile?.business?.inn || "6100123456";
+
+	const refreshChats = useCallback(() => {
+		setChats(listAssistantHistory());
+		setActiveChatId(searchParams.get("c") || getActiveAssistantChatId());
+	}, [searchParams]);
+
+	useEffect(() => {
+		refreshChats();
+		window.addEventListener(ASSISTANT_CHATS_EVENT, refreshChats);
+		return () => window.removeEventListener(ASSISTANT_CHATS_EVENT, refreshChats);
+	}, [refreshChats]);
 
 	const renderLink = (link: WorkLink) => {
 		const { labelKey, path, icon: Icon, badge, group } = link;
@@ -167,14 +186,19 @@ export const Sidebar: FC = memo(() => {
 							<MessageSquarePlus size={18} strokeWidth={1.3} />
 							{t("nav.newChat")}
 						</button>
-						{CHATS.map((key) => (
+						{chats.map((chat) => (
 							<button
-								key={key}
+								key={chat.id}
 								type="button"
-								className={styles["sidebar__chat"]}
-								onClick={() => navigate(getRouteAssistant())}
+								className={cn(
+									styles["sidebar__chat"],
+									currentPath === getRouteAssistant() &&
+										activeChatId === chat.id &&
+										styles["sidebar__chat--active"],
+								)}
+								onClick={() => navigate(getRouteAssistant(), { state: { chatId: chat.id } })}
 							>
-								{t(key)}
+								{titleOfThread(chat, t("assist.untitledChat"))}
 							</button>
 						))}
 					</>

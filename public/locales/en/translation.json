@@ -171,7 +171,9 @@
 		"pageHint": "Answers are short; every figure links to the chart and data time.",
 		"openPanel": "Open panel",
 		"ctxGap": "Gap on 5 November",
-		"ctxClear": "Clear context"
+		"ctxClear": "Clear context",
+		"welcome": "Ask about money: balance, payments, scenarios.",
+		"untitledChat": "New chat"
 	},
 	"states": {
 		"emptyTitle": "Nothing here yet",
@@ -216,7 +218,9 @@
 		"colScen": "Scenario",
 		"colMin": "Minimum balance",
 		"colDate": "Date",
-		"colGap": "Gap"
+		"colGap": "Gap",
+		"gapYes": "Yes",
+		"gapNo": "No"
 	},
 	"planFact": {
 		"title": "Plan vs actual",

@@ -1,88 +1,33 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useGetOperationsQuery, useGetRegularOperationsQuery } from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
+import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
+import { formatDayMonth } from "@/shared/lib/format/formatDate";
+import { formatMoney } from "@/shared/lib/format/formatMoney";
 import { CashflowChart } from "@/pages/TodayPage/ui/CashflowChart/CashflowChart";
 import styles from "./OperationsPage.module.scss";
 
 type Tab = "ops" | "reg";
 type Dir = "all" | "in" | "out";
 
-const OPS = [
-	{ d: "23.10", n: "Эквайринг, выручка", a: 26000, cat: "Продажи" },
-	{ d: "22.10", n: "Эквайринг, выручка", a: 26000, cat: "Продажи" },
-	{ d: "21.10", n: "Поставщик молока", a: -42000, cat: "Поставщики" },
-	{ d: "16.10", n: "Аванс", a: -120000, cat: "Зарплата" },
-	{ d: "10.10", n: "Кредит", a: -96500, cat: "Кредит" },
-	{ d: "05.10", n: "Зарплата", a: -248000, cat: "Зарплата" },
-	{ d: "02.10", n: "Аренда", a: -180000, cat: "Аренда" },
-	{ d: "01.10", n: "Эквайринг, выручка", a: 38000, cat: "Продажи" },
-];
-
-const REGS = [
-	{
-		n: "Эквайринг, выручка",
-		dir: "Поступление",
-		cat: "Продажи",
-		per: "Каждый день",
-		next: "Ежедневно",
-		amt: "26 000 ₽ в будни",
-		st: "Ожидаем по истории",
-	},
-	{
-		n: "Аренда",
-		dir: "Списание",
-		cat: "Аренда",
-		per: "Раз в месяц",
-		next: "02.11",
-		amt: "180 000 ₽",
-		st: "Ожидаем по истории",
-	},
-	{
-		n: "Зарплата",
-		dir: "Списание",
-		cat: "Зарплата",
-		per: "Раз в месяц",
-		next: "05.11",
-		amt: "248 000 ₽",
-		st: "Добавлено пользователем",
-	},
-	{
-		n: "Поставщик зерна",
-		dir: "Списание",
-		cat: "Поставщики",
-		per: "Примерно раз в месяц",
-		next: "30.10",
-		amt: "Суммы отличаются",
-		st: "Требует проверки",
-	},
-];
-
-const CATS = ["all", "Продажи", "Поставщики", "Налоги", "Аренда", "Зарплата", "Кредит", "Прочее"];
-
 export const OperationsPage = memo(() => {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
+	const locale = i18n.language?.startsWith("en") ? "en-US" : "ru-RU";
 	const [tab, setTab] = useState<Tab>("ops");
 	const [dir, setDir] = useState<Dir>("all");
 	const [cat, setCat] = useState("all");
 	const [openReg, setOpenReg] = useState<string | null>(null);
 
-	const filtered = useMemo(
-		() =>
-			OPS.filter(
-				(x) =>
-					(dir === "all" || (dir === "in" && x.a > 0) || (dir === "out" && x.a < 0)) &&
-					(cat === "all" || x.cat === cat),
-			),
-		[dir, cat],
-	);
-
-	const total = filtered.reduce((q, x) => q + x.a, 0);
-	const inn = filtered.filter((x) => x.a > 0).reduce((q, x) => q + x.a, 0);
-	const out = filtered.filter((x) => x.a < 0).reduce((q, x) => q + x.a, 0);
-
-	const fm = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n).toLocaleString("ru-RU")} ₽`;
+	const { data, isLoading, isError, refetch } = useGetOperationsQuery({ dir, category: cat });
+	const {
+		data: regs = [],
+		isLoading: regLoading,
+		isError: regError,
+		refetch: refetchReg,
+	} = useGetRegularOperationsQuery(undefined, { skip: tab !== "reg" });
 
 	return (
 		<Page className={styles["ops-page"]}>
@@ -110,45 +55,71 @@ export const OperationsPage = memo(() => {
 			</div>
 
 			{tab === "reg" ? (
-				<Card className={styles["ops-page__reg"]}>
-					<div className={styles["ops-page__card-title"]}>{t("operations.regTitle")}</div>
-					<p className={styles["ops-page__hint"]}>{t("operations.regHint")}</p>
-					{REGS.map((r) => (
-						<div key={r.n} className={styles["ops-page__reg-item"]}>
-							<button
-								type="button"
-								className={styles["ops-page__reg-btn"]}
-								onClick={() => setOpenReg((v) => (v === r.n ? null : r.n))}
-							>
-								<span>
-									<span className={styles["ops-page__reg-name"]}>{r.n}</span>
-									<span className={styles["ops-page__hint"]}>
-										{r.dir}, {r.cat}
+				regLoading ? (
+					<StateBanner variant="loading" title={t("states.loading")} />
+				) : regError ? (
+					<StateBanner
+						variant="error"
+						title={t("states.errorTitle")}
+						actionLabel={t("states.errorRetry")}
+						onAction={() => refetchReg()}
+					/>
+				) : (
+					<Card className={styles["ops-page__reg"]}>
+						<div className={styles["ops-page__card-title"]}>{t("operations.regTitle")}</div>
+						<p className={styles["ops-page__hint"]}>{t("operations.regHint")}</p>
+						{regs.map((r) => (
+							<div key={r.id} className={styles["ops-page__reg-item"]}>
+								<button
+									type="button"
+									className={styles["ops-page__reg-btn"]}
+									onClick={() => setOpenReg((v) => (v === r.id ? null : r.id))}
+								>
+									<span>
+										<span className={styles["ops-page__reg-name"]}>{r.name}</span>
+										<span className={styles["ops-page__hint"]}>
+											{r.direction === "in" ? t("events.dirIn") : t("events.dirOut")}, {r.category}
+										</span>
 									</span>
-								</span>
-								<span>
-									{r.per}
-									<span className={styles["ops-page__hint"]}>
-										{t("operations.next")}: {r.next}
+									<span>
+										{r.period}
+										<span className={styles["ops-page__hint"]}>
+											{t("operations.next")}: {r.next}
+										</span>
 									</span>
-								</span>
-								<span>{r.amt}</span>
-								<span className={cn(styles["ops-page__st"], r.st.includes("проверки") && styles["ops-page__st--warn"])}>
-									{r.st}
-								</span>
-							</button>
-							{openReg === r.n ? (
-								<div className={styles["ops-page__reg-detail"]}>{t("operations.regDetail")}</div>
-							) : null}
-						</div>
-					))}
-				</Card>
+									<span>{r.amountLabel}</span>
+									<span className={cn(styles["ops-page__st"], r.needsReview && styles["ops-page__st--warn"])}>
+										{r.status}
+									</span>
+								</button>
+								{openReg === r.id ? (
+									<div className={styles["ops-page__reg-detail"]}>{r.detail || t("operations.regDetail")}</div>
+								) : null}
+							</div>
+						))}
+					</Card>
+				)
+			) : isLoading ? (
+				<StateBanner variant="loading" title={t("states.loading")} />
+			) : isError || !data ? (
+				<StateBanner
+					variant="error"
+					title={t("states.errorTitle")}
+					actionLabel={t("states.errorRetry")}
+					onAction={() => refetch()}
+				/>
 			) : (
 				<>
 					<Card className={styles["ops-page__chart"]}>
 						<div className={styles["ops-page__card-title"]}>{t("operations.balTitle")}</div>
 						<p className={styles["ops-page__hint"]}>{t("operations.balSub")}</p>
-						<CashflowChart variant="history" />
+						<CashflowChart
+							series={{
+								...data.balanceHistory,
+								todayIndex: Math.max((data.balanceHistory.points?.length ?? 1) - 1, 0),
+							}}
+							showRisk={false}
+						/>
 					</Card>
 
 					<Card className={styles["ops-page__list"]}>
@@ -171,7 +142,18 @@ export const OperationsPage = memo(() => {
 							))}
 						</div>
 						<div className={styles["ops-page__chips"]}>
-							{CATS.map((c) => (
+							<button
+								type="button"
+								className={cn(
+									styles["ops-page__chip"],
+									styles["ops-page__chip--sm"],
+									cat === "all" && styles["ops-page__chip--on"],
+								)}
+								onClick={() => setCat("all")}
+							>
+								{t("operations.filterAll")}
+							</button>
+							{data.categories.map((c) => (
 								<button
 									key={c}
 									type="button"
@@ -182,26 +164,26 @@ export const OperationsPage = memo(() => {
 									)}
 									onClick={() => setCat(c)}
 								>
-									{c === "all" ? t("operations.filterAll") : c}
+									{c}
 								</button>
 							))}
 						</div>
 						<div className={styles["ops-page__kpis"]}>
 							<div>
 								<span>{t("operations.total")}</span>
-								<b>{fm(total)}</b>
+								<b>{formatMoney(data.totals.total, locale)}</b>
 							</div>
 							<div>
 								<span>{t("operations.in")}</span>
-								<b>{fm(inn)}</b>
+								<b>{formatMoney(data.totals.inflow, locale)}</b>
 							</div>
 							<div>
 								<span>{t("operations.out")}</span>
-								<b>{fm(out)}</b>
+								<b>{formatMoney(data.totals.outflow, locale)}</b>
 							</div>
 							<div>
 								<span>{t("operations.count")}</span>
-								<b>{filtered.length}</b>
+								<b>{data.totals.count}</b>
 							</div>
 						</div>
 						<div className={styles["ops-page__tr-head"]}>
@@ -210,12 +192,14 @@ export const OperationsPage = memo(() => {
 							<span>{t("operations.colCat")}</span>
 							<span>{t("operations.colAmt")}</span>
 						</div>
-						{filtered.map((r) => (
-							<div key={r.d + r.n + r.a} className={styles["ops-page__tr"]}>
-								<span>{r.d}</span>
-								<span>{r.n}</span>
-								<span>{r.cat}</span>
-								<span className={r.a > 0 ? styles["ops-page__in"] : undefined}>{fm(r.a)}</span>
+						{data.items.map((r) => (
+							<div key={r.id} className={styles["ops-page__tr"]}>
+								<span>{formatDayMonth(r.date, locale)}</span>
+								<span>{r.name}</span>
+								<span>{r.category}</span>
+								<span className={r.amount > 0 ? styles["ops-page__in"] : undefined}>
+									{formatMoney(r.amount, locale)}
+								</span>
 							</div>
 						))}
 					</Card>

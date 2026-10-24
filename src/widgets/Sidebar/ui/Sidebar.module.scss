@@ -221,6 +221,12 @@
 			background: var(--color-shape);
 			color: var(--color-text);
 		}
+
+		&--active {
+			background: var(--color-shape);
+			color: var(--color-text);
+			font-weight: 600;
+		}
 	}
 }
 
