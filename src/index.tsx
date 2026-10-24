@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import "@/shared/assets/fonts/fonts.scss";
 import "@/app/styles/global.scss";
 import "@/shared/config/i18n/i18n";
 import App from "@/app/App";
