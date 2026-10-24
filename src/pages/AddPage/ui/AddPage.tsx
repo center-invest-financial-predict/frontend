@@ -109,9 +109,6 @@ export const AddPage = memo(() => {
 								onChange={() => setParsed(true)}
 							/>
 						</label>
-						<button type="button" className={styles["add-page__link"]} onClick={() => setParsed(true)}>
-							{t("add.sample")}
-						</button>
 						{parsed ? (
 							<div className={styles["add-page__parsed"]}>
 								<div className={styles["add-page__parsed-meta"]}>

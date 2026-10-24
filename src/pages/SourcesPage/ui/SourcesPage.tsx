@@ -3,8 +3,8 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
-import { cn } from "@/shared/lib/classNames/classNames";
 import { getRouteAdd } from "@/shared/consts/router";
+import { cn } from "@/shared/lib/classNames/classNames";
 import styles from "./SourcesPage.module.scss";
 
 const CONNS = [
@@ -60,9 +60,6 @@ export const SourcesPage = memo(() => {
 							onChange={() => setUploadOk(true)}
 						/>
 					</label>
-					<button type="button" className={styles["sources-page__link"]} onClick={() => setUploadOk(true)}>
-						{t("sources.trySample")}
-					</button>
 				</div>
 				{uploadOk ? (
 					<>
@@ -74,10 +71,6 @@ export const SourcesPage = memo(() => {
 				) : null}
 			</Card>
 			<Card className={styles["sources-page__future"]}>
-				<div>
-					<div className={styles["sources-page__name"]}>{t("sources.futureTitle")}</div>
-					<p className={styles["sources-page__desc"]}>{t("sources.futureHint")}</p>
-				</div>
 				<button
 					type="button"
 					className={cn(styles["sources-page__btn"], styles["sources-page__btn--primary"])}

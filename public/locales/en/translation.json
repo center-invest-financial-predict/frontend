@@ -269,11 +269,8 @@
 		"uploadTitle": "Upload statement",
 		"uploadHint": "Actual operations history for the forecast. Example row: 21.10.2026;Acquiring, revenue;26000",
 		"chooseFile": "Choose CSV file",
-		"trySample": "Try with a sample",
 		"uploadCta": "Upload statement",
 		"uploadOk": "Statement parsed, 12 operations added",
-		"futureTitle": "Future payments",
-		"futureHint": "Expected inflows and payments are imported separately, not with the statement",
 		"futureCta": "Import future payments"
 	},
 	"today": {
