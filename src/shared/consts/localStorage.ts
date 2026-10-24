@@ -1,4 +1,5 @@
 export const USER_ACCESS_TOKEN = "user_local_storage";
+export const USER_REFRESH_TOKEN = "user_refresh_token";
 export const USER_EMAIL = "user_email";
 export const USER_NAME = "user_name";
 export const ONBOARDING_DONE = "onboarding_done";

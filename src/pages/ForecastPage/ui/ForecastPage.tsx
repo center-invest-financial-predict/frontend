@@ -166,7 +166,7 @@ export const ForecastPage = memo(() => {
 			{data ? (
 				<>
 					<div className={styles["forecast-page__grid"]}>
-						<Card className={styles["forecast-page__scens"]}>
+						<Card id="forecast-scenarios" className={styles["forecast-page__scens"]}>
 							<div className={styles["forecast-page__card-title"]}>{t("forecast.scens")}</div>
 							<p className={styles["forecast-page__card-sub"]}>{t("forecast.scensHint")}</p>
 							{scens.map((s) => (
@@ -197,7 +197,7 @@ export const ForecastPage = memo(() => {
 							))}
 						</Card>
 
-						<Card className={styles["forecast-page__chart"]}>
+						<Card id="forecast-chart" className={styles["forecast-page__chart"]}>
 							<div className={styles["forecast-page__chart-head"]}>
 								<div>
 									<div className={styles["forecast-page__card-title"]}>{t("forecast.chartTitle")}</div>

@@ -1,7 +1,7 @@
 import { PayloadAction } from "@reduxjs/toolkit";
 import { User, UserProfile, UserSchema } from "../types/User";
 import { buildSlice } from "@/shared/lib/store/buildSlice";
-import { clearAccessToken, getAccessToken } from "@/shared/api/authTokens";
+import { clearAuthTokens, getAccessToken, getRefreshToken } from "@/shared/api/authTokens";
 import {
 	ONBOARDING_DONE,
 	ONBOARDING_DRAFT,
@@ -55,8 +55,7 @@ const userSlice = buildSlice({
 			localStorage.setItem(USER_PROFILE, JSON.stringify(action.payload));
 		},
 		initAuthData: (state) => {
-			const token = getAccessToken();
-			if (token) {
+			if (getAccessToken() || getRefreshToken()) {
 				const email = localStorage.getItem(USER_EMAIL) || localStorage.getItem(USER_PHONE) || "";
 				state.authData = {
 					id: "pending",
@@ -69,7 +68,7 @@ const userSlice = buildSlice({
 			state._inited = true;
 		},
 		logout: (state) => {
-			clearAccessToken();
+			clearAuthTokens();
 			localStorage.removeItem(USER_EMAIL);
 			localStorage.removeItem(USER_NAME);
 			localStorage.removeItem(USER_PHONE);

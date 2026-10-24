@@ -17,6 +17,8 @@ import styles from "./LoginPage.module.scss";
 
 type AuthTab = "in" | "up";
 
+const MIN_PASSWORD = 8;
+
 const emailOk = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
 const splitFio = (fio: string) => {
@@ -55,7 +57,7 @@ const LoginPage = () => {
 	const fioIncomplete = tab === "up" && (!fioParts.lastName || !fioParts.firstName);
 
 	const canSubmit = useMemo(() => {
-		if (!emailOk(email) || password.length < 6) return false;
+		if (!emailOk(email) || password.length < MIN_PASSWORD) return false;
 		if (tab === "up") {
 			return !fioIncomplete && password === password2;
 		}
@@ -130,7 +132,7 @@ const LoginPage = () => {
 			: touched && !canSubmit
 				? fioIncomplete
 					? t("auth.fioRequired")
-					: password.length > 0 && password.length < 6
+					: password.length > 0 && password.length < MIN_PASSWORD
 						? t("auth.passwordTooShort")
 						: t("auth.formInvalid")
 				: null;
@@ -219,6 +221,7 @@ const LoginPage = () => {
 								setPassword(e.target.value);
 								setServerError(null);
 							}}
+							minLength={MIN_PASSWORD}
 							autoComplete={tab === "up" ? "new-password" : "current-password"}
 							disabled={pending}
 						/>

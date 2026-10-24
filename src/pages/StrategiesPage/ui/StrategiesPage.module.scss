@@ -122,6 +122,15 @@
 		line-height: 20px;
 	}
 
+	&__saved {
+		padding: 10px 14px;
+		border-radius: 14px;
+		background: var(--color-primary-soft);
+		color: var(--color-primary-text);
+		font-size: var(--font-size-base);
+		line-height: 20px;
+	}
+
 	&__slider {
 		display: flex;
 		flex-direction: column;

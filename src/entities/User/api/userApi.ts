@@ -1,5 +1,5 @@
 import { rtkApi } from "@/shared/api/rtkApi";
-import { setAccessToken } from "@/shared/api/authTokens";
+import { setAuthSession } from "@/shared/api/authTokens";
 import type { AuthResponse, ApiUser, CompanyDto, InnsRequest } from "../model/types/dto/AuthResponse";
 import type { RegisterDto, SignInDto } from "../model/types/dto/SignInDto";
 
@@ -18,7 +18,7 @@ const userApi = rtkApi.injectEndpoints({
 			}),
 			async onQueryStarted(_arg, { queryFulfilled }) {
 				const { data } = await queryFulfilled;
-				setAccessToken(data.accessToken);
+				setAuthSession(data.accessToken, data.refreshToken);
 			},
 		}),
 
@@ -30,7 +30,7 @@ const userApi = rtkApi.injectEndpoints({
 			}),
 			async onQueryStarted(_arg, { queryFulfilled }) {
 				const { data } = await queryFulfilled;
-				setAccessToken(data.accessToken);
+				setAuthSession(data.accessToken, data.refreshToken);
 			},
 		}),
 

@@ -1,15 +1,15 @@
 import { FC, useEffect } from "react";
 import { mapApiUserToAuthData, useGetMeQuery, useUserActions } from "@/entities/User";
-import { getAccessToken } from "@/shared/api/authTokens";
+import { getAccessToken, getRefreshToken } from "@/shared/api/authTokens";
 import { useAppSelector } from "@/shared/lib/hooks";
 
-/** Restores user from `/api/auth/me` and clears session on 401. */
+/** Restores user from `/api/auth/me`; baseQuery refreshes on 401, then logout if still failing. */
 export const SessionBootstrap: FC = () => {
-	const token = getAccessToken();
+	const hasSession = Boolean(getAccessToken() || getRefreshToken());
 	const inited = useAppSelector((state) => state.user._inited);
 	const { setAuthData, logout } = useUserActions();
 	const { data, error, isError } = useGetMeQuery(undefined, {
-		skip: !inited || !token,
+		skip: !inited || !hasSession,
 	});
 
 	useEffect(() => {

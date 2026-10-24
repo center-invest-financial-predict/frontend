@@ -1,7 +1,12 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { useGetStrategiesQuery, useUpdateStrategiesMutation, type StrategyKey } from "@/entities/Finance";
+import {
+	useGetStrategiesQuery,
+	useUpdateStrategiesMutation,
+	type StrategyKey,
+	type StrategyParamsDto,
+} from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
 import { Skeleton } from "@/shared/ui/Skeleton";
@@ -18,21 +23,43 @@ const STRATS: { key: StrategyKey; labelKey: string }[] = [
 	{ key: "own", labelKey: "strategies.own" },
 ];
 
+const PRESET_SHAPE: Record<Exclude<StrategyKey, "own">, Pick<StrategyParamsDto, "haircutPct" | "delayDays">> = {
+	cons: { haircutPct: 15, delayDays: 14 },
+	base: { haircutPct: 5, delayDays: 7 },
+	opt: { haircutPct: 0, delayDays: 0 },
+};
+
+const ruleLabelKey = (id: string, label: string): string => {
+	if (label === "ruleA" || label === "ruleB" || label === "ruleC") return `strategies.${label}`;
+	if (/min|balance|остат/i.test(id)) return "strategies.ruleA";
+	if (/late|inflow|поступ/i.test(id)) return "strategies.ruleB";
+	if (/daily|digest|сводк/i.test(id)) return "strategies.ruleC";
+	return "";
+};
+
 export const StrategiesPage = memo(() => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
-	const { data, isLoading, isError, refetch } = useGetStrategiesQuery();
-	const [updateStrategies] = useUpdateStrategiesMutation();
+	const { data, isLoading, isError, refetch, isFetching } = useGetStrategiesQuery();
+	const [updateStrategies, updateState] = useUpdateStrategiesMutation();
 	const [strat, setStrat] = useState<StrategyKey>("base");
-	const [own, setOwn] = useState({ haircutPct: 5, delayDays: 7, minBalanceK: 250 });
+	const [params, setParams] = useState<StrategyParamsDto>({
+		haircutPct: 5,
+		delayDays: 7,
+		minBalanceK: 150,
+	});
 	const [rulesOn, setRulesOn] = useState<Record<string, boolean>>({});
+	const [savedFlash, setSavedFlash] = useState(false);
+	const skipHydrate = useRef(false);
+	const persistTimer = useRef<number | null>(null);
 
 	useEffect(() => {
-		if (!data) return;
-		setStrat(data.active);
-		if (data.presets.own) {
-			setOwn(data.presets.own);
+		if (!data || skipHydrate.current) {
+			skipHydrate.current = false;
+			return;
 		}
+		setStrat(data.active);
+		setParams(data.presets[data.active] ?? data.presets.base);
 		const next: Record<string, boolean> = {};
 		data.rules.forEach((r) => {
 			next[r.id] = r.enabled;
@@ -40,22 +67,43 @@ export const StrategiesPage = memo(() => {
 		setRulesOn(next);
 	}, [data]);
 
-	const cur = strat === "own" ? own : data?.presets[strat];
-	const isOwn = strat === "own";
+	useEffect(
+		() => () => {
+			if (persistTimer.current != null) window.clearTimeout(persistTimer.current);
+		},
+		[],
+	);
 
-	const persist = (next: {
-		active?: StrategyKey;
-		own?: typeof own;
+	const persist = async (next: {
+		active: StrategyKey;
+		params: StrategyParamsDto;
 		rules?: Record<string, boolean>;
 	}) => {
-		const active = next.active ?? strat;
-		const ownParams = next.own ?? own;
-		const rulesMap = next.rules ?? rulesOn;
-		void updateStrategies({
-			active,
-			own: active === "own" ? ownParams : undefined,
-			rules: Object.entries(rulesMap).map(([id, enabled]) => ({ id, enabled })),
-		});
+		if (!data) return;
+		skipHydrate.current = true;
+		try {
+			await updateStrategies({
+				active: next.active,
+				params: next.params,
+				salaryDay: data.salaryDay,
+				rules: Object.entries(next.rules ?? rulesOn).map(([id, enabled]) => ({ id, enabled })),
+			}).unwrap();
+			setSavedFlash(true);
+			window.setTimeout(() => setSavedFlash(false), 2200);
+		} catch {
+			skipHydrate.current = false;
+		}
+	};
+
+	const persistDebounced = (next: {
+		active: StrategyKey;
+		params: StrategyParamsDto;
+		rules?: Record<string, boolean>;
+	}) => {
+		if (persistTimer.current != null) window.clearTimeout(persistTimer.current);
+		persistTimer.current = window.setTimeout(() => {
+			void persist(next);
+		}, 400);
 	};
 
 	if (isLoading) {
@@ -68,7 +116,7 @@ export const StrategiesPage = memo(() => {
 		);
 	}
 
-	if (isError || !data || !cur) {
+	if (isError || !data) {
 		return (
 			<Page className={styles["strat-page"]}>
 				<StateBanner
@@ -80,6 +128,8 @@ export const StrategiesPage = memo(() => {
 			</Page>
 		);
 	}
+
+	const busy = updateState.isLoading || isFetching;
 
 	return (
 		<Page className={styles["strat-page"]}>
@@ -96,10 +146,19 @@ export const StrategiesPage = memo(() => {
 						<button
 							key={s.key}
 							type="button"
+							disabled={busy}
 							className={cn(styles["strat-page__pill"], strat === s.key && styles["strat-page__pill--on"])}
 							onClick={() => {
+								const nextParams =
+									s.key === "own"
+										? params
+										: {
+												...PRESET_SHAPE[s.key],
+												minBalanceK: params.minBalanceK,
+											};
 								setStrat(s.key);
-								persist({ active: s.key });
+								setParams(nextParams);
+								void persist({ active: s.key, params: nextParams });
 							}}
 						>
 							{t(s.labelKey)}
@@ -108,22 +167,28 @@ export const StrategiesPage = memo(() => {
 				</div>
 			</div>
 
+			{savedFlash ? (
+				<div className={styles["strat-page__saved"]} role="status">
+					{t("strategies.saved")}
+				</div>
+			) : null}
+
 			<div className={styles["strat-page__grid"]}>
-				<Card className={styles["strat-page__params"]}>
+				<Card id="strategies-params" className={styles["strat-page__params"]}>
 					<div className={styles["strat-page__card-title"]}>{t("strategies.params")}</div>
 					<p className={styles["strat-page__hint"]}>{t(`strategies.${strat}`)}</p>
 					{(
 						[
 							["haircutPct", "strategies.paramHair", -10, 30, 5, "%"],
-							["delayDays", "strategies.paramDelayDays", 0, 21, 7, " дн."],
-							["minBalanceK", "strategies.paramMinK", 0, 500, 50, " тыс"],
+							["delayDays", "strategies.paramDelayDays", 0, 21, 1, " дн."],
+							["minBalanceK", "strategies.paramMinK", 0, 500, 10, " тыс"],
 						] as const
 					).map(([key, label, min, max, step, unit]) => (
 						<div key={key} className={styles["strat-page__slider"]}>
 							<div className={styles["strat-page__slider-row"]}>
 								<span>{t(label)}</span>
 								<b>
-									{cur[key]}
+									{params[key]}
 									{unit}
 								</b>
 							</div>
@@ -132,13 +197,14 @@ export const StrategiesPage = memo(() => {
 								min={min}
 								max={max}
 								step={step}
-								value={cur[key]}
-								disabled={!isOwn}
+								value={params[key]}
+								disabled={busy}
 								onChange={(e) => {
 									const value = Number(e.target.value);
-									const next = { ...own, [key]: value };
-									setOwn(next);
-									persist({ own: next, active: "own" });
+									const next = { ...params, [key]: value };
+									setParams(next);
+									setStrat("own");
+									persistDebounced({ active: "own", params: next });
 								}}
 							/>
 						</div>
@@ -156,26 +222,30 @@ export const StrategiesPage = memo(() => {
 				</Card>
 			</div>
 
-			<Card className={styles["strat-page__rules"]}>
+			<Card id="strategies-notify" className={styles["strat-page__rules"]}>
 				<div className={styles["strat-page__card-title"]}>{t("strategies.notify")}</div>
 				<p className={styles["strat-page__hint"]}>{t("strategies.notifyWhen")}</p>
-				{data.rules.map((r) => (
-					<div key={r.id} className={styles["strat-page__rule"]}>
-						<span>{r.label}</span>
-						<button
-							type="button"
-							className={cn(styles["strat-page__toggle"], rulesOn[r.id] && styles["strat-page__toggle--on"])}
-							onClick={() => {
-								const next = { ...rulesOn, [r.id]: !rulesOn[r.id] };
-								setRulesOn(next);
-								persist({ rules: next });
-							}}
-							aria-pressed={Boolean(rulesOn[r.id])}
-						>
-							<span />
-						</button>
-					</div>
-				))}
+				{data.rules.map((r) => {
+					const key = ruleLabelKey(r.id, r.label);
+					return (
+						<div key={r.id} className={styles["strat-page__rule"]}>
+							<span>{key ? t(key) : r.label || r.id}</span>
+							<button
+								type="button"
+								disabled={busy}
+								className={cn(styles["strat-page__toggle"], rulesOn[r.id] && styles["strat-page__toggle--on"])}
+								onClick={() => {
+									const next = { ...rulesOn, [r.id]: !rulesOn[r.id] };
+									setRulesOn(next);
+									void persist({ active: strat, params, rules: next });
+								}}
+								aria-pressed={Boolean(rulesOn[r.id])}
+							>
+								<span />
+							</button>
+						</div>
+					);
+				})}
 			</Card>
 		</Page>
 	);

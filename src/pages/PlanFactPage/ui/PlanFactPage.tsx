@@ -75,7 +75,7 @@ export const PlanFactPage = memo(() => {
 
 			{data ? (
 				<div className={styles["plan-fact-page__grid"]}>
-					<Card className={styles["plan-fact-page__chart"]}>
+					<Card id="plan-fact-chart" className={styles["plan-fact-page__chart"]}>
 						<div className={styles["plan-fact-page__chart-head"]}>
 							<div>
 								<div className={styles["plan-fact-page__card-title"]}>{t("planFact.chartTitle")}</div>

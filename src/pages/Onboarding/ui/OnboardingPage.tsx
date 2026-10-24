@@ -8,6 +8,7 @@ import {
 	useSetMyInnsMutation,
 	useUserActions,
 } from "@/entities/User";
+import { useUploadSourceFileMutation } from "@/entities/Finance";
 import { AuthLayout } from "@/widgets/AuthLayout";
 import { parseApiError } from "@/shared/api/parseApiError";
 import { getRouteLogin, getRouteMain } from "@/shared/consts/router";
@@ -17,6 +18,13 @@ import { OnboardingDraft, OnboardingStep, readDraft, STEP_ORDER, stepIndex, writ
 import styles from "./OnboardingPage.module.scss";
 
 const PROGRESS_LABELS = ["business", "money"] as const;
+
+const digitsOnly = (value: string) => value.replace(/\D/g, "");
+
+const isInnValid = (inn: string) => {
+	const digits = digitsOnly(inn);
+	return digits.length === 10 || digits.length === 12;
+};
 
 const SOURCE_OPTIONS: {
 	id: DataSourceKind;
@@ -47,18 +55,21 @@ const OnboardingPage = () => {
 	const onboardingDone = useAppSelector((state) => state.user.onboardingDone);
 	const { logout, setOnboardingDone, setProfile } = useUserActions();
 	const [setMyInns, setInnsState] = useSetMyInnsMutation();
+	const [uploadSourceFile, uploadState] = useUploadSourceFileMutation();
 	const [lookupCompany, lookupState] = useLazyLookupCompanyQuery();
 
 	const [draft, setDraft] = useState<OnboardingDraft>(() => readDraft());
 	const [linkError, setLinkError] = useState<string | null>(null);
+	const [innTouched, setInnTouched] = useState(false);
+	const [csvFile, setCsvFile] = useState<File | null>(null);
 
 	useEffect(() => {
 		writeDraft(draft);
 	}, [draft]);
 
 	useEffect(() => {
-		const inn = draft.inn.replace(/\D/g, "");
-		if (inn.length < 10) return;
+		const inn = digitsOnly(draft.inn);
+		if (!isInnValid(inn)) return;
 		const timer = window.setTimeout(() => {
 			void lookupCompany(inn);
 		}, 400);
@@ -79,7 +90,8 @@ const OnboardingPage = () => {
 	const goStep = (step: OnboardingStep) => update({ step });
 
 	const finishOnboarding = async () => {
-		if (!draft.business?.inn || setInnsState.isLoading) return;
+		if (!draft.business?.inn || setInnsState.isLoading || uploadState.isLoading) return;
+		if (draft.sources.includes("CSV") && !csvFile) return;
 		try {
 			await setMyInns({ inns: [draft.business.inn] }).unwrap();
 			setProfile({
@@ -87,10 +99,20 @@ const OnboardingPage = () => {
 				sources: draft.sources,
 				assumptions: draft.assumptions,
 			});
+			if (csvFile) {
+				const body = new FormData();
+				body.append("file", csvFile);
+				await uploadSourceFile(body).unwrap();
+			}
 			setOnboardingDone(true);
 			navigate(getRouteMain());
 		} catch (err) {
-			setLinkError(parseApiError(err, t("onboarding.innLinkFailed")));
+			setLinkError(
+				parseApiError(
+					err,
+					csvFile ? t("onboarding.srcFileFailed") : t("onboarding.innLinkFailed"),
+				),
+			);
 		}
 	};
 
@@ -125,12 +147,21 @@ const OnboardingPage = () => {
 	const canContinue =
 		draft.step === "business"
 			? !!draft.business
-			: draft.sources.length > 0 && !!draft.business?.inn && !setInnsState.isLoading;
+			: draft.sources.length > 0 &&
+				!!draft.business?.inn &&
+				!setInnsState.isLoading &&
+				!uploadState.isLoading &&
+				(!draft.sources.includes("CSV") || !!csvFile);
+
+	const innDigits = digitsOnly(draft.inn);
+	const showInnError =
+		innDigits.length > 0 && !isInnValid(draft.inn) && (innTouched || innDigits.length === 11);
 
 	const toggleSource = (id: DataSourceKind) => {
 		const sources = draft.sources.includes(id)
 			? draft.sources.filter((item) => item !== id)
 			: [...draft.sources, id];
+		if (!sources.includes("CSV")) setCsvFile(null);
 		update({ sources, lowData: sources.includes("CSV") });
 	};
 
@@ -171,12 +202,22 @@ const OnboardingPage = () => {
 								<input
 									className={styles.onboarding__input}
 									value={draft.inn}
-									onChange={(e) => update({ inn: e.target.value, business: null })}
+									onChange={(e) => {
+										const inn = digitsOnly(e.target.value).slice(0, 12);
+										update({ inn, business: null });
+									}}
+									onBlur={() => setInnTouched(true)}
 									inputMode="numeric"
+									maxLength={12}
 									autoComplete="off"
 								/>
 							</label>
-							{draft.inn.replace(/\D/g, "").length >= 10 ? (
+							{showInnError ? (
+								<div className={styles.onboarding__error} role="alert">
+									{t("onboarding.innInvalid")}
+								</div>
+							) : null}
+							{isInnValid(draft.inn) ? (
 								<div className={styles.onboarding__list}>
 									{lookupState.isFetching ? (
 										<div className={styles.onboarding__sub}>{t("onboarding.lookupLoading")}</div>
@@ -258,6 +299,24 @@ const OnboardingPage = () => {
 									);
 								})}
 							</div>
+							{draft.sources.includes("CSV") ? (
+								<label className={styles["onboarding__file"]}>
+									<span className={styles["onboarding__file-label"]}>
+										{csvFile
+											? t("onboarding.srcFileReady", { name: csvFile.name })
+											: t("onboarding.srcFilePick")}
+									</span>
+									<input
+										className={styles["onboarding__file-input"]}
+										type="file"
+										accept=".csv,text/csv,text/plain"
+										onChange={(e) => {
+											setCsvFile(e.target.files?.[0] ?? null);
+											e.target.value = "";
+										}}
+									/>
+								</label>
+							) : null}
 						</>
 					) : null}
 				</div>
@@ -269,11 +328,13 @@ const OnboardingPage = () => {
 				) : null}
 
 				<button type="button" className={styles.onboarding__primary} disabled={!canContinue} onClick={onNext}>
-					{setInnsState.isLoading
-						? t("onboarding.linking")
-						: draft.step === "sources"
-							? t("onboarding.openToday")
-							: t("onboarding.continue")}
+					{uploadState.isLoading
+						? t("onboarding.srcFileUploading")
+						: setInnsState.isLoading
+							? t("onboarding.linking")
+							: draft.step === "sources"
+								? t("onboarding.openToday")
+								: t("onboarding.continue")}
 				</button>
 
 				<div className={styles.onboarding__nav}>

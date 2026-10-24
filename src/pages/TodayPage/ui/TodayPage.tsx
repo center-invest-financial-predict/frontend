@@ -147,7 +147,7 @@ const TodayPage = memo(() => {
 				/>
 			) : null}
 			{data.risk ? (
-				<div className={styles["today-page__risk"]}>
+				<div id="today-risk" className={styles["today-page__risk"]}>
 					<div className={styles["today-page__risk-text"]}>
 						<div className={styles["today-page__risk-title"]}>
 							{t("today.riskTitle", {
@@ -185,16 +185,20 @@ const TodayPage = memo(() => {
 			) : null}
 
 			{overview.isLoading ? (
-				<div className={styles["today-page__kpi-skel"]} aria-busy="true" aria-label={t("states.loading")}>
+				<div id="today-kpi" className={styles["today-page__kpi-skel"]} aria-busy="true" aria-label={t("states.loading")}>
 					{Array.from({ length: 4 }, (_, i) => (
 						<Skeleton key={i} variant="card" />
 					))}
 				</div>
 			) : null}
-			{!overview.isLoading && data.kpis.length > 0 ? <KpiCards items={data.kpis} /> : null}
+			{!overview.isLoading && data.kpis.length > 0 ? (
+				<div id="today-kpi">
+					<KpiCards items={data.kpis} />
+				</div>
+			) : null}
 
 			<div className={styles["today-page__main"]}>
-				<Card className={styles["today-page__chart-card"]}>
+				<Card id="today-balance" className={styles["today-page__chart-card"]}>
 					<div className={styles["today-page__chart-head"]}>
 						<div className={styles["today-page__chart-title"]}>{t("today.balance30")}</div>
 						<div
@@ -308,7 +312,7 @@ const TodayPage = memo(() => {
 				</Card>
 
 				<div className={styles["today-page__side"]}>
-					<Card className={styles["today-page__actions"]}>
+					<Card id="today-variants" className={styles["today-page__actions"]}>
 						<div className={styles["today-page__actions-head"]}>
 							<div className={styles["today-page__chart-title"]}>{t("today.variants")}</div>
 							<button type="button" className={styles["today-page__link"]} onClick={() => navigate(getRouteForecast())}>
@@ -372,7 +376,7 @@ const TodayPage = memo(() => {
 				/>
 			) : null}
 			{!alertsQ.isLoading && !alertsQ.isError && data.alerts.length > 0 ? (
-				<div className={styles["today-page__alerts"]}>
+				<div id="today-alerts" className={styles["today-page__alerts"]}>
 					{data.alerts.map((a) => (
 						<button
 							key={a.id}
@@ -391,7 +395,7 @@ const TodayPage = memo(() => {
 			) : null}
 
 			<div className={styles["today-page__bottom"]}>
-				<Card className={styles["today-page__weeks"]}>
+				<Card id="today-weeks" className={styles["today-page__weeks"]}>
 					<div className={styles["today-page__weeks-head"]}>
 						<div className={styles["today-page__chart-title"]}>{t("today.moneyWeeks")}</div>
 						<div className={cn(styles["today-page__seg"], styles["today-page__seg--sm"])}>
@@ -498,7 +502,7 @@ const TodayPage = memo(() => {
 					) : null}
 				</Card>
 
-				<Card className={styles["today-page__cats"]}>
+				<Card id="today-categories" className={styles["today-page__cats"]}>
 					<div className={styles["today-page__chart-title"]}>{t("today.whereMoney")}</div>
 					{categoriesQ.isLoading ? (
 						<Skeleton variant="row" count={4} label={t("states.loading")} />
@@ -531,7 +535,7 @@ const TodayPage = memo(() => {
 						: null}
 				</Card>
 
-				<Card className={styles["today-page__pays"]}>
+				<Card id="today-payments" className={styles["today-page__pays"]}>
 					<div className={styles["today-page__chart-title"]}>{t("today.upcomingTitle")}</div>
 					{upcomingQ.isLoading ? (
 						<Skeleton variant="row" count={4} label={t("states.loading")} />
@@ -558,7 +562,7 @@ const TodayPage = memo(() => {
 						: null}
 				</Card>
 
-				<Card className={styles["today-page__flows"]}>
+				<Card id="today-flows" className={styles["today-page__flows"]}>
 					<div className={styles["today-page__chart-title"]}>{t("today.flows")}</div>
 					{(weekly.isLoading || forecast.isLoading) && !weekly.data && !forecast.data ? (
 						<Skeleton variant="row" count={2} label={t("states.loading")} />

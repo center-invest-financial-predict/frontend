@@ -142,6 +142,34 @@
 		line-height: 20px;
 	}
 
+	&__file {
+		position: relative;
+		display: flex;
+		align-items: center;
+		overflow: hidden;
+		min-height: 52px;
+		padding: 0 var(--space-4);
+		border: 1.5px dashed var(--color-border-strong);
+		border-radius: 14px;
+		background: var(--color-surface);
+		cursor: pointer;
+	}
+
+	&__file-label {
+		color: var(--color-text);
+		font-size: var(--font-size-lg);
+		line-height: 22px;
+	}
+
+	&__file-input {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		opacity: 0;
+		cursor: pointer;
+	}
+
 	&__note {
 		padding: var(--space-3) var(--space-4);
 		border-radius: 14px;

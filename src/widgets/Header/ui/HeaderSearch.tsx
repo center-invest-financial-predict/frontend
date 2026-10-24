@@ -9,11 +9,14 @@ import {
 	getRouteAssistant,
 	getRouteCalendar,
 	getRouteEvents,
+	getRouteFaq,
 	getRouteForecast,
 	getRouteOperations,
 	getRouteMain,
 	getRoutePlanFact,
+	getRouteSettings,
 	getRouteSources,
+	getRouteStrategies,
 	getRouteToday,
 } from "@/shared/consts/router";
 import { cn } from "@/shared/lib/classNames/classNames";
@@ -27,6 +30,7 @@ type SearchEntry = {
 	keywordsKey?: string;
 	path: string;
 	sectionId?: string;
+	pageTitleKey?: string;
 	hint?: string;
 };
 
@@ -65,10 +69,154 @@ const PAGE_ENTRIES: SearchEntry[] = [
 		path: getRouteSources(),
 	},
 	{
+		id: "strategies",
+		titleKey: "strategies.title",
+		keywordsKey: "header.searchKeywords.strategies",
+		path: getRouteStrategies(),
+	},
+	{
+		id: "settings",
+		titleKey: "settings.title",
+		keywordsKey: "header.searchKeywords.settings",
+		path: getRouteSettings(),
+	},
+	{
 		id: "assistant",
 		titleKey: "assist.title",
 		keywordsKey: "header.searchKeywords.assistant",
 		path: getRouteAssistant(),
+	},
+	{ id: "faq", titleKey: "faq.title", keywordsKey: "header.searchKeywords.faq", path: getRouteFaq() },
+];
+
+const SECTION_ENTRIES: SearchEntry[] = [
+	{
+		id: "sec-today-balance",
+		titleKey: "today.balance30",
+		keywordsKey: "header.searchKeywords.todayBalance",
+		path: getRouteToday(),
+		sectionId: "today-balance",
+		pageTitleKey: "today.title",
+	},
+	{
+		id: "sec-today-kpi",
+		titleKey: "header.searchSectionTitles.kpi",
+		keywordsKey: "header.searchKeywords.todayKpi",
+		path: getRouteToday(),
+		sectionId: "today-kpi",
+		pageTitleKey: "today.title",
+	},
+	{
+		id: "sec-today-risk",
+		titleKey: "header.searchSectionTitles.risk",
+		keywordsKey: "header.searchKeywords.todayRisk",
+		path: getRouteToday(),
+		sectionId: "today-risk",
+		pageTitleKey: "today.title",
+	},
+	{
+		id: "sec-today-variants",
+		titleKey: "today.variants",
+		keywordsKey: "header.searchKeywords.todayVariants",
+		path: getRouteToday(),
+		sectionId: "today-variants",
+		pageTitleKey: "today.title",
+	},
+	{
+		id: "sec-today-alerts",
+		titleKey: "header.searchSectionTitles.alerts",
+		keywordsKey: "header.searchKeywords.todayAlerts",
+		path: getRouteToday(),
+		sectionId: "today-alerts",
+		pageTitleKey: "today.title",
+	},
+	{
+		id: "sec-today-weeks",
+		titleKey: "today.moneyWeeks",
+		keywordsKey: "header.searchKeywords.todayWeeks",
+		path: getRouteToday(),
+		sectionId: "today-weeks",
+		pageTitleKey: "today.title",
+	},
+	{
+		id: "sec-today-categories",
+		titleKey: "today.whereMoney",
+		keywordsKey: "header.searchKeywords.todayCategories",
+		path: getRouteToday(),
+		sectionId: "today-categories",
+		pageTitleKey: "today.title",
+	},
+	{
+		id: "sec-today-payments",
+		titleKey: "today.upcomingTitle",
+		keywordsKey: "header.searchKeywords.todayPayments",
+		path: getRouteToday(),
+		sectionId: "today-payments",
+		pageTitleKey: "today.title",
+	},
+	{
+		id: "sec-today-flows",
+		titleKey: "today.flows",
+		keywordsKey: "header.searchKeywords.todayFlows",
+		path: getRouteToday(),
+		sectionId: "today-flows",
+		pageTitleKey: "today.title",
+	},
+	{
+		id: "sec-forecast-scenarios",
+		titleKey: "forecast.scens",
+		keywordsKey: "header.searchKeywords.forecastScenarios",
+		path: getRouteForecast(),
+		sectionId: "forecast-scenarios",
+		pageTitleKey: "forecast.title",
+	},
+	{
+		id: "sec-forecast-chart",
+		titleKey: "forecast.chartTitle",
+		keywordsKey: "header.searchKeywords.forecastChart",
+		path: getRouteForecast(),
+		sectionId: "forecast-chart",
+		pageTitleKey: "forecast.title",
+	},
+	{
+		id: "sec-plan-fact-chart",
+		titleKey: "planFact.chartTitle",
+		keywordsKey: "header.searchKeywords.planFactChart",
+		path: getRoutePlanFact(),
+		sectionId: "plan-fact-chart",
+		pageTitleKey: "planFact.title",
+	},
+	{
+		id: "sec-strategies-params",
+		titleKey: "strategies.params",
+		keywordsKey: "header.searchKeywords.strategiesParams",
+		path: getRouteStrategies(),
+		sectionId: "strategies-params",
+		pageTitleKey: "strategies.title",
+	},
+	{
+		id: "sec-strategies-notify",
+		titleKey: "strategies.notify",
+		keywordsKey: "header.searchKeywords.strategiesNotify",
+		path: getRouteStrategies(),
+		sectionId: "strategies-notify",
+		pageTitleKey: "strategies.title",
+	},
+	{
+		id: "sec-settings-account",
+		titleKey: "settings.account",
+		keywordsKey: "header.searchKeywords.account",
+		path: getRouteSettings(),
+		sectionId: "settings-account",
+		pageTitleKey: "settings.title",
+	},
+	{
+		id: "sec-settings-business",
+		titleKey: "settings.business",
+		keywordsKey: "header.searchKeywords.business",
+		path: getRouteSettings(),
+		sectionId: "settings-business",
+		pageTitleKey: "settings.title",
 	},
 ];
 
@@ -147,6 +295,7 @@ export const HeaderSearch = memo(() => {
 
 		return [
 			{ id: "pages", label: t("header.searchPages"), entries: filterEntries(PAGE_ENTRIES) },
+			{ id: "sections", label: t("header.searchSections"), entries: filterEntries(SECTION_ENTRIES) },
 			{ id: "data", label: t("header.searchData"), entries: dataEntries },
 		].filter((group) => group.entries.length > 0);
 	}, [companySearch?.items, locale, query, t]);
@@ -324,9 +473,9 @@ export const HeaderSearch = memo(() => {
 													{entry.hint ? (
 														<small className={styles["header-search__result-hint"]}>{entry.hint}</small>
 													) : null}
-													{entry.sectionId ? (
+													{entry.sectionId && entry.pageTitleKey ? (
 														<small className={styles["header-search__result-hint"]}>
-															{t("header.searchInSettings")}
+															{t("header.searchInPage", { page: t(entry.pageTitleKey) })}
 														</small>
 													) : null}
 												</button>

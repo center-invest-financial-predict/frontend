@@ -746,6 +746,7 @@ const financeApi = rtkApi.injectEndpoints({
 						name?: string;
 						connected?: boolean;
 						operationCount?: number;
+						lastDataDate?: string | null;
 					}[];
 				};
 				return {
@@ -755,11 +756,15 @@ const financeApi = rtkApi.injectEndpoints({
 								.trim()
 								.toUpperCase()
 								.replace(/-/g, "_");
+							const operationCount =
+								typeof s.operationCount === "number" ? s.operationCount : undefined;
 							return {
 								id: code,
 								name: code || String(s.name ?? ""),
-								description: s.operationCount != null ? String(s.operationCount) : "",
+								description: operationCount != null ? String(operationCount) : "",
 								connected: Boolean(s.connected),
+								operationCount,
+								lastDataDate: s.lastDataDate ?? null,
 							};
 						}),
 					},
@@ -843,26 +848,39 @@ const financeApi = rtkApi.injectEndpoints({
 							: s.cautionLevel === "custom"
 								? "own"
 								: "base";
-				const preset = {
-					haircutPct: 0,
-					delayDays: 0,
-					minBalanceK: Math.round((s.minBalance ?? 0) / 1000),
+				const minBalanceK = Math.round((s.minBalance ?? 150_000) / 1000);
+				const salaryDay = s.salaryDay ?? 5;
+				const presets = {
+					cons: { haircutPct: 15, delayDays: 14, minBalanceK },
+					base: { haircutPct: 5, delayDays: 7, minBalanceK },
+					opt: { haircutPct: 0, delayDays: 0, minBalanceK },
+					own: { haircutPct: 5, delayDays: 7, minBalanceK },
 				};
+				const ruleEntries = Object.entries(s.notifyRules ?? {});
+				const rules =
+					ruleEntries.length > 0
+						? ruleEntries.map(([id, enabled]) => ({
+								id,
+								label: id,
+								enabled: Boolean(enabled),
+							}))
+						: [
+								{ id: "min_balance", label: "ruleA", enabled: true },
+								{ id: "late_inflow", label: "ruleB", enabled: true },
+								{ id: "daily_digest", label: "ruleC", enabled: false },
+							];
 				return {
 					data: {
 						active,
-						presets: { cons: preset, base: preset, opt: preset, own: preset },
+						salaryDay,
+						presets,
 						impact: {
 							probabilityPct: 0,
 							gapLabel: "",
 							cashflow: { points },
 							showRisk: points.some((p) => (p.pessimisticBalance ?? 0) < 0),
 						},
-						rules: Object.entries(s.notifyRules ?? {}).map(([id, enabled]) => ({
-							id,
-							label: id,
-							enabled: Boolean(enabled),
-						})),
+						rules,
 					},
 				};
 			},
@@ -886,21 +904,25 @@ const financeApi = rtkApi.injectEndpoints({
 					method: "PUT",
 					body: {
 						cautionLevel,
-						minBalance: (body.own?.minBalanceK ?? 100) * 1000,
-						salaryDay: 5,
+						minBalance: body.params.minBalanceK * 1000,
+						salaryDay: body.salaryDay ?? 5,
 						notifyRules: Object.fromEntries((body.rules ?? []).map((r) => [r.id, r.enabled])),
 					},
 				});
 				if (result.error) return { error: asError(result) };
+				const saved = (result.data as {
+					cautionLevel?: string;
+					minBalance?: number;
+					salaryDay?: number;
+					notifyRules?: Record<string, boolean>;
+				}) ?? {};
+				const minBalanceK = Math.round((saved.minBalance ?? body.params.minBalanceK * 1000) / 1000);
+				const params = { ...body.params, minBalanceK };
 				return {
 					data: {
 						active: body.active,
-						presets: {
-							cons: body.own ?? { haircutPct: 0, delayDays: 0, minBalanceK: 100 },
-							base: body.own ?? { haircutPct: 0, delayDays: 0, minBalanceK: 100 },
-							opt: body.own ?? { haircutPct: 0, delayDays: 0, minBalanceK: 100 },
-							own: body.own ?? { haircutPct: 0, delayDays: 0, minBalanceK: 100 },
-						},
+						salaryDay: saved.salaryDay ?? body.salaryDay ?? 5,
+						presets: { cons: params, base: params, opt: params, own: params },
 						impact: {
 							probabilityPct: 0,
 							gapLabel: "",
@@ -911,7 +933,7 @@ const financeApi = rtkApi.injectEndpoints({
 					},
 				};
 			},
-			invalidatesTags: ["Strategies", "Forecast", "Today"],
+			invalidatesTags: ["Strategies", "Forecast", "Today", "PlanFact"],
 		}),
 
 		createEvent: build.mutation<{ id: string }, CreateEventArgs>({

@@ -271,6 +271,8 @@ export type SourceDto = {
 	name: string;
 	description: string;
 	connected: boolean;
+	operationCount?: number;
+	lastDataDate?: string | null;
 };
 
 export type SourcesDto = {
@@ -294,6 +296,7 @@ export type StrategyImpactDto = {
 
 export type StrategiesDto = {
 	active: StrategyKey;
+	salaryDay: number;
 	presets: Record<StrategyKey, StrategyParamsDto>;
 	impact: StrategyImpactDto;
 	rules: { id: string; label: string; enabled: boolean }[];
@@ -301,7 +304,8 @@ export type StrategiesDto = {
 
 export type UpdateStrategiesArgs = {
 	active: StrategyKey;
-	own?: StrategyParamsDto;
+	params: StrategyParamsDto;
+	salaryDay?: number;
 	rules?: { id: string; enabled: boolean }[];
 };
 
