@@ -1,15 +1,16 @@
 .kpi-cards {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 	gap: var(--space-4);
+	padding: var(--space-4) 0;
+	border-top: 1px solid var(--color-border);
+	border-bottom: 1px solid var(--color-border);
 
-	&__card {
+	&__item {
 		display: flex;
 		flex-direction: column;
-		gap: 6px;
+		gap: var(--space-1);
 		min-width: 0;
-		min-height: 0;
-		padding: var(--space-4) 18px;
 	}
 
 	&__head {
@@ -17,7 +18,7 @@
 		flex-wrap: wrap;
 		justify-content: space-between;
 		align-items: center;
-		gap: 4px 8px;
+		gap: var(--space-1) var(--space-2);
 	}
 
 	&__label {
@@ -38,52 +39,5 @@
 		color: var(--color-text-faint);
 		font-size: var(--font-size-base);
 		line-height: 20px;
-	}
-
-	&__chart {
-		display: flex;
-		align-items: flex-end;
-		margin-top: auto;
-		padding-top: 6px;
-		height: 52px;
-	}
-
-	&__bars {
-		display: flex;
-		align-items: flex-end;
-		gap: 6px;
-		width: 100%;
-		height: 36px;
-	}
-
-	&__bar {
-		flex: 1;
-		border-radius: 3px;
-		background: var(--color-primary-soft);
-
-		&--h4 {
-			height: 4px;
-		}
-
-		&--h24 {
-			height: 24px;
-		}
-
-		&--h32 {
-			height: 32px;
-			background: var(--color-primary-bright);
-		}
-
-		&--muted {
-			background: var(--color-border-strong);
-		}
-
-		&--muted-active {
-			background: var(--color-text-faint);
-		}
-
-		&--dark {
-			background: var(--color-text);
-		}
 	}
 }

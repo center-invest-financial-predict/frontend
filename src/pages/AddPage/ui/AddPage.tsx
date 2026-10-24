@@ -17,7 +17,19 @@ import styles from "./AddPage.module.scss";
 
 type Tab = "hand" | "file";
 
-const CATS = ["Продажи", "Поставщики", "Налоги", "Аренда", "Зарплата", "Кредит", "Прочее"] as const;
+const CAT_IDS = ["sales", "suppliers", "taxes", "rent", "salary", "credit", "other"] as const;
+type CatId = (typeof CAT_IDS)[number];
+
+/** Stable API values (legacy Russian labels stored on backend). */
+const CAT_API: Record<CatId, string> = {
+	sales: "Продажи",
+	suppliers: "Поставщики",
+	taxes: "Налоги",
+	rent: "Аренда",
+	salary: "Зарплата",
+	credit: "Кредит",
+	other: "Прочее",
+};
 
 export const AddPage = memo(() => {
 	const { t, i18n } = useTranslation();
@@ -27,7 +39,7 @@ export const AddPage = memo(() => {
 	const [name, setName] = useState("");
 	const [amount, setAmount] = useState("");
 	const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-	const [category, setCategory] = useState<string>(CATS[CATS.length - 1]);
+	const [category, setCategory] = useState<CatId>("other");
 	const [catOpen, setCatOpen] = useState(false);
 	const catRef = useRef<HTMLDivElement>(null);
 	const [rows, setRows] = useState<ParsedEventRowDto[]>([]);
@@ -68,7 +80,7 @@ export const AddPage = memo(() => {
 				name: name.trim(),
 				amount: evType === "out" ? -Math.abs(value) : Math.abs(value),
 				date,
-				category,
+				category: CAT_API[category],
 			}).unwrap();
 			setSaved(true);
 		} catch {
@@ -164,7 +176,8 @@ export const AddPage = memo(() => {
 								{t("add.amount")}
 								<input
 									className={styles["add-page__input"]}
-									placeholder="0"
+									placeholder={t("add.amountPh")}
+									inputMode="decimal"
 									value={amount}
 									onChange={(e) => setAmount(e.target.value)}
 								/>
@@ -194,12 +207,12 @@ export const AddPage = memo(() => {
 									aria-labelledby="add-category-label"
 									onClick={() => setCatOpen((v) => !v)}
 								>
-									<span>{category}</span>
+									<span>{t(`add.cats.${category}`)}</span>
 									<ChevronDown size={18} strokeWidth={1.5} aria-hidden />
 								</button>
 								{catOpen ? (
 									<ul className={styles["add-page__select-list"]} role="listbox">
-										{CATS.map((c) => (
+										{CAT_IDS.map((c) => (
 											<li key={c} role="option" aria-selected={c === category}>
 												<button
 													type="button"
@@ -212,7 +225,7 @@ export const AddPage = memo(() => {
 														setCatOpen(false);
 													}}
 												>
-													{c}
+													{t(`add.cats.${c}`)}
 												</button>
 											</li>
 										))}

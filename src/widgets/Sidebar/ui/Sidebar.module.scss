@@ -2,7 +2,7 @@
 	display: flex;
 	flex: none;
 	flex-direction: column;
-	gap: 14px;
+	gap: var(--space-4);
 	overflow: auto;
 	width: var(--sidebar-width);
 	min-width: var(--sidebar-width);
@@ -13,7 +13,32 @@
 	user-select: none;
 
 	@media (max-width: 860px) {
+		position: fixed;
+		top: 0;
+		left: 0;
+		z-index: var(--z-bar);
+		height: 100%;
+		transform: translateX(-100%);
+		transition: transform 0.22s ease;
+		box-shadow: var(--shadow-lg);
+
+		&--open {
+			transform: translateX(0);
+		}
+	}
+
+	&__scrim {
 		display: none;
+
+		@media (max-width: 860px) {
+			display: block;
+			position: fixed;
+			inset: 0;
+			z-index: var(--z-drawer);
+			border: 0;
+			background: rgba(0, 0, 0, 0.4);
+			cursor: pointer;
+		}
 	}
 
 	&__company-wrap {

@@ -16,7 +16,7 @@ import { cn } from "@/shared/lib/classNames/classNames";
 import { OnboardingDraft, OnboardingStep, readDraft, STEP_ORDER, stepIndex, writeDraft } from "../model/draft";
 import styles from "./OnboardingPage.module.scss";
 
-const PROGRESS_LABELS = ["account", "business", "money"] as const;
+const PROGRESS_LABELS = ["business", "money"] as const;
 
 const SOURCE_OPTIONS: {
 	id: DataSourceKind;
@@ -134,7 +134,7 @@ const OnboardingPage = () => {
 		update({ sources, lowData: sources.includes("CSV") });
 	};
 
-	const progressIndex = stepIndex(draft.step) + 1;
+	const progressIndex = stepIndex(draft.step);
 
 	return (
 		<AuthLayout>
@@ -166,20 +166,23 @@ const OnboardingPage = () => {
 								<h1 className={styles.onboarding__title}>{t("onboarding.bizTitle")}</h1>
 								<p className={styles.onboarding__sub}>{t("onboarding.bizSub")}</p>
 							</div>
-							<input
-								className={styles.onboarding__input}
-								value={draft.inn}
-								onChange={(e) => update({ inn: e.target.value, business: null })}
-								placeholder={t("onboarding.inn")}
-								inputMode="numeric"
-							/>
+							<label className={styles.onboarding__field}>
+								<span>{t("onboarding.inn")}</span>
+								<input
+									className={styles.onboarding__input}
+									value={draft.inn}
+									onChange={(e) => update({ inn: e.target.value, business: null })}
+									inputMode="numeric"
+									autoComplete="off"
+								/>
+							</label>
 							{draft.inn.replace(/\D/g, "").length >= 10 ? (
 								<div className={styles.onboarding__list}>
 									{lookupState.isFetching ? (
 										<div className={styles.onboarding__sub}>{t("onboarding.lookupLoading")}</div>
 									) : null}
 									{lookupState.isError ? (
-										<div className={styles.onboarding__error}>
+										<div className={styles.onboarding__error} role="alert">
 											{parseApiError(lookupState.error, t("onboarding.lookupFailed"))}
 										</div>
 									) : null}
@@ -259,7 +262,11 @@ const OnboardingPage = () => {
 					) : null}
 				</div>
 
-				{linkError ? <div className={styles.onboarding__error}>{linkError}</div> : null}
+				{linkError ? (
+					<div className={styles.onboarding__error} role="alert">
+						{linkError}
+					</div>
+				) : null}
 
 				<button type="button" className={styles.onboarding__primary} disabled={!canContinue} onClick={onNext}>
 					{setInnsState.isLoading
@@ -271,7 +278,7 @@ const OnboardingPage = () => {
 
 				<div className={styles.onboarding__nav}>
 					<button type="button" className={styles.onboarding__back} onClick={onBack}>
-						← {t("onboarding.back")}
+						{t("onboarding.back")}
 					</button>
 				</div>
 			</div>

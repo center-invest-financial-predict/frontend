@@ -5,7 +5,8 @@
 	"company": {
 		"label": "Business",
 		"innLabel": "TIN {{inn}}",
-		"innEmpty": "No TIN selected"
+		"innEmpty": "No TIN selected",
+		"defaultForm": "LLC"
 	},
 	"auth": {
 		"loginTitle": "Sign in",
@@ -92,6 +93,8 @@
 		"logout": "Sign out"
 	},
 	"header": {
+		"menu": "Open menu",
+		"menuClose": "Close menu",
 		"search": "Search sections",
 		"searchDialog": "Search the application",
 		"searchPlaceholder": "Page, section, or action",
@@ -368,6 +371,16 @@
 		"amount": "Amount, ₽",
 		"date": "Expected date",
 		"category": "Category",
+		"amountPh": "0",
+		"cats": {
+			"sales": "Sales",
+			"suppliers": "Suppliers",
+			"taxes": "Taxes",
+			"rent": "Rent",
+			"salary": "Payroll",
+			"credit": "Credit",
+			"other": "Other"
+		},
 		"save": "Save",
 		"saveForecast": "Add to forecast",
 		"savedOk": "Event added to forecast",

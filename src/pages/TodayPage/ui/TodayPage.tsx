@@ -32,7 +32,6 @@ import { CashflowChart } from "./CashflowChart/CashflowChart";
 import { KpiCards } from "./KpiCards/KpiCards";
 import styles from "./TodayPage.module.scss";
 
-type Mode = "forecast" | "planfact";
 type View = "chart" | "days";
 
 const TodayPage = memo(() => {
@@ -47,7 +46,6 @@ const TodayPage = memo(() => {
 	const alertsQ = useGetTodayAlertsQuery();
 	const upcomingQ = useGetTodayUpcomingQuery();
 	const recommendationsQ = useGetTodayRecommendationsQuery();
-	const [mode, setMode] = useState<Mode>("forecast");
 	const [view, setView] = useState<View>("chart");
 	const [aboutOpen, setAboutOpen] = useState(false);
 	const [period, setPeriod] = useState<"day" | "week" | "month">("week");
@@ -199,27 +197,11 @@ const TodayPage = memo(() => {
 				<Card className={styles["today-page__chart-card"]}>
 					<div className={styles["today-page__chart-head"]}>
 						<div className={styles["today-page__chart-title"]}>{t("today.balance30")}</div>
-						<div className={styles["today-page__seg"]}>
-							{(
-								[
-									["forecast", "today.modeForecast"],
-									["planfact", "today.modePlanFact"],
-								] as const
-							).map(([key, label]) => (
-								<button
-									key={key}
-									type="button"
-									className={cn(styles["today-page__pill"], mode === key && styles["today-page__pill--active"])}
-									onClick={() => setMode(key)}
-								>
-									{t(label)}
-								</button>
-							))}
-						</div>
-					</div>
-
-					<div className={styles["today-page__chart-tools"]}>
-						<div className={styles["today-page__seg"]}>
+						<div
+							className={styles["today-page__seg"]}
+							role="radiogroup"
+							aria-label={t("today.viewChart")}
+						>
 							{(
 								[
 									["chart", "today.viewChart"],
@@ -229,6 +211,8 @@ const TodayPage = memo(() => {
 								<button
 									key={key}
 									type="button"
+									role="radio"
+									aria-checked={view === key}
 									className={cn(styles["today-page__pill"], view === key && styles["today-page__pill--active"])}
 									onClick={() => setView(key)}
 								>
@@ -236,6 +220,9 @@ const TodayPage = memo(() => {
 								</button>
 							))}
 						</div>
+					</div>
+
+					<div className={styles["today-page__chart-tools"]}>
 						<button type="button" className={styles["today-page__link"]} onClick={() => setAboutOpen((v) => !v)}>
 							{t("today.about")}
 						</button>
@@ -254,7 +241,7 @@ const TodayPage = memo(() => {
 					) : null}
 					{!forecast.isLoading && !forecast.isError && view === "chart" ? (
 						<div className={styles["today-page__chart-plot"]}>
-							<CashflowChart series={data.cashflow} showRisk={mode === "forecast"} />
+							<CashflowChart series={data.cashflow} showRisk />
 						</div>
 					) : null}
 					{!forecast.isLoading && !forecast.isError && view === "days" ? (

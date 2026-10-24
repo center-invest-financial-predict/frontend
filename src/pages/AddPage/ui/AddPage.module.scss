@@ -50,7 +50,7 @@
 
 		&--on {
 			background: var(--color-primary);
-			color: #fff;
+			color: var(--color-on-primary);
 		}
 	}
 
@@ -88,7 +88,7 @@
 
 		&--on {
 			background: var(--color-primary);
-			color: #fff;
+			color: var(--color-on-primary);
 		}
 	}
 
@@ -238,7 +238,7 @@
 		border: 0;
 		border-radius: var(--radius-xl);
 		background: var(--color-primary);
-		color: #fff;
+		color: var(--color-on-primary);
 		font-family: inherit;
 		font-size: var(--font-size-lg);
 		font-weight: 500;

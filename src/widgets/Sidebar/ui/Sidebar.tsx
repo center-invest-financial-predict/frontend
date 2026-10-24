@@ -2,6 +2,7 @@ import { FC, memo, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Home, TrendingUp, FileText, Plus, AlignLeft, Database, MessageSquarePlus, LucideIcon } from "lucide-react";
+import { useUIActions } from "@/features/UI";
 import { useListCompaniesQuery, useUserActions } from "@/entities/User";
 import {
 	getRouteAdd,
@@ -79,7 +80,9 @@ export const Sidebar: FC = memo(() => {
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
 	const profile = useAppSelector((state) => state.user.profile);
+	const navOpen = useAppSelector((state) => state.ui.navOpen);
 	const { setProfile } = useUserActions();
+	const { setNavOpen } = useUIActions();
 	const { data: companies = [] } = useListCompaniesQuery();
 	const currentPath = location.pathname;
 	const [workOpen, setWorkOpen] = useState(true);
@@ -115,6 +118,28 @@ export const Sidebar: FC = memo(() => {
 		return () => window.removeEventListener(ASSISTANT_CHATS_EVENT, refreshChats);
 	}, [refreshChats]);
 
+	useEffect(() => {
+		setNavOpen(false);
+	}, [currentPath, setNavOpen]);
+
+	useEffect(() => {
+		if (!navOpen) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === "Escape") setNavOpen(false);
+		};
+		document.addEventListener("keydown", onKey);
+		document.body.style.overflow = "hidden";
+		return () => {
+			document.removeEventListener("keydown", onKey);
+			document.body.style.overflow = "";
+		};
+	}, [navOpen, setNavOpen]);
+
+	const go = (path: string, state?: object) => {
+		navigate(path, state ? { state } : undefined);
+		setNavOpen(false);
+	};
+
 	const renderLink = (link: WorkLink) => {
 		const { labelKey, path, icon: Icon, group } = link;
 		const active = group.includes(currentPath);
@@ -123,83 +148,103 @@ export const Sidebar: FC = memo(() => {
 				key={labelKey}
 				type="button"
 				className={cn(styles.sidebar__item, active && styles["sidebar__item--active"])}
-				onClick={() => navigate(path)}
+				aria-current={active ? "page" : undefined}
+				onClick={() => go(path)}
 			>
-				<Icon size={18} strokeWidth={1.3} />
+				<Icon size={18} strokeWidth={1.3} aria-hidden />
 				<span className={styles["sidebar__item-label"]}>{t(labelKey)}</span>
 			</button>
 		);
 	};
 
 	return (
-		<aside className={styles.sidebar}>
-			<div className={styles["sidebar__company-wrap"]}>
-				<div className={styles.sidebar__company}>
-					<span className={styles["sidebar__company-name"]}>
-						{activeInn ? t("company.innLabel", { inn: activeInn }) : t("company.innEmpty")}
-					</span>
-				</div>
-			</div>
-
-			<nav className={styles.sidebar__nav}>
-				<button type="button" className={styles["sidebar__section"]} onClick={() => setWorkOpen((v) => !v)}>
-					<svg
-						width="10"
-						height="10"
-						viewBox="0 0 12 12"
-						className={cn(styles["sidebar__tri"], workOpen && styles["sidebar__tri--open"])}
-						aria-hidden
-					>
-						<path d="M3 1.5l6 4.5-6 4.5z" fill="currentColor" />
-					</svg>
-					{t("nav.work")}
-				</button>
-				{workOpen ? WORK_LINKS.map(renderLink) : null}
-
+		<>
+			{navOpen ? (
 				<button
 					type="button"
-					className={cn(styles["sidebar__section"], styles["sidebar__section--gap"])}
-					onClick={() => setAssistSection((v) => !v)}
-				>
-					<svg
-						width="10"
-						height="10"
-						viewBox="0 0 12 12"
-						className={cn(styles["sidebar__tri"], assistSectionOpen && styles["sidebar__tri--open"])}
-						aria-hidden
-					>
-						<path d="M3 1.5l6 4.5-6 4.5z" fill="currentColor" />
-					</svg>
-					{t("nav.assistant")}
-				</button>
-				{assistSectionOpen ? (
-					<>
-						<button
-							type="button"
-							className={styles["sidebar__new-chat"]}
-							onClick={() => navigate(getRouteAssistant(), { state: { reset: true } })}
+					className={styles.sidebar__scrim}
+					aria-label={t("header.menuClose")}
+					onClick={() => setNavOpen(false)}
+				/>
+			) : null}
+			<aside
+				id="app-sidebar"
+				className={cn(styles.sidebar, navOpen && styles["sidebar--open"])}
+				aria-label={t("nav.work")}
+			>
+				<div className={styles["sidebar__company-wrap"]}>
+					<div className={styles.sidebar__company}>
+						<span className={styles["sidebar__company-name"]}>
+							{activeInn ? t("company.innLabel", { inn: activeInn }) : t("company.innEmpty")}
+						</span>
+					</div>
+				</div>
+
+				<nav className={styles.sidebar__nav}>
+					<button type="button" className={styles["sidebar__section"]} onClick={() => setWorkOpen((v) => !v)}>
+						<svg
+							width="10"
+							height="10"
+							viewBox="0 0 12 12"
+							className={cn(styles["sidebar__tri"], workOpen && styles["sidebar__tri--open"])}
+							aria-hidden
 						>
-							<MessageSquarePlus size={18} strokeWidth={1.3} />
-							{t("nav.newChat")}
-						</button>
-						{chats.map((chat) => (
+							<path d="M3 1.5l6 4.5-6 4.5z" fill="currentColor" />
+						</svg>
+						{t("nav.work")}
+					</button>
+					{workOpen ? WORK_LINKS.map(renderLink) : null}
+
+					<button
+						type="button"
+						className={cn(styles["sidebar__section"], styles["sidebar__section--gap"])}
+						onClick={() => setAssistSection((v) => !v)}
+					>
+						<svg
+							width="10"
+							height="10"
+							viewBox="0 0 12 12"
+							className={cn(styles["sidebar__tri"], assistSectionOpen && styles["sidebar__tri--open"])}
+							aria-hidden
+						>
+							<path d="M3 1.5l6 4.5-6 4.5z" fill="currentColor" />
+						</svg>
+						{t("nav.assistant")}
+					</button>
+					{assistSectionOpen ? (
+						<>
 							<button
-								key={chat.id}
 								type="button"
-								className={cn(
-									styles["sidebar__chat"],
-									currentPath === getRouteAssistant() &&
-										activeChatId === chat.id &&
-										styles["sidebar__chat--active"],
-								)}
-								onClick={() => navigate(getRouteAssistant(), { state: { chatId: chat.id } })}
+								className={styles["sidebar__new-chat"]}
+								onClick={() => go(getRouteAssistant(), { reset: true })}
 							>
-								{titleOfThread(chat, t("assist.untitledChat"))}
+								<MessageSquarePlus size={18} strokeWidth={1.3} aria-hidden />
+								{t("nav.newChat")}
 							</button>
-						))}
-					</>
-				) : null}
-			</nav>
-		</aside>
+							{chats.map((chat) => (
+								<button
+									key={chat.id}
+									type="button"
+									className={cn(
+										styles["sidebar__chat"],
+										currentPath === getRouteAssistant() &&
+											activeChatId === chat.id &&
+											styles["sidebar__chat--active"],
+									)}
+									aria-current={
+										currentPath === getRouteAssistant() && activeChatId === chat.id
+											? "page"
+											: undefined
+									}
+									onClick={() => go(getRouteAssistant(), { chatId: chat.id })}
+								>
+									{titleOfThread(chat, t("assist.untitledChat"))}
+								</button>
+							))}
+						</>
+					) : null}
+				</nav>
+			</aside>
+		</>
 	);
 });

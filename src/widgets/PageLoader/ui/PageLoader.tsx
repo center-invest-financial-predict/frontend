@@ -1,9 +1,12 @@
 import { FC } from "react";
+import { useTranslation } from "react-i18next";
 import styles from "./PageLoader.module.scss";
 
 export const PageLoader: FC = () => {
+	const { t } = useTranslation();
+
 	return (
-		<div className={styles["page-loader"]} aria-busy="true" aria-label="Loading">
+		<div className={styles["page-loader"]} aria-busy="true" aria-label={t("states.loading")}>
 			<div className={styles["page-loader__title"]} />
 			<div className={styles["page-loader__subtitle"]} />
 			<div className={styles["page-loader__cards"]}>

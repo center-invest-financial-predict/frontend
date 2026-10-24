@@ -80,8 +80,8 @@ const LoginPage = () => {
 			setProfile({
 				business: {
 					inn,
-					name: `ИНН ${inn}`,
-					form: "ООО",
+					name: t("company.innLabel", { inn }),
+					form: t("company.defaultForm"),
 					tax: "",
 					city: "",
 				},
@@ -123,14 +123,29 @@ const LoginPage = () => {
 		}
 	};
 
+	const errorText = pwBad
+		? t("auth.passwordMismatch")
+		: serverError
+			? serverError
+			: touched && !canSubmit
+				? fioIncomplete
+					? t("auth.fioRequired")
+					: password.length > 0 && password.length < 6
+						? t("auth.passwordTooShort")
+						: t("auth.formInvalid")
+				: null;
+
 	return (
 		<AuthLayout>
 			<form className={styles["login-page"]} onSubmit={onSubmit}>
-				<div className={styles["login-page__seg"]} role="tablist">
+				<div className={styles["login-page__seg"]} role="tablist" aria-label={t("auth.loginTitle")}>
 					<button
 						type="button"
 						role="tab"
+						id="auth-tab-in"
 						aria-selected={tab === "in"}
+						aria-controls="auth-panel"
+						tabIndex={tab === "in" ? 0 : -1}
 						className={cn(styles["login-page__seg-btn"], tab === "in" && styles["login-page__seg-btn--active"])}
 						onClick={() => {
 							setTab("in");
@@ -143,7 +158,10 @@ const LoginPage = () => {
 					<button
 						type="button"
 						role="tab"
+						id="auth-tab-up"
 						aria-selected={tab === "up"}
+						aria-controls="auth-panel"
+						tabIndex={tab === "up" ? 0 : -1}
 						className={cn(styles["login-page__seg-btn"], tab === "up" && styles["login-page__seg-btn--active"])}
 						onClick={() => {
 							setTab("up");
@@ -155,70 +173,77 @@ const LoginPage = () => {
 					</button>
 				</div>
 
-				{tab === "up" ? (
-					<input
-						className={styles["login-page__input"]}
-						value={fio}
-						onChange={(e) => {
-							setFio(e.target.value);
-							setServerError(null);
-						}}
-						placeholder={t("auth.fio")}
-						autoComplete="name"
-						disabled={pending}
-					/>
-				) : null}
+				<div
+					id="auth-panel"
+					role="tabpanel"
+					className={styles["login-page__panel"]}
+					aria-labelledby={tab === "in" ? "auth-tab-in" : "auth-tab-up"}
+				>
+					{tab === "up" ? (
+						<label className={styles["login-page__field"]}>
+							<span className={styles["login-page__label"]}>{t("auth.fio")}</span>
+							<input
+								className={styles["login-page__input"]}
+								value={fio}
+								onChange={(e) => {
+									setFio(e.target.value);
+									setServerError(null);
+								}}
+								autoComplete="name"
+								disabled={pending}
+							/>
+						</label>
+					) : null}
 
-				<input
-					className={styles["login-page__input"]}
-					type="email"
-					value={email}
-					onChange={(e) => {
-						setEmail(e.target.value);
-						setServerError(null);
-					}}
-					placeholder={t("auth.email")}
-					autoComplete="email"
-					disabled={pending}
-				/>
-				<input
-					className={styles["login-page__input"]}
-					type="password"
-					value={password}
-					onChange={(e) => {
-						setPassword(e.target.value);
-						setServerError(null);
-					}}
-					placeholder={t("auth.password")}
-					autoComplete={tab === "up" ? "new-password" : "current-password"}
-					disabled={pending}
-				/>
-				{tab === "up" ? (
-					<input
-						className={styles["login-page__input"]}
-						type="password"
-						value={password2}
-						onChange={(e) => {
-							setPassword2(e.target.value);
-							setServerError(null);
-						}}
-						placeholder={t("auth.passwordRepeat")}
-						autoComplete="new-password"
-						disabled={pending}
-					/>
-				) : null}
+					<label className={styles["login-page__field"]}>
+						<span className={styles["login-page__label"]}>{t("auth.email")}</span>
+						<input
+							className={styles["login-page__input"]}
+							type="email"
+							value={email}
+							onChange={(e) => {
+								setEmail(e.target.value);
+								setServerError(null);
+							}}
+							autoComplete="email"
+							disabled={pending}
+						/>
+					</label>
+					<label className={styles["login-page__field"]}>
+						<span className={styles["login-page__label"]}>{t("auth.password")}</span>
+						<input
+							className={styles["login-page__input"]}
+							type="password"
+							value={password}
+							onChange={(e) => {
+								setPassword(e.target.value);
+								setServerError(null);
+							}}
+							autoComplete={tab === "up" ? "new-password" : "current-password"}
+							disabled={pending}
+						/>
+					</label>
+					{tab === "up" ? (
+						<label className={styles["login-page__field"]}>
+							<span className={styles["login-page__label"]}>{t("auth.passwordRepeat")}</span>
+							<input
+								className={styles["login-page__input"]}
+								type="password"
+								value={password2}
+								onChange={(e) => {
+									setPassword2(e.target.value);
+									setServerError(null);
+								}}
+								autoComplete="new-password"
+								disabled={pending}
+							/>
+						</label>
+					) : null}
+				</div>
 
-				{pwBad || serverError || (touched && !canSubmit) ? (
-					<div className={styles["login-page__error"]}>
-						{pwBad
-							? t("auth.passwordMismatch")
-							: serverError
-								? serverError
-								: fioIncomplete
-									? t("auth.fioRequired")
-									: password.length > 0 && password.length < 6
-										? t("auth.passwordTooShort")
-										: t("auth.formInvalid")}
+				{errorText ? (
+					<div className={styles["login-page__error"]} role="alert">
+						{errorText}
 					</div>
 				) : null}
 

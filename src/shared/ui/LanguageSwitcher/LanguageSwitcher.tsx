@@ -14,14 +14,13 @@ export const LanguageSwitcher: FC = memo(() => {
 	const value: SiteLocale = raw === "ru" ? "ru" : "en";
 
 	return (
-		<div role="group" aria-label={t("header.language")}>
-			<PillSwitch
-				value={value}
-				options={OPTIONS}
-				onChange={(lng) => {
-					void i18n.changeLanguage(lng);
-				}}
-			/>
-		</div>
+		<PillSwitch
+			aria-label={t("header.language")}
+			value={value}
+			options={OPTIONS}
+			onChange={(lng) => {
+				void i18n.changeLanguage(lng);
+			}}
+		/>
 	);
 });

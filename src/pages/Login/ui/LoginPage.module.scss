@@ -4,6 +4,13 @@
 	gap: var(--space-4);
 	width: 100%;
 
+	&__panel {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+		width: 100%;
+	}
+
 	&__seg {
 		display: flex;
 		gap: 2px;
@@ -16,7 +23,7 @@
 		flex: 1;
 		min-height: 44px;
 		border: 0;
-		border-radius: 10px;
+		border-radius: var(--radius-xl);
 		background: transparent;
 		color: var(--color-text-muted);
 		font-family: inherit;
@@ -33,6 +40,20 @@
 		}
 	}
 
+	&__field {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		width: 100%;
+	}
+
+	&__label {
+		color: var(--color-text-secondary);
+		font-size: var(--font-size-base);
+		font-weight: 500;
+		line-height: 20px;
+	}
+
 	&__input {
 		width: 100%;
 		min-height: 52px;
@@ -43,10 +64,10 @@
 		color: var(--color-text);
 		font-family: inherit;
 		font-size: var(--font-size-lg);
-		outline: none;
 
-		&:focus {
-			box-shadow: 0 0 0 2px var(--color-primary-soft);
+		&:focus-visible {
+			outline: 2px solid var(--color-primary);
+			outline-offset: 2px;
 		}
 	}
 
@@ -62,7 +83,7 @@
 		border: 0;
 		border-radius: var(--radius-xl);
 		background: var(--color-primary);
-		color: #fff;
+		color: var(--color-on-primary);
 		font-family: inherit;
 		font-size: var(--font-size-lg);
 		font-weight: 600;

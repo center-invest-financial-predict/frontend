@@ -13,6 +13,14 @@
 		padding: 0 var(--space-3);
 	}
 
+	&__menu {
+		display: none;
+
+		@media (max-width: 860px) {
+			display: flex;
+		}
+	}
+
 	&__actions {
 		display: flex;
 		align-items: center;

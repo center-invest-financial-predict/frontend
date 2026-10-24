@@ -5,7 +5,8 @@
 	"company": {
 		"label": "Бизнес",
 		"innLabel": "ИНН {{inn}}",
-		"innEmpty": "ИНН не выбран"
+		"innEmpty": "ИНН не выбран",
+		"defaultForm": "ООО"
 	},
 	"auth": {
 		"loginTitle": "Вход",
@@ -92,6 +93,8 @@
 		"logout": "Выйти"
 	},
 	"header": {
+		"menu": "Открыть меню",
+		"menuClose": "Закрыть меню",
 		"search": "Поиск по разделам",
 		"searchDialog": "Поиск по приложению",
 		"searchPlaceholder": "Страница, раздел или действие",
@@ -368,6 +371,16 @@
 		"amount": "Сумма, ₽",
 		"date": "Ожидаемая дата",
 		"category": "Категория",
+		"amountPh": "0",
+		"cats": {
+			"sales": "Продажи",
+			"suppliers": "Поставщики",
+			"taxes": "Налоги",
+			"rent": "Аренда",
+			"salary": "Зарплата",
+			"credit": "Кредит",
+			"other": "Прочее"
+		},
 		"save": "Сохранить",
 		"saveForecast": "Добавить в прогноз",
 		"savedOk": "Событие добавлено в прогноз",

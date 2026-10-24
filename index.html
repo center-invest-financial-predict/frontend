@@ -1,42 +1,47 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Кассовый прогноз</title>
+		<title>Cash forecast</title>
 		<meta
 			name="description"
-			content="Кассовый прогноз для бизнеса: остаток, риски и сценарии на 30 дней."
+			content="Cash forecast for business: balance, risks and 30-day scenarios."
 		/>
-		<link rel="canonical" href="http://localhost:5173/" />
 		<meta name="theme-color" content="#398233" />
+		<script>
+			(function () {
+				try {
+					var t = localStorage.getItem("app_theme");
+					document.documentElement.setAttribute("data-theme", t === "dark" ? "dark" : "light");
+				} catch (e) {
+					document.documentElement.setAttribute("data-theme", "light");
+				}
+			})();
+		</script>
 
 		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 		<link rel="icon" href="/favicon.png" type="image/png" sizes="32x32" />
 		<link rel="apple-touch-icon" href="/favicon.png" />
 
 		<meta property="og:type" content="website" />
-		<meta property="og:site_name" content="Кассовый прогноз" />
-		<meta property="og:title" content="Кассовый прогноз" />
+		<meta property="og:site_name" content="Cash forecast" />
+		<meta property="og:title" content="Cash forecast" />
 		<meta
 			property="og:description"
-			content="Кассовый прогноз для бизнеса: остаток, риски и сценарии на 30 дней."
+			content="Cash forecast for business: balance, risks and 30-day scenarios."
 		/>
-		<meta property="og:url" content="http://localhost:5173/" />
-		<meta property="og:image" content="http://localhost:5173/og/og-default.jpg" />
-		<meta property="og:locale" content="ru_RU" />
+		<meta property="og:image" content="/og/og-default.jpg" />
+		<meta property="og:locale" content="en_US" />
+		<meta property="og:locale:alternate" content="ru_RU" />
 
 		<meta name="twitter:card" content="summary_large_image" />
-		<meta name="twitter:title" content="Кассовый прогноз" />
+		<meta name="twitter:title" content="Cash forecast" />
 		<meta
 			name="twitter:description"
-			content="Кассовый прогноз для бизнеса: остаток, риски и сценарии на 30 дней."
+			content="Cash forecast for business: balance, risks and 30-day scenarios."
 		/>
-		<meta name="twitter:image" content="http://localhost:5173/og/og-default.jpg" />
-
-		<link rel="alternate" hreflang="ru" href="http://localhost:5173/?lng=ru" />
-		<link rel="alternate" hreflang="en" href="http://localhost:5173/?lng=en" />
-		<link rel="alternate" hreflang="x-default" href="http://localhost:5173/" />
+		<meta name="twitter:image" content="/og/og-default.jpg" />
 	</head>
 	<body>
 		<div id="root"></div>

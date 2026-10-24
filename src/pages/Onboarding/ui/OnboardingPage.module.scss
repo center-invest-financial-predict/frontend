@@ -37,7 +37,7 @@
 	&__step--done &__step-dot,
 	&__step--current &__step-dot {
 		background: var(--color-primary);
-		color: #fff;
+		color: var(--color-on-primary);
 	}
 
 	&__step--current &__step-dot {
@@ -82,15 +82,20 @@
 		color: var(--color-text);
 		font-family: inherit;
 		font-size: var(--font-size-lg);
-		outline: none;
+
+		&:focus-visible {
+			outline: 2px solid var(--color-primary);
+			outline-offset: 2px;
+		}
 	}
 
 	&__field {
 		display: flex;
 		flex-direction: column;
-		gap: 6px;
-		color: var(--color-text-muted);
+		gap: var(--space-2);
+		color: var(--color-text-secondary);
 		font-size: var(--font-size-base);
+		font-weight: 500;
 	}
 
 	&__list {
@@ -168,7 +173,7 @@
 
 		&--active {
 			background: var(--color-primary);
-			color: #fff;
+			color: var(--color-on-primary);
 		}
 	}
 
@@ -260,7 +265,7 @@
 		border: 0;
 		border-radius: var(--radius-xl);
 		background: var(--color-primary);
-		color: #fff;
+		color: var(--color-on-primary);
 		font-family: inherit;
 		font-size: var(--font-size-lg);
 		font-weight: 600;

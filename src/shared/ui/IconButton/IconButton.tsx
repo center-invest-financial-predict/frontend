@@ -6,9 +6,22 @@ type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
 	children: ReactNode;
 };
 
-export const IconButton: FC<Props> = ({ children, className, type = "button", ...rest }) => {
+export const IconButton: FC<Props> = ({
+	children,
+	className,
+	type = "button",
+	title,
+	"aria-label": ariaLabel,
+	...rest
+}) => {
 	return (
-		<button type={type} className={cn(styles["icon-button"], className)} {...rest}>
+		<button
+			type={type}
+			className={cn(styles["icon-button"], className)}
+			title={title}
+			aria-label={ariaLabel ?? title}
+			{...rest}
+		>
 			{children}
 		</button>
 	);

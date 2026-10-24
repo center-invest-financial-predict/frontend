@@ -48,5 +48,10 @@ Thumbs.db
 .cursor/mcp.json
 .cursor/rules/local/
 
+# Agent skills (npx skills add — reinstall locally)
+.agents/skills/
+skills-lock.json
+.taste-skill/
+
 # Design mockups / reference (local only)
 docx/

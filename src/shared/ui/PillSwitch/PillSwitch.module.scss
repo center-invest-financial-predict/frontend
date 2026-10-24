@@ -6,7 +6,8 @@
 	border-radius: var(--radius-md);
 
 	&__option {
-		padding: 5px var(--space-3);
+		min-height: 44px;
+		padding: var(--space-2) var(--space-3);
 		border: none;
 		border-radius: var(--radius-sm);
 		background: transparent;
@@ -24,10 +25,15 @@
 			color: var(--color-text);
 		}
 
+		&:focus-visible {
+			outline: 2px solid var(--color-primary);
+			outline-offset: 2px;
+		}
+
 		&--active {
 			background: var(--color-surface);
 			color: var(--color-text);
-			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+			box-shadow: var(--shadow-sm);
 		}
 	}
 }

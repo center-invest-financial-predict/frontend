@@ -6,6 +6,7 @@ export const ONBOARDING_DRAFT = "onboarding_draft";
 export const USER_PROFILE = "user_profile";
 export const ASSISTANT_CHATS = "assistant_chats";
 export const ASSISTANT_ACTIVE_CHAT = "assistant_active_chat";
+export const APP_THEME = "app_theme";
 
 /** @deprecated migrated to USER_EMAIL */
 export const USER_PHONE = "user_phone";

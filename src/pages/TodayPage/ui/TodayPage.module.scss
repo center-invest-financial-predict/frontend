@@ -73,7 +73,7 @@
 		padding: 0 var(--space-5);
 		border: 0;
 		background: var(--color-primary);
-		color: #fff;
+		color: var(--color-on-primary);
 		font-weight: 500;
 	}
 
@@ -162,9 +162,10 @@
 	}
 
 	&__pill {
-		padding: 6px 14px;
+		min-height: 44px;
+		padding: var(--space-2) var(--space-3);
 		border: 0;
-		border-radius: 10px;
+		border-radius: var(--radius-lg);
 		background: transparent;
 		color: var(--color-text-faint);
 		font-family: inherit;
@@ -407,7 +408,7 @@
 
 	&__action-pill--primary {
 		background: var(--color-primary);
-		color: #fff;
+		color: var(--color-on-primary);
 	}
 
 	&__drawer {
