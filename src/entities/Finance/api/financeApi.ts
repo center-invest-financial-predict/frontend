@@ -43,12 +43,12 @@ const asError = (result: { error?: FetchBaseQueryError }): FetchBaseQueryError =
 const normalizeSourceCode = (value: string): string =>
 	value.trim().toUpperCase().replace(/-/g, "_");
 
-/** Query param `source` for GET .../operations (per-source totals in `totalElements`). */
+/** Query param `source` for GET .../operations (`OperationResponse.source` enum). */
 const operationsSourceParam = (code: string): string | undefined => {
 	const c = normalizeSourceCode(code);
 	if (c === "ONE_C" || c === "1C") return "1C";
-	if (c === "CSV") return "CSV";
-	if (c === "GOS_SERVICE") return "GOS_SERVICE";
+	if (c === "CSV") return "csv";
+	if (c === "GOS_SERVICE") return "Gos_service";
 	return undefined;
 };
 
@@ -830,7 +830,7 @@ const financeApi = rtkApi.injectEndpoints({
 			invalidatesTags: ["Sources", "Today", "Operations", "Events", "Forecast", "PlanFact"],
 		}),
 
-		uploadSourceFile: build.mutation<{ ok: boolean }, FormData>({
+		uploadSourceFile: build.mutation<SyncResultDto, FormData>({
 			async queryFn(body, _api, _extra, baseQuery) {
 				const inn = getActiveInn();
 				if (!inn) return { error: noInnError() };
@@ -840,7 +840,15 @@ const financeApi = rtkApi.injectEndpoints({
 					body,
 				});
 				if (result.error) return { error: asError(result) };
-				return { data: { ok: true } };
+				const bodyData = result.data as Partial<SyncResultDto> | undefined;
+				return {
+					data: {
+						inserted: bodyData?.inserted ?? 0,
+						duplicates: bodyData?.duplicates ?? 0,
+						invalid: bodyData?.invalid ?? 0,
+						skipped: bodyData?.skipped ?? 0,
+					},
+				};
 			},
 			invalidatesTags: ["Sources", "Today", "Operations", "Events"],
 		}),

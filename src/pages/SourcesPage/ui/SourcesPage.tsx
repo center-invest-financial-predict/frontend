@@ -64,9 +64,20 @@ export const SourcesPage = memo(() => {
 		const body = new FormData();
 		body.append("file", file);
 		try {
-			await uploadSourceFile(body).unwrap();
-			setUploadOk(true);
-			setUploadMessage(t("sources.uploadOk"));
+			const result = await uploadSourceFile(body).unwrap();
+			if (result.inserted > 0) {
+				setUploadOk(true);
+				setUploadMessage(t("sources.uploadOkCount", { count: result.inserted }));
+			} else {
+				setUploadOk(false);
+				setUploadMessage(
+					t("sources.uploadEmpty", {
+						invalid: result.invalid,
+						skipped: result.skipped,
+					}),
+				);
+			}
+			void refetch();
 		} catch (err) {
 			setUploadMessage(parseApiError(err, t("sources.uploadFail")));
 		}

@@ -295,6 +295,8 @@
 		"chooseFile": "Choose CSV file",
 		"uploadCta": "Upload statement",
 		"uploadOk": "Statement uploaded",
+		"uploadOkCount": "Imported {{count}} operations",
+		"uploadEmpty": "No operations imported (invalid rows: {{invalid}}, skipped: {{skipped}}). Format: date;description;amount with semicolon delimiter",
 		"futureCta": "Import future payments"
 	},
 	"today": {
