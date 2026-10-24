@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { useUserActions } from "@/entities/User";
+import { useSignOutMutation, useUserActions } from "@/entities/User";
 import { getRouteLogin } from "@/shared/consts/router";
 import { ScreenHeader } from "@/shared/ui/ScreenHeader";
 import { Page } from "@/widgets/Page";
@@ -37,8 +37,14 @@ export const SettingsPage = memo(() => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const { logout } = useUserActions();
+	const [signOut] = useSignOutMutation();
 
-	const onLogout = () => {
+	const onLogout = async () => {
+		try {
+			await signOut().unwrap();
+		} catch {
+			/* clear local session even if network fails */
+		}
 		logout();
 		navigate(getRouteLogin());
 	};

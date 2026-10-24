@@ -21,6 +21,9 @@
 		"passwordRepeat": "Repeat password",
 		"passwordMismatch": "Passwords do not match",
 		"formInvalid": "Check email and password",
+		"fioRequired": "Enter last name and first name",
+		"passwordTooShort": "Password must be at least 6 characters",
+		"submitting": "Submitting…",
 		"createAccount": "Create account",
 		"terms": "By creating an account you accept the service terms",
 		"submit": "Sign in",
@@ -89,6 +92,8 @@
 		"lowData": "The statement has fewer than three months (68 days). The forecast will be approximate.",
 		"continue": "Continue",
 		"openToday": "Open Today",
+		"linking": "Linking company…",
+		"innLinkFailed": "Could not link INN. Pick a known company from the list (e.g. ООО «1С Демо»).",
 		"back": "Back",
 		"skip": "Skip"
 	},

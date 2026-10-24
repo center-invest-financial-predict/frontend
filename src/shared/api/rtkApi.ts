@@ -1,13 +1,14 @@
 import { BaseQueryFn, FetchArgs, FetchBaseQueryError, createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { USER_ACCESS_TOKEN } from "@/shared/consts/localStorage";
+import { authHeaderValue, getAccessToken } from "./authTokens";
 import { resolveDevFixture } from "./devFixtures";
 
 const rawBaseQuery = fetchBaseQuery({
 	baseUrl: __API__,
+	timeout: 20_000,
 	prepareHeaders: (headers) => {
-		const token = localStorage.getItem(USER_ACCESS_TOKEN) || "";
+		const token = getAccessToken();
 		if (token) {
-			headers.set("Authorization", token);
+			headers.set("Authorization", authHeaderValue(token));
 		}
 		return headers;
 	},
@@ -36,7 +37,7 @@ const baseQueryWithFixture: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQu
 
 export const rtkApi = createApi({
 	reducerPath: "api",
-	tagTypes: ["Today", "Forecast", "Scenarios", "PlanFact", "Operations", "Events", "Sources", "Strategies"],
+	tagTypes: ["Today", "Forecast", "Scenarios", "PlanFact", "Operations", "Events", "Sources", "Strategies", "User"],
 	baseQuery: baseQueryWithFixture,
 	endpoints: () => ({}),
 });

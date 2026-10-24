@@ -1,6 +1,7 @@
 import { Suspense, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { AppRouter } from "./providers/router";
+import { SessionBootstrap } from "./providers/SessionBootstrap";
 import { PageLoader } from "@/widgets/PageLoader";
 import { Sidebar } from "@/widgets/Sidebar";
 import { Header } from "@/widgets/Header";
@@ -81,6 +82,7 @@ const App = () => {
 	return (
 		<div className={styles.app}>
 			<PageHead />
+			<SessionBootstrap />
 			{body}
 		</div>
 	);

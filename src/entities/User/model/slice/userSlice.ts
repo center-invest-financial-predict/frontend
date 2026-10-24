@@ -1,10 +1,10 @@
 import { PayloadAction } from "@reduxjs/toolkit";
 import { User, UserProfile, UserSchema } from "../types/User";
 import { buildSlice } from "@/shared/lib/store/buildSlice";
+import { clearAccessToken, getAccessToken } from "@/shared/api/authTokens";
 import {
 	ONBOARDING_DONE,
 	ONBOARDING_DRAFT,
-	USER_ACCESS_TOKEN,
 	USER_EMAIL,
 	USER_NAME,
 	USER_PHONE,
@@ -34,6 +34,12 @@ const userSlice = buildSlice({
 	reducers: {
 		setAuthData: (state, action: PayloadAction<User>) => {
 			state.authData = action.payload;
+			if (action.payload.username) {
+				localStorage.setItem(USER_EMAIL, action.payload.username);
+			}
+			if (action.payload.name) {
+				localStorage.setItem(USER_NAME, action.payload.name);
+			}
 		},
 		setOnboardingDone: (state, action: PayloadAction<boolean>) => {
 			state.onboardingDone = action.payload;
@@ -49,15 +55,12 @@ const userSlice = buildSlice({
 			localStorage.setItem(USER_PROFILE, JSON.stringify(action.payload));
 		},
 		initAuthData: (state) => {
-			const token = localStorage.getItem(USER_ACCESS_TOKEN);
+			const token = getAccessToken();
 			if (token) {
-				const email =
-					localStorage.getItem(USER_EMAIL) ||
-					localStorage.getItem(USER_PHONE) ||
-					"demo";
+				const email = localStorage.getItem(USER_EMAIL) || localStorage.getItem(USER_PHONE) || "";
 				state.authData = {
-					id: "stub",
-					username: email,
+					id: "pending",
+					username: email || "user",
 					name: localStorage.getItem(USER_NAME) || undefined,
 				};
 				state.onboardingDone = localStorage.getItem(ONBOARDING_DONE) === "1";
@@ -66,7 +69,7 @@ const userSlice = buildSlice({
 			state._inited = true;
 		},
 		logout: (state) => {
-			localStorage.removeItem(USER_ACCESS_TOKEN);
+			clearAccessToken();
 			localStorage.removeItem(USER_EMAIL);
 			localStorage.removeItem(USER_NAME);
 			localStorage.removeItem(USER_PHONE);

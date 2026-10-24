@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Check } from "lucide-react";
-import { useUserActions } from "@/entities/User";
+import { useSetMyInnsMutation, useUserActions } from "@/entities/User";
 import { AuthLayout } from "@/widgets/AuthLayout";
+import { parseApiError } from "@/shared/api/parseApiError";
 import { getRouteLogin, getRouteMain } from "@/shared/consts/router";
 import { useAppSelector } from "@/shared/lib/hooks";
 import { cn } from "@/shared/lib/classNames/classNames";
@@ -21,10 +22,12 @@ const OnboardingPage = () => {
 	const auth = useAppSelector((state) => state.user.authData);
 	const onboardingDone = useAppSelector((state) => state.user.onboardingDone);
 	const { logout, setOnboardingDone, setProfile } = useUserActions();
+	const [setMyInns, setInnsState] = useSetMyInnsMutation();
 
 	const [draft, setDraft] = useState<OnboardingDraft>(() => readDraft());
 	const [buildPhase, setBuildPhase] = useState(0);
 	const [buildReady, setBuildReady] = useState(false);
+	const [linkError, setLinkError] = useState<string | null>(null);
 
 	useEffect(() => {
 		writeDraft(draft);
@@ -82,7 +85,8 @@ const OnboardingPage = () => {
 		goStep(STEP_ORDER[i - 1]);
 	};
 
-	const onNext = () => {
+	const onNext = async () => {
+		setLinkError(null);
 		if (draft.step === "business") {
 			if (!draft.business) return;
 			goStep("sources");
@@ -97,17 +101,28 @@ const OnboardingPage = () => {
 			return;
 		}
 		if (draft.step === "building" && buildReady) {
-			setProfile({
-				business: draft.business || undefined,
-				source: draft.source,
-				assumptions: draft.assumptions,
-			});
-			setOnboardingDone(true);
-			navigate(getRouteMain());
+			if (!draft.business?.inn || setInnsState.isLoading) return;
+			try {
+				await setMyInns({ inns: [draft.business.inn] }).unwrap();
+				setProfile({
+					business: draft.business,
+					source: draft.source,
+					assumptions: draft.assumptions,
+				});
+				setOnboardingDone(true);
+				navigate(getRouteMain());
+			} catch (err) {
+				setLinkError(parseApiError(err, t("onboarding.innLinkFailed")));
+			}
 		}
 	};
 
-	const canContinue = draft.step === "business" ? !!draft.business : draft.step === "building" ? buildReady : true;
+	const canContinue =
+		draft.step === "business"
+			? !!draft.business
+			: draft.step === "building"
+				? buildReady && !setInnsState.isLoading
+				: true;
 
 	const progressIndex = stepIndex(draft.step) + 1;
 
@@ -334,8 +349,14 @@ const OnboardingPage = () => {
 					) : null}
 				</div>
 
+				{linkError ? <div className={styles.onboarding__error}>{linkError}</div> : null}
+
 				<button type="button" className={styles.onboarding__primary} disabled={!canContinue} onClick={onNext}>
-					{draft.step === "building" ? t("onboarding.openToday") : t("onboarding.continue")}
+					{setInnsState.isLoading
+						? t("onboarding.linking")
+						: draft.step === "building"
+							? t("onboarding.openToday")
+							: t("onboarding.continue")}
 				</button>
 
 				<div className={styles.onboarding__nav}>

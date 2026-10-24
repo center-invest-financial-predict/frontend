@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Bell, HelpCircle, Moon, Sun, User } from "lucide-react";
 import { useUIActions } from "@/features/UI";
-import { useUserActions } from "@/entities/User";
+import { useSignOutMutation, useUserActions } from "@/entities/User";
 import { useAppSelector } from "@/shared/lib/hooks";
 import { IconButton } from "@/shared/ui/IconButton";
 import { LanguageSwitcher } from "@/shared/ui/LanguageSwitcher";
@@ -18,6 +18,7 @@ export const Header: FC = memo(() => {
 	const auth = useAppSelector((state) => state.user.authData);
 	const { toggleTheme } = useUIActions();
 	const { logout } = useUserActions();
+	const [signOut] = useSignOutMutation();
 	const [userOpen, setUserOpen] = useState(false);
 	const menuRef = useRef<HTMLDivElement>(null);
 
@@ -30,7 +31,12 @@ export const Header: FC = memo(() => {
 		return () => document.removeEventListener("mousedown", onDoc);
 	}, [userOpen]);
 
-	const onLogout = () => {
+	const onLogout = async () => {
+		try {
+			await signOut().unwrap();
+		} catch {
+			/* clear local session even if network fails */
+		}
 		logout();
 		navigate(getRouteLogin());
 	};

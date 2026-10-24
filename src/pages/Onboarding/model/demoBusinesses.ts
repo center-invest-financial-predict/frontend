@@ -1,6 +1,14 @@
 import { Business } from "@/entities/User";
 
+/** Known seed INN on backend: `7700000000` (ООО «1С Демо»). */
 export const DEMO_BUSINESSES: Business[] = [
+	{
+		inn: "7700000000",
+		name: "ООО «1С Демо»",
+		form: "ООО",
+		tax: "УСН «доходы»",
+		city: "Москва",
+	},
 	{
 		inn: "6100123456",
 		name: "ООО «Верста», кофейни",
@@ -14,13 +22,6 @@ export const DEMO_BUSINESSES: Business[] = [
 		form: "ИП",
 		tax: "УСН «доходы»",
 		city: "Ростов-на-Дону",
-	},
-	{
-		inn: "6150078890",
-		name: "ООО «Тихий порт», склад",
-		form: "ООО",
-		tax: "ОСНО",
-		city: "Батайск",
 	},
 ];
 
