@@ -198,7 +198,7 @@ export const ForecastPage = memo(() => {
 							</div>
 							<CashflowChart series={data.cashflow} showRisk={hasRisk} isLoading={isFetching && !data} />
 							<div className={cn(styles["forecast-page__result"], hasRisk && styles["forecast-page__result--bad"])}>
-								{data.resultText || (hasRisk ? t("forecast.resGap") : t("forecast.resOk"))}
+								{hasRisk ? t("forecast.resGap") : t("forecast.resOk")}
 							</div>
 							<div className={styles["forecast-page__chips"]}>
 								{active.length === 0 ? (

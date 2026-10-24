@@ -64,8 +64,9 @@ export const Header: FC = memo(() => {
 					{userOpen ? (
 						<div className={styles["header__user-menu"]}>
 							<div className={styles["header__user-info"]}>
-								<div className={styles["header__user-name"]}>{auth?.name || t("header.userName")}</div>
-								<div className={styles["header__user-role"]}>{t("header.userRole")}</div>
+								<div className={styles["header__user-name"]}>
+									{auth?.name || auth?.username || t("header.profile")}
+								</div>
 							</div>
 							<div className={styles["header__user-divider"]} />
 							<button type="button" className={styles["header__user-logout"]} onClick={onLogout}>

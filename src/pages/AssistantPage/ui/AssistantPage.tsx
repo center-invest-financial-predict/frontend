@@ -15,21 +15,11 @@ import {
 } from "@/shared/lib/assistantChats";
 import styles from "./AssistantPage.module.scss";
 
-const replyFor = (q: string, t: (k: string) => string): Omit<AssistantMessage, "id" | "at"> => {
-	const lower = q.toLowerCase();
-	if (lower.includes("дельт") || lower.includes("задерж")) {
-		return {
-			from: "bot",
-			text: t("assist.a2"),
-			refs: [t("assist.link1"), t("assist.link2")],
-		};
-	}
-	return {
-		from: "bot",
-		text: t("assist.a1"),
-		refs: [t("assist.link1")],
-	};
-};
+const replyFor = (t: (k: string) => string): Omit<AssistantMessage, "id" | "at"> => ({
+	from: "bot",
+	text: t("assist.fallback"),
+	refs: [t("assist.linkForecast")],
+});
 
 type LocState = { question?: string; reset?: boolean; chatId?: string } | null;
 
@@ -87,7 +77,7 @@ export const AssistantPage = memo(() => {
 		if (q) {
 			handledState.current = state;
 			const current = resolveThread();
-			const updated = appendAssistantMessages(current.id, [{ from: "user", text: q }, replyFor(q, t)]);
+			const updated = appendAssistantMessages(current.id, [{ from: "user", text: q }, replyFor(t)]);
 			openThread(updated ?? current);
 			navigate(location.pathname, { replace: true, state: null });
 			return;

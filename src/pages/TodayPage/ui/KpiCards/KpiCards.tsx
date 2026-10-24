@@ -18,7 +18,7 @@ const LABEL_KEY: Record<TodayKpiId, string> = {
 };
 
 const SUB_KEY: Partial<Record<TodayKpiId, string>> = {
-	min30: "today.kpi.baseNov",
+	min30: "today.kpi.baseForecast",
 	in30: "today.kpi.baseForecast",
 	out30: "today.kpi.baseForecast",
 };

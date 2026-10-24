@@ -7,16 +7,14 @@ import styles from "./AssistPanel.module.scss";
 
 type QaKey = "a" | "b";
 
-const ANSWERS: Record<QaKey, { qKey: string; aKey: string; linkKey: string }> = {
+const ANSWERS: Record<QaKey, { qKey: string; aKey: string }> = {
 	a: {
 		qKey: "assist.q1",
 		aKey: "assist.a1",
-		linkKey: "assist.link1",
 	},
 	b: {
 		qKey: "assist.q2",
 		aKey: "assist.a2",
-		linkKey: "assist.link2",
 	},
 };
 
@@ -60,7 +58,7 @@ export const AssistPanel: FC = memo(() => {
 										navigate(getRouteForecast());
 									}}
 								>
-									{t(item.linkKey)}
+									{t("assist.linkForecast")}
 								</button>
 							</div>
 						</div>
