@@ -1,31 +1,20 @@
-import { FC, memo, useState } from "react";
+import { FC, memo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useUIActions } from "@/features/UI";
-import { getRouteForecast } from "@/shared/consts/router";
+import { getRouteAssistant } from "@/shared/consts/router";
 import styles from "./AssistPanel.module.scss";
 
-type QaKey = "a" | "b";
-
-const ANSWERS: Record<QaKey, { qKey: string; aKey: string }> = {
-	a: {
-		qKey: "assist.q1",
-		aKey: "assist.a1",
-	},
-	b: {
-		qKey: "assist.q2",
-		aKey: "assist.a2",
-	},
-};
+const QUICK_KEYS = ["assist.q1", "assist.q2"] as const;
 
 export const AssistPanel: FC = memo(() => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const { setAssistOpen } = useUIActions();
-	const [qa, setQa] = useState<QaKey[]>(["a"]);
 
-	const ask = (key: QaKey) => {
-		setQa((prev) => [...prev.filter((k) => k !== key), key]);
+	const ask = (question: string) => {
+		setAssistOpen(false);
+		navigate(getRouteAssistant(), { state: { question } });
 	};
 
 	return (
@@ -42,39 +31,15 @@ export const AssistPanel: FC = memo(() => {
 			</div>
 			<div className={styles["assist-panel__meta"]}>{t("assist.meta")}</div>
 
-			<div className={styles["assist-panel__thread"]}>
-				{qa.map((key) => {
-					const item = ANSWERS[key];
-					return (
-						<div key={key} className={styles["assist-panel__turn"]}>
-							<div className={styles["assist-panel__q"]}>{t(item.qKey)}</div>
-							<div className={styles["assist-panel__a"]}>
-								{t(item.aKey)}
-								<button
-									type="button"
-									className={styles["assist-panel__link"]}
-									onClick={() => {
-										setAssistOpen(false);
-										navigate(getRouteForecast());
-									}}
-								>
-									{t("assist.linkForecast")}
-								</button>
-							</div>
-						</div>
-					);
-				})}
-			</div>
-
 			<div className={styles["assist-panel__quick"]}>
-				{(Object.keys(ANSWERS) as QaKey[]).map((key) => (
+				{QUICK_KEYS.map((key) => (
 					<button
 						key={key}
 						type="button"
 						className={styles["assist-panel__chip"]}
-						onClick={() => ask(key)}
+						onClick={() => ask(t(key))}
 					>
-						{t(ANSWERS[key].qKey)}
+						{t(key)}
 					</button>
 				))}
 			</div>

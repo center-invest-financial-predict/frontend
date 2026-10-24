@@ -10,12 +10,14 @@ import { AddPage } from "@/pages/AddPage";
 import { StrategiesPage } from "@/pages/StrategiesPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { AssistantPage } from "@/pages/AssistantPage";
+import { FaqPage } from "@/pages/FaqPage";
 import {
 	AppRoutes,
 	getRouteAdd,
 	getRouteCalendar,
 	getRouteEvents,
 	getRouteForecast,
+	getRouteFaq,
 	getRouteLogin,
 	getRouteMain,
 	getRouteNotFound,
@@ -93,6 +95,11 @@ export const routeConfig: Record<AppRoutes, AppRouteProps> = {
 	[AppRoutes.ASSISTANT]: {
 		path: getRouteAssistant(),
 		element: <AssistantPage />,
+		authOnly: true,
+	},
+	[AppRoutes.FAQ]: {
+		path: getRouteFaq(),
+		element: <FaqPage />,
 		authOnly: true,
 	},
 	[AppRoutes.LOGIN]: {

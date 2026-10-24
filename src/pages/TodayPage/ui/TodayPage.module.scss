@@ -11,6 +11,18 @@
 		line-height: 34px;
 	}
 
+	&__kpi-skel {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+		gap: var(--space-4);
+	}
+
+	&__alerts-skel {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+		gap: var(--space-3);
+	}
+
 	&__risk {
 		display: flex;
 		flex-wrap: wrap;
@@ -653,25 +665,89 @@
 		position: relative;
 		align-items: flex-end;
 		gap: 14px;
-		height: 170px;
-		padding-top: 4px;
+		min-height: 170px;
+		padding-top: 20px;
+		padding-bottom: 4px;
+		overflow-x: auto;
+		overflow-y: visible;
 
-		&::before {
-			content: "";
-			position: absolute;
-			left: 0;
-			right: 0;
-			bottom: 134px;
-			border-top: 2px dashed var(--color-danger);
-			pointer-events: none;
+		&--dense {
+			gap: 6px;
+		}
+	}
+
+	&__peak-track {
+		position: absolute;
+		top: 28px;
+		right: 0;
+		bottom: 22px;
+		left: 0;
+		z-index: 2;
+		pointer-events: none;
+	}
+
+	&__peak-line {
+		position: absolute;
+		right: 0;
+		left: 0;
+		border-top: 2px dashed var(--color-danger);
+
+		&--h35 {
+			bottom: 35%;
+		}
+
+		&--h40 {
+			bottom: 40%;
+		}
+
+		&--h45 {
+			bottom: 45%;
+		}
+
+		&--h48 {
+			bottom: 48%;
+		}
+
+		&--h50 {
+			bottom: 50%;
+		}
+
+		&--h55 {
+			bottom: 55%;
+		}
+
+		&--h60 {
+			bottom: 60%;
+		}
+
+		&--h65 {
+			bottom: 65%;
+		}
+
+		&--h70 {
+			bottom: 70%;
+		}
+
+		&--h80 {
+			bottom: 80%;
+		}
+
+		&--h90 {
+			bottom: 90%;
+		}
+
+		&--h95 {
+			bottom: 95%;
 		}
 	}
 
 	&__peak {
 		position: absolute;
 		right: 0;
-		bottom: 138px;
-		z-index: 1;
+		bottom: 4px;
+		padding: 0 6px;
+		border-radius: var(--radius-md);
+		background: var(--color-surface);
 		color: var(--color-danger);
 		font-size: var(--font-size-sm);
 		line-height: 16px;
@@ -679,18 +755,22 @@
 
 	&__week {
 		display: flex;
-		flex: 1;
+		flex: 1 0 auto;
 		flex-direction: column;
 		align-items: center;
 		justify-content: flex-end;
 		gap: 4px;
-		min-width: 0;
+		min-width: 44px;
 		height: 100%;
 		padding: 0;
 		border: 0;
 		background: none;
 		font-family: inherit;
 		cursor: pointer;
+	}
+
+	&__week-chart--dense &__week {
+		min-width: 36px;
 	}
 
 	&__week-bars {
@@ -725,6 +805,10 @@
 
 		&--out {
 			background: var(--color-text);
+		}
+
+		&--h0 {
+			height: 0;
 		}
 
 		&--h35 {
@@ -777,10 +861,17 @@
 	}
 
 	&__week-label {
+		flex-shrink: 0;
 		color: var(--color-text-faint);
 		font-size: var(--font-size-sm);
 		line-height: 16px;
+		text-align: center;
 		white-space: nowrap;
+	}
+
+	&__week-chart--dense &__week-label {
+		font-size: 10px;
+		line-height: 12px;
 	}
 
 	&__week-legend {
@@ -961,6 +1052,10 @@
 		&--out {
 			background: var(--color-text);
 			opacity: 0.7;
+		}
+
+		&--h0 {
+			height: 0;
 		}
 
 		&--h35 {

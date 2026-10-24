@@ -1,3 +1,10 @@
+/** `2026-11-05` → `05.11.2026`. */
+export const formatIsoDateDots = (isoDate: string): string => {
+	const [y, m, d] = isoDate.split("-");
+	if (!y || !m || !d) return isoDate;
+	return `${d}.${m}.${y}`;
+};
+
 /** `2026-11-05` → short day.month for axes (`05.11`). */
 export const formatDayMonth = (isoDate: string, locale = "ru-RU"): string => {
 	const d = new Date(`${isoDate}T00:00:00`);

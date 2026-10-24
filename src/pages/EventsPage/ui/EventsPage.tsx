@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useGetEventsQuery, type EventDto, type EventTab } from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
+import { Skeleton } from "@/shared/ui/Skeleton";
 import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
 import { formatDayMonth } from "@/shared/lib/format/formatDate";
@@ -91,7 +92,7 @@ export const EventsPage = memo(() => {
 				))}
 			</div>
 
-			{isLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
+			{isLoading ? <Skeleton variant="row" count={5} label={t("states.loading")} /> : null}
 			{isError ? (
 				<StateBanner
 					variant="error"

@@ -59,6 +59,12 @@
 		flex-direction: column;
 		gap: var(--space-4);
 		padding: var(--space-6);
+
+		form {
+			display: flex;
+			flex-direction: column;
+			gap: var(--space-4);
+		}
 	}
 
 	&__chips {
@@ -88,6 +94,7 @@
 
 	&__field {
 		display: flex;
+		position: relative;
 		flex-direction: column;
 		gap: 4px;
 		color: var(--color-text-muted);
@@ -106,9 +113,127 @@
 		font-size: var(--font-size-lg);
 	}
 
+	&__date {
+		display: flex;
+		position: relative;
+		align-items: center;
+		min-height: 48px;
+		padding: 0 14px;
+		border-radius: var(--radius-xl);
+		background: var(--color-shape);
+	}
+
+	&__date-value {
+		color: var(--color-text);
+		font-size: var(--font-size-lg);
+		pointer-events: none;
+	}
+
+	&__date-input {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		margin: 0;
+		padding: 0;
+		border: 0;
+		opacity: 0;
+		font-family: inherit;
+		font-size: var(--font-size-lg);
+		cursor: pointer;
+	}
+
+	&__select {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-2);
+		width: 100%;
+		min-height: 48px;
+		padding: 0 14px;
+		border: 1.5px solid transparent;
+		border-radius: var(--radius-xl);
+		background: var(--color-shape);
+		color: var(--color-text);
+		font-family: inherit;
+		font-size: var(--font-size-lg);
+		text-align: left;
+		cursor: pointer;
+		transition:
+			border-color 0.18s ease,
+			background-color 0.18s ease;
+
+		&:hover {
+			background: var(--color-surface);
+			border-color: var(--color-border);
+		}
+
+		&--open {
+			border-color: var(--color-primary);
+			background: var(--color-surface);
+		}
+
+		svg {
+			flex-shrink: 0;
+			color: var(--color-text-faint);
+			transition: transform 0.18s ease;
+		}
+
+		&--open svg {
+			transform: rotate(180deg);
+			color: var(--color-primary);
+		}
+	}
+
+	&__select-list {
+		position: absolute;
+		top: 100%;
+		right: 0;
+		left: 0;
+		z-index: var(--z-bar);
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		margin: 6px 0 0;
+		padding: 6px;
+		list-style: none;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-xl);
+		background: var(--color-surface);
+		box-shadow: 0 8px 24px rgb(0 0 0 / 8%);
+	}
+
+	&__select-option {
+		width: 100%;
+		min-height: 40px;
+		padding: 0 12px;
+		border: 0;
+		border-radius: 10px;
+		background: transparent;
+		color: var(--color-text);
+		font-family: inherit;
+		font-size: var(--font-size-lg);
+		text-align: left;
+		cursor: pointer;
+		transition:
+			background-color 0.15s ease,
+			color 0.15s ease;
+
+		&:hover {
+			background: var(--color-shape);
+		}
+
+		&--on {
+			background: var(--color-primary-soft);
+			color: var(--color-primary-text);
+			font-weight: 500;
+		}
+	}
+
 	&__submit {
 		align-self: flex-start;
 		min-height: 48px;
+		margin-top: var(--space-2);
 		padding: 0 22px;
 		border: 0;
 		border-radius: var(--radius-xl);

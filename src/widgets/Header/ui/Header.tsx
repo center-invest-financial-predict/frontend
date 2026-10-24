@@ -1,13 +1,13 @@
 import { FC, memo, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Bell, HelpCircle, Moon, Sun, User } from "lucide-react";
+import { HelpCircle, Moon, Sun, User } from "lucide-react";
 import { useUIActions } from "@/features/UI";
 import { useSignOutMutation, useUserActions } from "@/entities/User";
 import { useAppSelector } from "@/shared/lib/hooks";
 import { IconButton } from "@/shared/ui/IconButton";
 import { LanguageSwitcher } from "@/shared/ui/LanguageSwitcher";
-import { getRouteLogin } from "@/shared/consts/router";
+import { getRouteFaq, getRouteLogin } from "@/shared/consts/router";
 import { HeaderSearch } from "./HeaderSearch";
 import styles from "./Header.module.scss";
 
@@ -47,10 +47,7 @@ export const Header: FC = memo(() => {
 
 			<div className={styles.header__actions}>
 				<LanguageSwitcher />
-				<IconButton title={t("header.notifications")}>
-					<Bell size={18} strokeWidth={1.3} />
-				</IconButton>
-				<IconButton title={t("header.help")}>
+				<IconButton title={t("header.help")} onClick={() => navigate(`${getRouteFaq()}#faq`)}>
 					<HelpCircle size={18} strokeWidth={1.3} />
 				</IconButton>
 				<IconButton title={t("header.theme")} onClick={() => toggleTheme()}>

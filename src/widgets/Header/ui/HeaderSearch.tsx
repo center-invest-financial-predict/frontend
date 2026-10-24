@@ -2,12 +2,14 @@ import { KeyboardEvent, memo, useEffect, useMemo, useRef, useState } from "react
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useReducedMotion } from "framer-motion";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
+import { useLazySearchCompanyQuery } from "@/entities/Finance";
 import {
 	getRouteAdd,
 	getRouteAssistant,
 	getRouteCalendar,
 	getRouteEvents,
+	getRouteFaq,
 	getRouteForecast,
 	getRouteOperations,
 	getRoutePlanFact,
@@ -17,14 +19,17 @@ import {
 	getRouteToday,
 } from "@/shared/consts/router";
 import { cn } from "@/shared/lib/classNames/classNames";
+import { formatMoney } from "@/shared/lib/format/formatMoney";
 import styles from "./HeaderSearch.module.scss";
 
 type SearchEntry = {
 	id: string;
-	titleKey: string;
-	keywordsKey: string;
+	titleKey?: string;
+	title?: string;
+	keywordsKey?: string;
 	path: string;
 	sectionId?: string;
+	hint?: string;
 };
 
 const PAGE_ENTRIES: SearchEntry[] = [
@@ -79,6 +84,13 @@ const PAGE_ENTRIES: SearchEntry[] = [
 		keywordsKey: "header.searchKeywords.assistant",
 		path: getRouteAssistant(),
 	},
+	{
+		id: "faq",
+		titleKey: "faq.title",
+		keywordsKey: "header.searchKeywords.faq",
+		path: getRouteFaq(),
+		sectionId: "faq",
+	},
 ];
 
 const SECTION_ENTRIES: SearchEntry[] = [
@@ -96,33 +108,14 @@ const SECTION_ENTRIES: SearchEntry[] = [
 		path: getRouteSettings(),
 		sectionId: "settings-business",
 	},
-	{
-		id: "settings-accounts",
-		titleKey: "settings.accounts",
-		keywordsKey: "header.searchKeywords.accounts",
-		path: getRouteSettings(),
-		sectionId: "settings-accounts",
-	},
-	{
-		id: "settings-users",
-		titleKey: "settings.users",
-		keywordsKey: "header.searchKeywords.users",
-		path: getRouteSettings(),
-		sectionId: "settings-users",
-	},
-	{
-		id: "settings-security",
-		titleKey: "settings.security",
-		keywordsKey: "header.searchKeywords.security",
-		path: getRouteSettings(),
-		sectionId: "settings-security",
-	},
 ];
 
 const normalize = (value: string) => value.toLocaleLowerCase().replace(/ё/g, "е").trim();
+const MOBILE_MQ = "(max-width: 860px)";
 
 export const HeaderSearch = memo(() => {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
+	const locale = i18n.language?.startsWith("en") ? "en-US" : "ru-RU";
 	const navigate = useNavigate();
 	const reduceMotion = useReducedMotion();
 	const rootRef = useRef<HTMLDivElement>(null);
@@ -130,21 +123,64 @@ export const HeaderSearch = memo(() => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [query, setQuery] = useState("");
 	const [activeIndex, setActiveIndex] = useState(0);
+	const [isMobile, setIsMobile] = useState(() =>
+		typeof window !== "undefined" ? window.matchMedia(MOBILE_MQ).matches : false,
+	);
+	const [searchCompany, { data: companySearch }] = useLazySearchCompanyQuery();
 	const listId = "header-search-list";
+
+	useEffect(() => {
+		const mq = window.matchMedia(MOBILE_MQ);
+		const sync = () => setIsMobile(mq.matches);
+		sync();
+		mq.addEventListener("change", sync);
+		return () => mq.removeEventListener("change", sync);
+	}, []);
+
+	useEffect(() => {
+		const q = query.trim();
+		if (q.length < 2) return;
+		const timer = window.setTimeout(() => {
+			void searchCompany({ q });
+		}, 250);
+		return () => window.clearTimeout(timer);
+	}, [query, searchCompany]);
+
+	useEffect(() => {
+		if (!isOpen || !isMobile) return;
+		const prev = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
+		return () => {
+			document.body.style.overflow = prev;
+		};
+	}, [isOpen, isMobile]);
 
 	const groups = useMemo(() => {
 		const words: string[] = normalize(query).split(/\s+/).filter(Boolean);
 		const filterEntries = (entries: SearchEntry[]) =>
 			entries.filter((entry) => {
-				const value = normalize(`${t(entry.titleKey)} ${t(entry.keywordsKey)}`);
+				const title = entry.title ?? (entry.titleKey ? t(entry.titleKey) : "");
+				const keywords = entry.keywordsKey ? t(entry.keywordsKey) : "";
+				const value = normalize(`${title} ${keywords}`);
 				return words.every((word) => value.includes(word));
 			});
+
+		const dataEntries: SearchEntry[] =
+			query.trim().length >= 2
+				? (companySearch?.items ?? []).slice(0, 8).map((item) => ({
+						id: item.id,
+						title: item.name || item.date,
+						hint: `${item.date}${item.amount ? ` · ${formatMoney(item.amount, locale)}` : ""}`,
+						path: item.kind === "event" ? getRouteEvents() : getRouteOperations(),
+					}))
+				: [];
 
 		return [
 			{ id: "pages", label: t("header.searchPages"), entries: filterEntries(PAGE_ENTRIES) },
 			{ id: "sections", label: t("header.searchSections"), entries: filterEntries(SECTION_ENTRIES) },
+			{ id: "data", label: t("header.searchData"), entries: dataEntries },
 		].filter((group) => group.entries.length > 0);
-	}, [query, t]);
+	}, [companySearch?.items, locale, query, t]);
 
 	const results = groups.flatMap((group) => group.entries);
 
@@ -152,21 +188,20 @@ export const HeaderSearch = memo(() => {
 		setIsOpen(false);
 		setQuery("");
 		setActiveIndex(0);
+		inputRef.current?.blur();
 	};
 
 	const openSearch = () => {
 		setIsOpen(true);
 		setActiveIndex(0);
-		inputRef.current?.focus();
+		window.requestAnimationFrame(() => inputRef.current?.focus());
 	};
 
 	useEffect(() => {
 		const onShortcut = (event: globalThis.KeyboardEvent) => {
 			if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "k") {
 				event.preventDefault();
-				setIsOpen(true);
-				setActiveIndex(0);
-				inputRef.current?.focus();
+				openSearch();
 			}
 		};
 		document.addEventListener("keydown", onShortcut);
@@ -174,13 +209,13 @@ export const HeaderSearch = memo(() => {
 	}, []);
 
 	useEffect(() => {
-		if (!isOpen) return;
+		if (!isOpen || isMobile) return;
 		const onDoc = (event: MouseEvent) => {
 			if (!rootRef.current?.contains(event.target as Node)) closeSearch();
 		};
 		document.addEventListener("mousedown", onDoc);
 		return () => document.removeEventListener("mousedown", onDoc);
-	}, [isOpen]);
+	}, [isOpen, isMobile]);
 
 	const selectEntry = (entry: SearchEntry) => {
 		closeSearch();
@@ -208,7 +243,6 @@ export const HeaderSearch = memo(() => {
 	const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
 		if (event.key === "Escape") {
 			closeSearch();
-			inputRef.current?.blur();
 			return;
 		}
 		if (!results.length) return;
@@ -231,68 +265,107 @@ export const HeaderSearch = memo(() => {
 	return (
 		<div
 			ref={rootRef}
-			className={styles["header-search"]}
+			className={cn(styles["header-search"], isOpen && styles["header-search--open"])}
 			role="search"
 			onKeyDown={onKeyDown}
 		>
-			<div className={styles["header-search__field"]}>
+			<button
+				type="button"
+				className={styles["header-search__trigger"]}
+				aria-label={t("header.search")}
+				aria-expanded={isOpen}
+				aria-controls={listId}
+				onClick={openSearch}
+			>
 				<Search size={18} strokeWidth={1.3} aria-hidden />
-				<input
-					ref={inputRef}
-					type="search"
-					value={query}
-					placeholder={t("header.search")}
-					aria-label={t("header.search")}
-					aria-expanded={isOpen}
-					aria-controls={listId}
-					aria-autocomplete="list"
-					autoComplete="off"
-					onFocus={openSearch}
-					onChange={(event) => {
-						setQuery(event.target.value);
-						setActiveIndex(0);
-						setIsOpen(true);
-					}}
-				/>
-			</div>
+			</button>
 
-			{isOpen ? (
-				<div id={listId} className={styles["header-search__dropdown"]} role="listbox">
-					<div className={styles["header-search__results"]}>
-						{groups.length ? (
-							groups.map((group) => (
-								<section key={group.id} className={styles["header-search__group"]}>
-									<h2>{group.label}</h2>
-									{group.entries.map((entry) => {
-										const index = results.indexOf(entry);
-										return (
-											<button
-												key={entry.id}
-												type="button"
-												role="option"
-												aria-selected={index === activeIndex}
-												className={cn(
-													styles["header-search__result"],
-													index === activeIndex && styles["header-search__result--active"],
-												)}
-												onMouseEnter={() => setActiveIndex(index)}
-												onClick={() => selectEntry(entry)}
-											>
-												<span>{t(entry.titleKey)}</span>
-												{entry.sectionId ? <small>{t("header.searchInSettings")}</small> : null}
-											</button>
-										);
-									})}
-								</section>
-							))
-						) : (
-							<div className={styles["header-search__empty"]} role="status">
-								{t("header.searchEmpty")}
-							</div>
-						)}
-					</div>
-				</div>
+			{isOpen && isMobile ? (
+				<button
+					type="button"
+					className={styles["header-search__backdrop"]}
+					aria-label={t("header.searchClose")}
+					onClick={closeSearch}
+				/>
 			) : null}
+
+			<div className={styles["header-search__panel"]}>
+				<div className={styles["header-search__field"]}>
+					<Search size={18} strokeWidth={1.3} aria-hidden />
+					<input
+						ref={inputRef}
+						type="search"
+						value={query}
+						placeholder={t("header.searchPlaceholder")}
+						aria-label={t("header.search")}
+						aria-expanded={isOpen}
+						aria-controls={listId}
+						aria-autocomplete="list"
+						autoComplete="off"
+						onFocus={openSearch}
+						onChange={(event) => {
+							setQuery(event.target.value);
+							setActiveIndex(0);
+							setIsOpen(true);
+						}}
+					/>
+					<button
+						type="button"
+						className={styles["header-search__close"]}
+						aria-label={t("header.searchClose")}
+						onClick={closeSearch}
+					>
+						<X size={18} strokeWidth={1.3} aria-hidden />
+					</button>
+				</div>
+
+				{isOpen ? (
+					<div id={listId} className={styles["header-search__dropdown"]} role="listbox">
+						<div className={styles["header-search__results"]}>
+							{groups.length ? (
+								groups.map((group) => (
+									<section key={group.id} className={styles["header-search__group"]}>
+										<h2>{group.label}</h2>
+										{group.entries.map((entry) => {
+											const index = results.indexOf(entry);
+											return (
+												<button
+													key={entry.id}
+													type="button"
+													role="option"
+													aria-selected={index === activeIndex}
+													className={cn(
+														styles["header-search__result"],
+														index === activeIndex && styles["header-search__result--active"],
+													)}
+													onMouseEnter={() => setActiveIndex(index)}
+													onClick={() => selectEntry(entry)}
+												>
+													<span className={styles["header-search__result-title"]}>
+														{entry.title ?? (entry.titleKey ? t(entry.titleKey) : "")}
+													</span>
+													{entry.hint ? (
+														<small className={styles["header-search__result-hint"]}>{entry.hint}</small>
+													) : null}
+													{entry.sectionId ? (
+														<small className={styles["header-search__result-hint"]}>
+															{t("header.searchInSettings")}
+														</small>
+													) : null}
+												</button>
+											);
+										})}
+									</section>
+								))
+							) : (
+								<div className={styles["header-search__empty"]} role="status">
+									{t("header.searchEmpty")}
+								</div>
+							)}
+						</div>
+					</div>
+				) : null}
+			</div>
 		</div>
 	);
 });

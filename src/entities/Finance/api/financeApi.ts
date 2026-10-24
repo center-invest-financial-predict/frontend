@@ -17,14 +17,18 @@ import type {
 	EventTab,
 	ForecastQueryArgs,
 	ForecastResultDto,
+	ForecastScenarioDto,
 	OperationsDto,
 	OperationsQueryArgs,
+	CompanySearchDto,
+	ForecastDayDto,
 	ParseEventsResultDto,
 	PlanFactDto,
 	RegularOperationDto,
 	SavedScenarioDto,
 	SourcesDto,
 	StrategiesDto,
+	SyncResultDto,
 	UpdateStrategiesArgs,
 } from "../model/types";
 
@@ -35,6 +39,72 @@ const noInnError = (): FetchBaseQueryError => ({
 
 const asError = (result: { error?: FetchBaseQueryError }): FetchBaseQueryError =>
 	result.error ?? { status: 500, data: { message: "Request failed" } };
+
+type ForecastPointRaw = {
+	date: string;
+	baseBalance?: number;
+	negativeBalance?: number;
+	confidenceLow?: number;
+	confidenceHigh?: number;
+};
+
+const DEFAULT_FORECAST_SCENARIOS: ForecastScenarioDto[] = [
+	{
+		key: "delay",
+		title: "Клиент заплатит позже",
+		defaultValue: "14",
+		options: [
+			{ value: "7", label: "7 дн." },
+			{ value: "14", label: "14 дн." },
+			{ value: "21", label: "21 дн." },
+		],
+	},
+	{
+		key: "drop",
+		title: "Спад выручки",
+		defaultValue: "10",
+		options: [
+			{ value: "10", label: "−10%" },
+			{ value: "20", label: "−20%" },
+			{ value: "30", label: "−30%" },
+		],
+	},
+	{
+		key: "fixed",
+		title: "Рост постоянных расходов",
+		defaultValue: "10",
+		options: [
+			{ value: "5", label: "+5%" },
+			{ value: "10", label: "+10%" },
+			{ value: "15", label: "+15%" },
+		],
+	},
+	{
+		key: "skip",
+		title: "Исключить просроченные поступления из риска",
+		defaultValue: "1",
+		options: [{ value: "1", label: "Да" }],
+	},
+];
+
+const mapForecastPoints = (raw: ForecastPointRaw[] | undefined) =>
+	(raw ?? []).map((p) => ({
+		date: p.date,
+		balance: p.baseBalance ?? 0,
+		pessimisticBalance: p.negativeBalance ?? null,
+		lowerBound: p.confidenceLow ?? null,
+		upperBound: p.confidenceHigh ?? null,
+	}));
+
+const forecastConditions = (args: ForecastQueryArgs | void | undefined) => {
+	const conditions: Record<string, string> = {};
+	if (!args) return conditions;
+	(["delay", "drop", "fixed", "skip"] as const).forEach((key) => {
+		const value = args[key];
+		if (value != null && String(value).length > 0) conditions[key] = String(value);
+	});
+	return conditions;
+};
 
 const financeApi = rtkApi.injectEndpoints({
 	endpoints: (build) => ({
@@ -126,27 +196,25 @@ const financeApi = rtkApi.injectEndpoints({
 				if (!inn) return { error: noInnError() };
 				const horizon =
 					typeof args?.range === "number" ? args.range : Number(args?.range) || 30;
-				const result = await baseQuery({
-					url: `/api/companies/${inn}/forecast`,
-					params: { horizonDays: horizon },
-				});
+				const conditions = forecastConditions(args);
+				const scenarioId = args?.scenarioId;
+				const result =
+					Object.keys(conditions).length > 0
+						? await baseQuery({
+								url: `/api/companies/${inn}/scenarios/preview`,
+								method: "POST",
+								body: { conditions },
+							})
+						: await baseQuery({
+								url: `/api/companies/${inn}/forecast`,
+								params: {
+									horizonDays: horizon,
+									...(scenarioId ? { scenarioId } : {}),
+								},
+							});
 				if (result.error) return { error: asError(result) };
-				const body = result.data as {
-					points?: {
-						date: string;
-						baseBalance?: number;
-						negativeBalance?: number;
-						confidenceLow?: number;
-						confidenceHigh?: number;
-					}[];
-				};
-				const points = (body.points ?? []).map((p) => ({
-					date: p.date,
-					balance: p.baseBalance ?? 0,
-					pessimisticBalance: p.negativeBalance ?? null,
-					lowerBound: p.confidenceLow ?? null,
-					upperBound: p.confidenceHigh ?? null,
-				}));
+				const body = result.data as { points?: ForecastPointRaw[] };
+				const points = mapForecastPoints(body.points);
 				const gapPoint = points.find((p) => (p.pessimisticBalance ?? 0) < 0);
 				return {
 					data: {
@@ -159,7 +227,7 @@ const financeApi = rtkApi.injectEndpoints({
 						},
 						hasGap: Boolean(gapPoint),
 						resultText: gapPoint ? "gap" : "ok",
-						scenarios: [],
+						scenarios: DEFAULT_FORECAST_SCENARIOS,
 					},
 				};
 			},
@@ -247,7 +315,7 @@ const financeApi = rtkApi.injectEndpoints({
 				if (!inn) return { error: noInnError() };
 				const result = await baseQuery({
 					url: `/api/companies/${inn}/scenarios/${id}`,
-					method: "PUT",
+					method: "PATCH",
 					body: { name, conditions: {} },
 				});
 				if (result.error) return { error: asError(result) };
@@ -256,6 +324,43 @@ const financeApi = rtkApi.injectEndpoints({
 					data: {
 						id: String(s.id ?? id),
 						name: s.name ?? name,
+						minBalance: s.minBalance ?? 0,
+						gapDate: s.gapDate ?? null,
+						hasGap: Boolean(s.gapDate),
+					},
+				};
+			},
+			invalidatesTags: ["Scenarios"],
+		}),
+
+		deleteScenario: build.mutation<{ ok: boolean }, { id: string }>({
+			async queryFn({ id }, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
+				const result = await baseQuery({
+					url: `/api/companies/${inn}/scenarios/${id}`,
+					method: "DELETE",
+				});
+				if (result.error) return { error: asError(result) };
+				return { data: { ok: true } };
+			},
+			invalidatesTags: ["Scenarios", "Forecast"],
+		}),
+
+		copyScenario: build.mutation<SavedScenarioDto, { id: string }>({
+			async queryFn({ id }, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
+				const result = await baseQuery({
+					url: `/api/companies/${inn}/scenarios/${id}/copy`,
+					method: "POST",
+				});
+				if (result.error) return { error: asError(result) };
+				const s = result.data as { id?: number | string; name?: string; gapDate?: string | null; minBalance?: number };
+				return {
+					data: {
+						id: String(s.id ?? ""),
+						name: s.name ?? "",
 						minBalance: s.minBalance ?? 0,
 						gapDate: s.gapDate ?? null,
 						hasGap: Boolean(s.gapDate),
@@ -278,27 +383,20 @@ const financeApi = rtkApi.injectEndpoints({
 					factBalance?: number;
 					planBalance?: number;
 					deviation?: number;
-					points?: { date: string; fact?: number; plan?: number }[];
+					points?: ForecastPointRaw[];
 					missedOnTime?: { title?: string; amount?: number; expectedDate?: string; overdueDays?: number }[];
 				};
 				const missed = body.missedOnTime?.[0];
 				const journalItems = journal.error
 					? []
-					: (((journal.data as { entries?: { at?: string; text?: string }[] })?.entries ??
-							(Array.isArray(journal.data) ? journal.data : [])) as {
-							at?: string;
-							text?: string;
-							createdAt?: string;
+					: ((Array.isArray(journal.data) ? journal.data : []) as {
+							occurredAt?: string;
 							message?: string;
 						}[]);
 				return {
 					data: {
 						cashflow: {
-							points: (body.points ?? []).map((p) => ({
-								date: p.date,
-								balance: p.fact ?? 0,
-								pessimisticBalance: p.plan ?? null,
-							})),
+							points: mapForecastPoints(body.points),
 						},
 						factOn: body.factBalance ?? 0,
 						planOn: body.planBalance ?? 0,
@@ -313,13 +411,149 @@ const financeApi = rtkApi.injectEndpoints({
 								}
 							: null,
 						journal: journalItems.map((j) => ({
-							at: j.at || j.createdAt || "",
-							text: j.text || j.message || "",
+							at: j.occurredAt ?? "",
+							text: j.message ?? "",
 						})),
 					},
 				};
 			},
 			providesTags: ["PlanFact"],
+		}),
+
+		getForecastDay: build.query<ForecastDayDto, { date: string }>({
+			async queryFn({ date }, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
+				const result = await baseQuery({
+					url: `/api/companies/${inn}/forecast/day`,
+					params: { date },
+				});
+				if (result.error) return { error: asError(result) };
+				const body = result.data as ForecastDayDto;
+				return {
+					data: {
+						date: body.date ?? date,
+						startBalance: body.startBalance ?? 0,
+						income: body.income ?? 0,
+						expense: body.expense ?? 0,
+						endBalance: body.endBalance ?? 0,
+						otherIncomeForecast: body.otherIncomeForecast ?? 0,
+						negativeEndBalance: body.negativeEndBalance ?? 0,
+						events: body.events ?? [],
+						stub: Boolean(body.stub),
+					},
+				};
+			},
+		}),
+
+		searchCompany: build.query<CompanySearchDto, { q: string }>({
+			async queryFn({ q }, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
+				const query = q.trim();
+				if (!query) return { data: { query: "", items: [] } };
+				const result = await baseQuery({
+					url: `/api/companies/${inn}/search`,
+					params: { q: query },
+				});
+				if (result.error) return { error: asError(result) };
+				const body = result.data as {
+					query?: string;
+					operations?: {
+						id?: number;
+						operationDate?: string;
+						counterpartyName?: string;
+						paymentPurpose?: string;
+						amount?: number;
+						direction?: string;
+					}[];
+					events?: {
+						id?: number;
+						eventDate?: string;
+						title?: string;
+						amount?: number;
+						direction?: string;
+					}[];
+				};
+				const ops = (body.operations ?? []).map((op) => ({
+					id: `op-${op.id}`,
+					kind: "operation" as const,
+					date: op.operationDate ?? "",
+					name: op.counterpartyName || op.paymentPurpose || "",
+					amount:
+						op.direction === "Списание" ? -Math.abs(op.amount ?? 0) : Math.abs(op.amount ?? 0),
+				}));
+				const events = (body.events ?? []).map((e) => ({
+					id: `ev-${e.id}`,
+					kind: "event" as const,
+					date: e.eventDate ?? "",
+					name: e.title ?? "",
+					amount:
+						e.direction === "Поступление" ? Math.abs(e.amount ?? 0) : -Math.abs(e.amount ?? 0),
+				}));
+				return {
+					data: {
+						query: body.query ?? query,
+						items: [...ops, ...events],
+					},
+				};
+			},
+		}),
+
+		syncCompany: build.mutation<SyncResultDto, void>({
+			async queryFn(_arg, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
+				const result = await baseQuery({
+					url: `/api/companies/${inn}/sync`,
+					method: "POST",
+				});
+				if (result.error) return { error: asError(result) };
+				const body = (result.data as SyncResultDto) ?? {
+					inserted: 0,
+					duplicates: 0,
+					invalid: 0,
+					skipped: 0,
+				};
+				return { data: body };
+			},
+			invalidatesTags: ["Sources", "Today", "Operations", "Events", "Forecast", "PlanFact"],
+		}),
+
+		deleteEvent: build.mutation<{ ok: boolean }, { id: string }>({
+			async queryFn({ id }, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
+				const result = await baseQuery({
+					url: `/api/companies/${inn}/events/${id}`,
+					method: "DELETE",
+				});
+				if (result.error) return { error: asError(result) };
+				return { data: { ok: true } };
+			},
+			invalidatesTags: ["Events", "Today", "Forecast", "Operations"],
+		}),
+
+		updateEvent: build.mutation<{ id: string }, { id: string } & CreateEventArgs>({
+			async queryFn({ id, ...args }, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
+				const result = await baseQuery({
+					url: `/api/companies/${inn}/events/${id}`,
+					method: "PATCH",
+					body: {
+						title: args.name,
+						amount: args.amount,
+						eventDate: args.date,
+						category: args.category,
+						direction: args.direction === "in" ? "Поступление" : "Списание",
+					},
+				});
+				if (result.error) return { error: asError(result) };
+				const updated = result.data as { id?: number | string };
+				return { data: { id: String(updated.id ?? id) } };
+			},
+			invalidatesTags: ["Events", "Today", "Forecast", "Operations"],
 		}),
 
 		getOperations: build.query<OperationsDto, OperationsQueryArgs | void>({
@@ -528,14 +762,25 @@ const financeApi = rtkApi.injectEndpoints({
 			providesTags: ["Sources"],
 		}),
 
-		toggleSource: build.mutation<SourcesDto, { id: string; connected: boolean }>({
-			queryFn: () => ({
-				error: {
-					status: 501,
-					data: { message: "Source toggle is not available on backend yet" },
-				},
-			}),
-			invalidatesTags: ["Sources"],
+		toggleSource: build.mutation<SyncResultDto, { id: string; connected: boolean }>({
+			async queryFn(_arg, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
+				const result = await baseQuery({
+					url: `/api/companies/${inn}/sync`,
+					method: "POST",
+				});
+				if (result.error) return { error: asError(result) };
+				return {
+					data: (result.data as SyncResultDto) ?? {
+						inserted: 0,
+						duplicates: 0,
+						invalid: 0,
+						skipped: 0,
+					},
+				};
+			},
+			invalidatesTags: ["Sources", "Today", "Operations", "Events", "Forecast", "PlanFact"],
 		}),
 
 		uploadSourceFile: build.mutation<{ ok: boolean }, FormData>({
@@ -664,15 +909,25 @@ const financeApi = rtkApi.injectEndpoints({
 		}),
 
 		createEvent: build.mutation<{ id: string }, CreateEventArgs>({
-			queryFn: () => ({
-				error: {
-					status: 501,
-					data: {
-						message:
-							"Create event body schema is ambiguous in OpenAPI (CreateRequest). Deferred.",
+			async queryFn(args, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
+				const result = await baseQuery({
+					url: `/api/companies/${inn}/events`,
+					method: "POST",
+					body: {
+						title: args.name,
+						amount: args.amount,
+						eventDate: args.date,
+						category: args.category,
+						direction: args.direction === "in" ? "Поступление" : "Списание",
+						status: "EXPECTED",
 					},
-				},
-			}),
+				});
+				if (result.error) return { error: asError(result) };
+				const created = result.data as { id?: number | string };
+				return { data: { id: String(created.id ?? "") } };
+			},
 			invalidatesTags: ["Events", "Today", "Forecast", "Operations"],
 		}),
 
@@ -704,16 +959,41 @@ const financeApi = rtkApi.injectEndpoints({
 					},
 				};
 			},
+			invalidatesTags: ["Events", "Today", "Forecast", "Operations"],
 		}),
 
 		confirmParsedEvents: build.mutation<{ ok: boolean }, { rows: ParseEventsResultDto["rows"] }>({
-			queryFn: () => ({
-				error: {
-					status: 501,
-					data: { message: "Confirm parsed events is not available as a separate endpoint" },
-				},
-			}),
+			// Import endpoint already persists events; confirm only acknowledges UI step.
+			queryFn: () => ({ data: { ok: true } }),
 			invalidatesTags: ["Events", "Today", "Forecast", "Operations"],
+		}),
+
+		askAssistant: build.mutation<string, { question: string; conversationId?: string }>({
+			async queryFn({ question, conversationId }, _api, _extra, baseQuery) {
+				const result = await baseQuery({
+					url: "/api/ai/ask",
+					params: {
+						question,
+						conversationId: conversationId || "default",
+					},
+					responseHandler: async (response) => {
+						const text = await response.text();
+						if (!text) return "";
+						try {
+							const parsed = JSON.parse(text) as unknown;
+							return typeof parsed === "string" ? parsed : text;
+						} catch {
+							return text;
+						}
+					},
+				});
+				if (result.error) return { error: asError(result) };
+				const answer = String(result.data ?? "").trim();
+				if (!answer) {
+					return { error: { status: 502, data: { message: "Empty assistant reply" } } };
+				}
+				return { data: answer };
+			},
 		}),
 	}),
 });
@@ -731,7 +1011,16 @@ export const {
 	useGetMyScenariosQuery,
 	useSaveScenarioMutation,
 	useRenameScenarioMutation,
+	useDeleteScenarioMutation,
+	useCopyScenarioMutation,
 	useGetPlanFactQuery,
+	useGetForecastDayQuery,
+	useLazyGetForecastDayQuery,
+	useSearchCompanyQuery,
+	useLazySearchCompanyQuery,
+	useSyncCompanyMutation,
+	useDeleteEventMutation,
+	useUpdateEventMutation,
 	useGetOperationsQuery,
 	useGetRegularOperationsQuery,
 	useGetEventsQuery,
@@ -744,4 +1033,5 @@ export const {
 	useCreateEventMutation,
 	useParseEventsFileMutation,
 	useConfirmParsedEventsMutation,
+	useAskAssistantMutation,
 } = financeApi;

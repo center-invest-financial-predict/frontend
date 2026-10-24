@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useGetCalendarQuery } from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
+import { Skeleton } from "@/shared/ui/Skeleton";
 import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
 import { getRouteAdd, getRouteEvents } from "@/shared/consts/router";
@@ -62,7 +63,7 @@ export const CalendarPage = memo(() => {
 				</div>
 			</div>
 
-			{isLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
+			{isLoading ? <Skeleton variant="chart" label={t("states.loading")} /> : null}
 			{isError ? (
 				<StateBanner
 					variant="error"

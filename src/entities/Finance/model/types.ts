@@ -143,6 +143,39 @@ export type ForecastQueryArgs = {
 	drop?: string;
 	fixed?: string;
 	skip?: string;
+	scenarioId?: string;
+};
+
+export type CompanySearchHitDto = {
+	id: string;
+	kind: "operation" | "event";
+	date: string;
+	name: string;
+	amount: number;
+};
+
+export type CompanySearchDto = {
+	query: string;
+	items: CompanySearchHitDto[];
+};
+
+export type ForecastDayDto = {
+	date: string;
+	startBalance: number;
+	income: number;
+	expense: number;
+	endBalance: number;
+	otherIncomeForecast: number;
+	negativeEndBalance: number;
+	events: { title: string; source: string; amount: number; direction: string }[];
+	stub: boolean;
+};
+
+export type SyncResultDto = {
+	inserted: number;
+	duplicates: number;
+	invalid: number;
+	skipped: number;
 };
 
 export type ForecastResultDto = {

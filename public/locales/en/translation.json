@@ -91,6 +91,7 @@
 		"searchPlaceholder": "Page, section, or action",
 		"searchPages": "Pages",
 		"searchSections": "Sections",
+		"searchData": "Operations and events",
 		"searchEmpty": "Nothing found",
 		"searchHint": "↑↓ to select · Enter to open · Esc to close",
 		"searchClose": "Close search",
@@ -105,19 +106,22 @@
 			"operations": "history operations transactions expenses income",
 			"sources": "sources data bank statement connections",
 			"strategies": "forecast settings strategy assumptions notifications",
-			"settings": "settings profile account business security",
+			"settings": "settings profile account business",
 			"assistant": "assistant chat question explanation",
+			"faq": "help faq questions accordion how to use",
 			"account": "account profile sign out linked businesses",
-			"business": "business company name tin",
-			"accounts": "accounts bank settlement account connections",
-			"users": "users owner team access",
-			"security": "security sign in sms code protection"
+			"business": "business company tin"
 		},
-		"notifications": "Notifications",
 		"help": "Help",
 		"theme": "Toggle theme",
 		"language": "Language",
 		"profile": "Profile"
+	},
+	"faq": {
+		"title": "Help",
+		"subtitle": "Answers to common questions about the forecast and data",
+		"sectionTitle": "Frequently asked questions",
+		"loadError": "Failed to load questions"
 	},
 	"assistantBar": {
 		"placeholder": "Ask about cash…",
@@ -238,6 +242,13 @@
 		"off": "Not connected",
 		"connect": "Connect",
 		"disconnect": "Disconnect",
+		"sync": "Sync",
+		"names": {
+			"ONE_C": "1C",
+			"CSV": "CSV file",
+			"GOS_SERVICE": "Gosuslugi"
+		},
+		"opsCount": "{{count}} operations",
 		"foot": "You can upload an operations file in Add, “From table” tab.",
 		"uploadTitle": "Upload statement",
 		"uploadHint": "Actual operations history for the forecast. Example row: 21.10.2026;Acquiring, revenue;26000",
@@ -395,10 +406,7 @@
 		"linkedBiz": "Linked businesses",
 		"logout": "Sign out",
 		"business": "Business",
-		"inn": "TIN",
-		"accounts": "Accounts",
-		"users": "Users",
-		"security": "Security"
+		"inn": "TIN"
 	},
 	"pages": {
 		"notFound": "Page not found",

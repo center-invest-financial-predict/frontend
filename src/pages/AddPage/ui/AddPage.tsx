@@ -1,5 +1,6 @@
-import { FormEvent, memo, useState } from "react";
+import { FormEvent, memo, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ChevronDown } from "lucide-react";
 import {
 	useConfirmParsedEventsMutation,
 	useCreateEventMutation,
@@ -10,7 +11,7 @@ import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
 import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
-import { formatDayMonth } from "@/shared/lib/format/formatDate";
+import { formatDayMonth, formatIsoDateDots } from "@/shared/lib/format/formatDate";
 import { formatMoney } from "@/shared/lib/format/formatMoney";
 import styles from "./AddPage.module.scss";
 
@@ -27,9 +28,27 @@ export const AddPage = memo(() => {
 	const [amount, setAmount] = useState("");
 	const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
 	const [category, setCategory] = useState<string>(CATS[CATS.length - 1]);
+	const [catOpen, setCatOpen] = useState(false);
+	const catRef = useRef<HTMLDivElement>(null);
 	const [rows, setRows] = useState<ParsedEventRowDto[]>([]);
 	const [saved, setSaved] = useState(false);
 	const [error, setError] = useState(false);
+
+	useEffect(() => {
+		if (!catOpen) return;
+		const onDoc = (e: MouseEvent) => {
+			if (!catRef.current?.contains(e.target as Node)) setCatOpen(false);
+		};
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === "Escape") setCatOpen(false);
+		};
+		document.addEventListener("mousedown", onDoc);
+		document.addEventListener("keydown", onKey);
+		return () => {
+			document.removeEventListener("mousedown", onDoc);
+			document.removeEventListener("keydown", onKey);
+		};
+	}, [catOpen]);
 
 	const [createEvent, { isLoading: saving }] = useCreateEventMutation();
 	const [parseFile, { isLoading: parsing }] = useParseEventsFileMutation();
@@ -152,27 +171,54 @@ export const AddPage = memo(() => {
 							</label>
 							<label className={styles["add-page__field"]}>
 								{t("add.date")}
-								<input
-									className={styles["add-page__input"]}
-									type="date"
-									value={date}
-									onChange={(e) => setDate(e.target.value)}
-								/>
+								<span className={styles["add-page__date"]}>
+									<span className={styles["add-page__date-value"]}>{formatIsoDateDots(date)}</span>
+									<input
+										className={styles["add-page__date-input"]}
+										type="date"
+										value={date}
+										onChange={(e) => setDate(e.target.value)}
+									/>
+								</span>
 							</label>
-							<label className={styles["add-page__field"]}>
-								{t("add.category")}
-								<select
-									className={styles["add-page__input"]}
-									value={category}
-									onChange={(e) => setCategory(e.target.value)}
+							<div className={styles["add-page__field"]} ref={catRef}>
+								<span id="add-category-label">{t("add.category")}</span>
+								<button
+									type="button"
+									className={cn(
+										styles["add-page__select"],
+										catOpen && styles["add-page__select--open"],
+									)}
+									aria-haspopup="listbox"
+									aria-expanded={catOpen}
+									aria-labelledby="add-category-label"
+									onClick={() => setCatOpen((v) => !v)}
 								>
-									{CATS.map((c) => (
-										<option key={c} value={c}>
-											{c}
-										</option>
-									))}
-								</select>
-							</label>
+									<span>{category}</span>
+									<ChevronDown size={18} strokeWidth={1.5} aria-hidden />
+								</button>
+								{catOpen ? (
+									<ul className={styles["add-page__select-list"]} role="listbox">
+										{CATS.map((c) => (
+											<li key={c} role="option" aria-selected={c === category}>
+												<button
+													type="button"
+													className={cn(
+														styles["add-page__select-option"],
+														c === category && styles["add-page__select-option--on"],
+													)}
+													onClick={() => {
+														setCategory(c);
+														setCatOpen(false);
+													}}
+												>
+													{c}
+												</button>
+											</li>
+										))}
+									</ul>
+								) : null}
+							</div>
 							<button type="submit" className={styles["add-page__submit"]} disabled={saving}>
 								{t("add.saveForecast")}
 							</button>

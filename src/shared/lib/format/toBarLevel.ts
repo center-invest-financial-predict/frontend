@@ -6,8 +6,11 @@ const nearest = (levels: readonly number[], ratio: number): number => {
 	return levels.reduce((best, level) => (Math.abs(level - pct) < Math.abs(best - pct) ? level : best));
 };
 
-/** Maps 0..1 → existing BEM height modifier key (`h70`). */
-export const toHeightLevel = (ratio: number): `h${number}` => `h${nearest(HEIGHTS, ratio)}`;
+/** Maps 0..1 → BEM height key (`h70`). `0` → `h0`; any positive value ≥ `h35`. */
+export const toHeightLevel = (ratio: number): `h${number}` => {
+	if (!(ratio > 0)) return "h0";
+	return `h${nearest(HEIGHTS, ratio)}`;
+};
 
 /** Maps 0..1 → existing BEM width modifier key (`w70`). */
 export const toWidthLevel = (ratio: number): `w${number}` => `w${nearest(WIDTHS, ratio)}`;

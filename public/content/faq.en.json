@@ -1,0 +1,34 @@
+{
+	"items": [
+		{
+			"id": "what-is",
+			"question": "What does this product show?",
+			"answer": "A cash forecast for your company: balance over the horizon, shortfall risks, upcoming payments and inflows. Data comes from connected sources and events."
+		},
+		{
+			"id": "connect",
+			"question": "How do I connect data?",
+			"answer": "Open Data sources and upload a CSV statement or connect an available source. Without operations the forecast will be empty or low-confidence."
+		},
+		{
+			"id": "forecast",
+			"question": "How is the base forecast different from the negative one?",
+			"answer": "The base scenario uses expected inflows and payments. The negative one applies delays and more cautious assumptions — shown as a separate line on the chart."
+		},
+		{
+			"id": "gap",
+			"question": "What does a cash shortfall risk mean?",
+			"answer": "A day when expected outflows may exceed the available balance. Overview and Forecast highlight those points so you can explore scenarios."
+		},
+		{
+			"id": "add-event",
+			"question": "How do I add a future payment or inflow?",
+			"answer": "Use Add: enter it manually or import a table with date, name and amount. After saving, the event is included in the forecast recalculation."
+		},
+		{
+			"id": "assistant",
+			"question": "What is the assistant for?",
+			"answer": "Short answers about balance, payments and scenarios. Open it from the menu or the bottom bar — always cross-check details with the forecast chart."
+		}
+	]
+}

@@ -15,6 +15,7 @@ import {
 } from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
+import { Skeleton } from "@/shared/ui/Skeleton";
 import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
 import { dayOfMonth, formatDayMonth, formatDayMonthShort, formatMonthShort } from "@/shared/lib/format/formatDate";
@@ -76,6 +77,8 @@ const TodayPage = memo(() => {
 		});
 		return m;
 	}, [buckets]);
+	const maxOutflow = useMemo(() => Math.max(0, ...buckets.map((b) => b.outflow)), [buckets]);
+	const peakLevel = maxOutflow > 0 ? toHeightLevel(maxOutflow / maxBucket) : null;
 
 	const maxCat = useMemo(() => Math.max(1, ...data.categories.map((c) => c.amount), 1), [data.categories]);
 	const maxStrip = useMemo(
@@ -169,8 +172,14 @@ const TodayPage = memo(() => {
 				</div>
 			) : null}
 
-			{overview.isLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
-			{data.kpis.length > 0 ? <KpiCards items={data.kpis} /> : null}
+			{overview.isLoading ? (
+				<div className={styles["today-page__kpi-skel"]} aria-busy="true" aria-label={t("states.loading")}>
+					{Array.from({ length: 4 }, (_, i) => (
+						<Skeleton key={i} variant="card" />
+					))}
+				</div>
+			) : null}
+			{!overview.isLoading && data.kpis.length > 0 ? <KpiCards items={data.kpis} /> : null}
 
 			<div className={styles["today-page__main"]}>
 				<Card className={styles["today-page__chart-card"]}>
@@ -220,7 +229,7 @@ const TodayPage = memo(() => {
 
 					{aboutOpen ? <div className={styles["today-page__about"]}>{t("today.aboutText")}</div> : null}
 
-					{forecast.isLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
+					{forecast.isLoading ? <Skeleton variant="chart" label={t("states.loading")} /> : null}
 					{forecast.isError ? (
 						<StateBanner
 							variant="error"
@@ -305,7 +314,9 @@ const TodayPage = memo(() => {
 								{t("today.allVariants")}
 							</button>
 						</div>
-						{recommendationsQ.isLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
+						{recommendationsQ.isLoading ? (
+							<Skeleton variant="row" count={3} label={t("states.loading")} />
+						) : null}
 						{recommendationsQ.isError ? (
 							<StateBanner
 								variant="error"
@@ -344,7 +355,13 @@ const TodayPage = memo(() => {
 				</div>
 			</div>
 
-			{alertsQ.isLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
+			{alertsQ.isLoading ? (
+				<div className={styles["today-page__alerts-skel"]} aria-busy="true" aria-label={t("states.loading")}>
+					{Array.from({ length: 3 }, (_, i) => (
+						<Skeleton key={i} variant="row" />
+					))}
+				</div>
+			) : null}
 			{alertsQ.isError ? (
 				<StateBanner
 					variant="error"
@@ -399,7 +416,7 @@ const TodayPage = memo(() => {
 							))}
 						</div>
 					</div>
-					{periodLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
+					{periodLoading ? <Skeleton variant="chart" label={t("states.loading")} /> : null}
 					{periodError ? (
 						<StateBanner
 							variant="error"
@@ -408,37 +425,63 @@ const TodayPage = memo(() => {
 							onAction={() => periodRefetch()}
 						/>
 					) : null}
-					{!periodLoading && !periodError ? (
+					{!periodLoading && !periodError && buckets.length === 0 ? (
+						<StateBanner variant="empty" title={t("states.emptyTitle")} hint={t("states.emptyHint")} />
+					) : null}
+					{!periodLoading && !periodError && buckets.length > 0 ? (
 						<>
-							<div className={styles["today-page__week-chart"]}>
-								<span className={styles["today-page__peak"]}>{t("today.peak")}</span>
-								{buckets.map((w) => (
-									<button key={w.id} type="button" className={styles["today-page__week"]}>
-										<div className={styles["today-page__week-bars"]}>
-											<div className={styles["today-page__week-col"]}>
-												<span>{Math.round(w.inflow / 1000)}</span>
-												<div
-													className={cn(
-														styles["today-page__week-bar"],
-														styles["today-page__week-bar--in"],
-														styles[`today-page__week-bar--${toHeightLevel(w.inflow / maxBucket)}`],
-													)}
-												/>
-											</div>
-											<div className={styles["today-page__week-col"]}>
-												<span>{Math.round(w.outflow / 1000)}</span>
-												<div
-													className={cn(
-														styles["today-page__week-bar"],
-														styles["today-page__week-bar--out"],
-														styles[`today-page__week-bar--${toHeightLevel(w.outflow / maxBucket)}`],
-													)}
-												/>
-											</div>
+							<div
+								className={cn(
+									styles["today-page__week-chart"],
+									buckets.length > 7 && styles["today-page__week-chart--dense"],
+								)}
+							>
+								{peakLevel ? (
+									<div className={styles["today-page__peak-track"]} aria-hidden>
+										<div
+											className={cn(
+												styles["today-page__peak-line"],
+												styles[`today-page__peak-line--${peakLevel}`],
+											)}
+										>
+											<span className={styles["today-page__peak"]}>{t("today.peak")}</span>
 										</div>
-										<span className={styles["today-page__week-label"]}>{w.label}</span>
-									</button>
-								))}
+									</div>
+								) : null}
+								{buckets.map((w) => {
+									const dense = buckets.length > 7;
+									return (
+										<button key={w.id} type="button" className={styles["today-page__week"]}>
+											<div className={styles["today-page__week-bars"]}>
+												<div className={styles["today-page__week-col"]}>
+													{!dense && w.inflow > 0 ? (
+														<span>{Math.round(w.inflow / 1000)}</span>
+													) : null}
+													<div
+														className={cn(
+															styles["today-page__week-bar"],
+															styles["today-page__week-bar--in"],
+															styles[`today-page__week-bar--${toHeightLevel(w.inflow / maxBucket)}`],
+														)}
+													/>
+												</div>
+												<div className={styles["today-page__week-col"]}>
+													{!dense && w.outflow > 0 ? (
+														<span>{Math.round(w.outflow / 1000)}</span>
+													) : null}
+													<div
+														className={cn(
+															styles["today-page__week-bar"],
+															styles["today-page__week-bar--out"],
+															styles[`today-page__week-bar--${toHeightLevel(w.outflow / maxBucket)}`],
+														)}
+													/>
+												</div>
+											</div>
+											<span className={styles["today-page__week-label"]}>{w.label}</span>
+										</button>
+									);
+								})}
 							</div>
 							<div className={styles["today-page__week-legend"]}>
 								<span>
@@ -456,7 +499,9 @@ const TodayPage = memo(() => {
 
 				<Card className={styles["today-page__cats"]}>
 					<div className={styles["today-page__chart-title"]}>{t("today.whereMoney")}</div>
-					{categoriesQ.isLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
+					{categoriesQ.isLoading ? (
+						<Skeleton variant="row" count={4} label={t("states.loading")} />
+					) : null}
 					{categoriesQ.isError ? (
 						<StateBanner
 							variant="error"
@@ -487,7 +532,9 @@ const TodayPage = memo(() => {
 
 				<Card className={styles["today-page__pays"]}>
 					<div className={styles["today-page__chart-title"]}>{t("today.upcomingTitle")}</div>
-					{upcomingQ.isLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
+					{upcomingQ.isLoading ? (
+						<Skeleton variant="row" count={4} label={t("states.loading")} />
+					) : null}
 					{upcomingQ.isError ? (
 						<StateBanner
 							variant="error"
@@ -513,7 +560,7 @@ const TodayPage = memo(() => {
 				<Card className={styles["today-page__flows"]}>
 					<div className={styles["today-page__chart-title"]}>{t("today.flows")}</div>
 					{(weekly.isLoading || forecast.isLoading) && !weekly.data && !forecast.data ? (
-						<StateBanner variant="loading" title={t("states.loading")} />
+						<Skeleton variant="row" count={2} label={t("states.loading")} />
 					) : null}
 					{weekly.isError && forecast.isError ? (
 						<StateBanner

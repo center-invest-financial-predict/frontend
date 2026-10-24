@@ -71,6 +71,20 @@ const severityTone = (severity?: string): "danger" | "warning" | "ok" | "muted" 
 	return "muted";
 };
 
+const toDayMonth = (iso: string) => {
+	const d = new Date(`${iso}T00:00:00`);
+	if (Number.isNaN(d.getTime())) return iso;
+	const day = String(d.getDate()).padStart(2, "0");
+	const month = String(d.getMonth() + 1).padStart(2, "0");
+	return `${day}.${month}`;
+};
+
+const toMonthLabel = (iso: string) => {
+	const d = new Date(`${iso}T00:00:00`);
+	if (Number.isNaN(d.getTime())) return iso;
+	return d.toLocaleDateString("ru-RU", { month: "short" });
+};
+
 const emptyDashboard = (): TodayDashboardDto => ({
 	risk: null,
 	kpis: [],
@@ -117,12 +131,32 @@ export const mapTodayDashboard = (args: {
 	const gapAmount = d?.gapAmount ?? 0;
 	const gapDate = d?.gapDate ?? "";
 
-	const weekBuckets = weeks.map((w, i) => ({
+	const weekBars = weeks.map((w, i) => ({
 		id: `w${i}`,
-		label: w.weekStart,
+		label: toDayMonth(w.weekStart),
 		inflow: w.income,
 		outflow: w.expense,
 	}));
+
+	const monthBars = (() => {
+		const byMonth = new Map<string, { id: string; label: string; inflow: number; outflow: number }>();
+		weeks.forEach((w, i) => {
+			const key = w.weekStart.slice(0, 7);
+			const existing = byMonth.get(key);
+			if (existing) {
+				existing.inflow += w.income;
+				existing.outflow += w.expense;
+			} else {
+				byMonth.set(key, {
+					id: `m${i}`,
+					label: toMonthLabel(w.weekStart),
+					inflow: w.income,
+					outflow: w.expense,
+				});
+			}
+		});
+		return [...byMonth.values()];
+	})();
 
 	const dayRows = (forecast?.points ?? []).slice(0, 14).map((p, i) => ({
 		id: `d${i}`,
@@ -134,6 +168,13 @@ export const mapTodayDashboard = (args: {
 		startBalance: p.baseBalance ?? 0,
 		endBalance: p.baseBalance ?? 0,
 		events: [] as { id: string; name: string; amount: number; source: string }[],
+	}));
+
+	const dayBars = dayRows.map((r) => ({
+		id: r.id,
+		label: toDayMonth(r.date),
+		inflow: r.inflow,
+		outflow: r.outflow,
 	}));
 
 	const inflow30 = (forecast?.points ?? []).reduce((s, p) => s + (p.income ?? 0), 0);
@@ -179,14 +220,9 @@ export const mapTodayDashboard = (args: {
 		},
 		days: dayRows,
 		periods: {
-			day: dayRows.map((r) => ({
-				id: r.id,
-				label: r.date,
-				inflow: r.inflow,
-				outflow: r.outflow,
-			})),
-			week: weekBuckets,
-			month: weekBuckets,
+			day: dayBars,
+			week: weekBars,
+			month: monthBars,
 		},
 		categories: categories.map((c, i) => ({
 			id: `c${i}`,

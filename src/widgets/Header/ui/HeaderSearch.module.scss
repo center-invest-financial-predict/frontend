@@ -3,6 +3,40 @@
 	flex: 0 1 420px;
 	min-width: 0;
 
+	&__trigger {
+		display: none;
+		align-items: center;
+		justify-content: center;
+		width: 40px;
+		height: 40px;
+		padding: 0;
+		border: 0;
+		border-radius: var(--radius-xl);
+		background: var(--color-shape);
+		color: var(--color-text-faint);
+		cursor: pointer;
+		transition:
+			background-color 0.18s ease,
+			color 0.18s ease;
+
+		&:hover {
+			background: var(--color-neutral-soft);
+			color: var(--color-text);
+		}
+	}
+
+	&__backdrop {
+		display: none;
+	}
+
+	&__panel {
+		display: flex;
+		position: relative;
+		flex-direction: column;
+		min-width: 0;
+		width: 100%;
+	}
+
 	&__field {
 		display: flex;
 		align-items: center;
@@ -42,6 +76,27 @@
 		}
 	}
 
+	&__close {
+		display: none;
+		flex: none;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		margin-right: -4px;
+		padding: 0;
+		border: 0;
+		border-radius: var(--radius-md);
+		background: transparent;
+		color: var(--color-text-faint);
+		cursor: pointer;
+
+		&:hover {
+			background: var(--color-shape);
+			color: var(--color-text);
+		}
+	}
+
 	&__dropdown {
 		display: flex;
 		position: absolute;
@@ -64,6 +119,7 @@
 		overflow-y: auto;
 		min-height: 0;
 		padding: var(--space-2);
+		-webkit-overflow-scrolling: touch;
 	}
 
 	&__group {
@@ -107,16 +163,28 @@
 			background-color 0.16s ease,
 			color 0.16s ease;
 
-		small {
-			flex: none;
-			color: var(--color-text-faint);
-			font-size: var(--font-size-sm);
-		}
-
 		&--active {
 			background: var(--color-primary-soft);
 			color: var(--color-primary-text);
 		}
+	}
+
+	&__result-title {
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	&__result-hint {
+		flex: none;
+		max-width: 45%;
+		overflow: hidden;
+		color: var(--color-text-faint);
+		font-size: var(--font-size-sm);
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	&__empty {
@@ -129,6 +197,81 @@
 		text-align: center;
 	}
 
+	@media (max-width: 860px) {
+		flex: none;
+
+		&__trigger {
+			display: inline-flex;
+		}
+
+		&__panel {
+			display: none;
+		}
+
+		&__backdrop {
+			display: block;
+			position: fixed;
+			inset: 0;
+			z-index: var(--z-bar);
+			border: 0;
+			background: rgb(0 0 0 / 28%);
+			cursor: pointer;
+		}
+
+		&--open &__panel {
+			display: flex;
+			position: fixed;
+			top: 0;
+			right: 0;
+			left: 0;
+			z-index: var(--z-bar);
+			gap: var(--space-2);
+			height: 100%;
+			max-height: 100dvh;
+			padding: var(--space-3);
+			background: var(--color-surface);
+			animation: header-search-in 0.2s ease-out both;
+		}
+
+		&--open &__field {
+			flex: none;
+			height: 48px;
+			padding-right: var(--space-2);
+		}
+
+		&--open &__close {
+			display: inline-flex;
+		}
+
+		&--open &__dropdown {
+			position: static;
+			flex: 1;
+			min-height: 0;
+			max-height: none;
+			margin-top: 0;
+			border: 0;
+			border-radius: var(--radius-xl);
+			box-shadow: none;
+			background: var(--color-shape);
+			animation: none;
+		}
+
+		&--open &__result {
+			flex-wrap: wrap;
+			align-items: flex-start;
+			min-height: 48px;
+			padding: var(--space-3);
+		}
+
+		&--open &__result-title {
+			flex: 1 1 100%;
+			white-space: normal;
+		}
+
+		&--open &__result-hint {
+			max-width: 100%;
+		}
+	}
 }
 
 @keyframes header-search-in {
@@ -146,11 +289,13 @@
 @media (prefers-reduced-motion: reduce) {
 	.header-search {
 		&__field,
-		&__result {
+		&__result,
+		&__trigger {
 			transition-duration: 0s;
 		}
 
-		&__dropdown {
+		&__dropdown,
+		&--open &__panel {
 			animation: none;
 		}
 	}

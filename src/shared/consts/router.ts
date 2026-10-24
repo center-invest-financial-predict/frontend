@@ -11,6 +11,7 @@ export enum AppRoutes {
 	STRATEGIES = "strategies",
 	SETTINGS = "settings",
 	ASSISTANT = "assistant",
+	FAQ = "faq",
 	LOGIN = "login",
 	REGISTER = "register",
 	ONBOARDING = "onboarding",
@@ -29,6 +30,7 @@ export const getRouteSources = () => "/sources";
 export const getRouteStrategies = () => "/strategies";
 export const getRouteSettings = () => "/settings";
 export const getRouteAssistant = () => "/assistant";
+export const getRouteFaq = () => "/faq";
 export const getRouteLogin = () => "/login";
 export const getRouteRegister = () => "/register";
 export const getRouteOnboarding = () => "/onboarding";

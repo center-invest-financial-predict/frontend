@@ -12,6 +12,7 @@ import {
 } from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
+import { Skeleton } from "@/shared/ui/Skeleton";
 import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
 import { formatDayMonthShort } from "@/shared/lib/format/formatDate";
@@ -32,6 +33,7 @@ export const ForecastPage = memo(() => {
 	const navigate = useNavigate();
 	const [local, setLocal] = useState<LocalScen[] | null>(null);
 	const [renaming, setRenaming] = useState<string | null>(null);
+	const [scenarioId, setScenarioId] = useState<string | null>(null);
 
 	const queryArgs = useMemo(() => {
 		const active = (local ?? []).filter((s) => s.on);
@@ -39,8 +41,9 @@ export const ForecastPage = memo(() => {
 		active.forEach((s) => {
 			params[s.key] = s.opt;
 		});
+		if (scenarioId && active.length === 0) params.scenarioId = scenarioId;
 		return params;
-	}, [local]);
+	}, [local, scenarioId]);
 
 	const { data, isLoading, isError, refetch, isFetching } = useGetForecastQuery(queryArgs);
 	const { data: saved = [] } = useGetSavedScenariosQuery();
@@ -64,6 +67,7 @@ export const ForecastPage = memo(() => {
 	const hasRisk = data?.hasGap ?? false;
 
 	const toggle = (key: ForecastScenarioKey) => {
+		setScenarioId(null);
 		setLocal((prev) => {
 			const base =
 				prev ??
@@ -78,6 +82,7 @@ export const ForecastPage = memo(() => {
 	};
 
 	const setOpt = (key: ForecastScenarioKey, opt: string) => {
+		setScenarioId(null);
 		setLocal((prev) => {
 			const base =
 				prev ??
@@ -92,6 +97,7 @@ export const ForecastPage = memo(() => {
 	};
 
 	const reset = () => {
+		setScenarioId(null);
 		setLocal(
 			data?.scenarios.map((s) => ({
 				key: s.key,
@@ -135,14 +141,26 @@ export const ForecastPage = memo(() => {
 				</button>
 			</div>
 
-			{isLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
-			{isError ? (
+			{isError && !data ? (
 				<StateBanner
 					variant="error"
 					title={t("states.errorTitle")}
 					actionLabel={t("states.errorRetry")}
 					onAction={() => refetch()}
 				/>
+			) : null}
+
+			{isLoading && !data ? (
+				<div className={styles["forecast-page__grid"]} aria-busy="true" aria-label={t("states.loading")}>
+					<Card className={styles["forecast-page__scens"]}>
+						<Skeleton variant="title" />
+						<Skeleton variant="row" count={4} />
+					</Card>
+					<Card className={styles["forecast-page__chart"]}>
+						<Skeleton variant="title" />
+						<Skeleton variant="chart" />
+					</Card>
+				</div>
 			) : null}
 
 			{data ? (
@@ -253,7 +271,20 @@ export const ForecastPage = memo(() => {
 										<span className={styles["forecast-page__mine-name"]}>{m.name}</span>
 									)}
 									<div className={styles["forecast-page__mine-actions"]}>
-										<button type="button" className={styles["forecast-page__mine-btn"]}>
+										<button
+											type="button"
+											className={styles["forecast-page__mine-btn"]}
+											onClick={() => {
+												setLocal(
+													data?.scenarios.map((s) => ({
+														key: s.key,
+														on: false,
+														opt: s.defaultValue,
+													})) ?? [],
+												);
+												setScenarioId(m.id);
+											}}
+										>
 											{t("forecast.open")}
 										</button>
 										<button

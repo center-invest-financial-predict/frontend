@@ -1,8 +1,9 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useAskAssistantMutation } from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
-import { getRouteToday } from "@/shared/consts/router";
+import { getRouteForecast } from "@/shared/consts/router";
 import { cn } from "@/shared/lib/classNames/classNames";
 import {
 	appendAssistantMessages,
@@ -10,16 +11,9 @@ import {
 	getActiveAssistantChatId,
 	getAssistantThread,
 	setActiveAssistantChatId,
-	type AssistantMessage,
 	type AssistantThread,
 } from "@/shared/lib/assistantChats";
 import styles from "./AssistantPage.module.scss";
-
-const replyFor = (t: (k: string) => string): Omit<AssistantMessage, "id" | "at"> => ({
-	from: "bot",
-	text: t("assist.fallback"),
-	refs: [t("assist.linkForecast")],
-});
 
 type LocState = { question?: string; reset?: boolean; chatId?: string } | null;
 
@@ -31,6 +25,7 @@ export const AssistantPage = memo(() => {
 	const state = (location.state as LocState) || null;
 	const [thread, setThread] = useState<AssistantThread | null>(null);
 	const handledState = useRef<LocState>(null);
+	const [askAssistant] = useAskAssistantMutation();
 
 	const greeting = t("assist.welcome");
 
@@ -77,16 +72,53 @@ export const AssistantPage = memo(() => {
 		if (q) {
 			handledState.current = state;
 			const current = resolveThread();
-			const updated = appendAssistantMessages(current.id, [{ from: "user", text: q }, replyFor(t)]);
-			openThread(updated ?? current);
+			const withUser = appendAssistantMessages(current.id, [{ from: "user", text: q }]);
+			const base = withUser ?? current;
+			openThread(base);
 			navigate(location.pathname, { replace: true, state: null });
+
+			void (async () => {
+				try {
+					const answer = await askAssistant({
+						question: q,
+						conversationId: base.id,
+					}).unwrap();
+					const updated = appendAssistantMessages(base.id, [
+						{
+							from: "bot",
+							text: answer,
+							refs: [t("assist.linkForecast")],
+						},
+					]);
+					if (updated) openThread(updated);
+				} catch {
+					const updated = appendAssistantMessages(base.id, [
+						{
+							from: "bot",
+							text: t("assist.fallback"),
+							refs: [t("assist.linkForecast")],
+						},
+					]);
+					if (updated) openThread(updated);
+				}
+			})();
 			return;
 		}
 
 		if (!thread) {
 			openThread(resolveThread());
 		}
-	}, [state, t, navigate, location.pathname, greeting, openThread, resolveThread, thread]);
+	}, [
+		state,
+		t,
+		navigate,
+		location.pathname,
+		greeting,
+		openThread,
+		resolveThread,
+		thread,
+		askAssistant,
+	]);
 
 	const messages = thread?.messages ?? [];
 
@@ -121,7 +153,7 @@ export const AssistantPage = memo(() => {
 												key={ref}
 												type="button"
 												className={styles["assistant-page__ref"]}
-												onClick={() => navigate(getRouteToday())}
+												onClick={() => navigate(getRouteForecast())}
 											>
 												{ref}
 											</button>

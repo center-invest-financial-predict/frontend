@@ -4,6 +4,7 @@ import type { CashflowSeriesDto } from "@/entities/Finance";
 import { formatDayMonth, formatDayMonthShort } from "@/shared/lib/format/formatDate";
 import { formatMoneyAbs } from "@/shared/lib/format/formatMoney";
 import { cn } from "@/shared/lib/classNames/classNames";
+import { Skeleton } from "@/shared/ui/Skeleton";
 import styles from "./CashflowChart.module.scss";
 
 type Props = {
@@ -138,23 +139,27 @@ export const CashflowChart: FC<Props> = memo(
 		const todayX = getX(todayIndex);
 		const todayLabelX = Math.min(Math.max(todayX, 28), W - 28);
 
+		const axisLabel = (iso: string) =>
+			isHistory
+				? String(new Date(`${iso}T00:00:00`).getDate()).padStart(2, "0")
+				: formatDayMonth(iso, locale);
+
 		const dateTicks: { label: string; i: number }[] = [];
 		for (let i = 0; i < dayCount; i += xEvery) {
-			dateTicks.push({
-				label: isHistory
-					? String(new Date(`${points[i].date}T00:00:00`).getDate()).padStart(2, "0")
-					: formatDayMonth(points[i].date, locale),
-				i,
-			});
+			dateTicks.push({ label: axisLabel(points[i].date), i });
 		}
-		if (dayCount > 0 && dateTicks[dateTicks.length - 1]?.i !== dayCount - 1) {
-			const last = points[dayCount - 1];
-			dateTicks.push({
-				label: isHistory
-					? String(new Date(`${last.date}T00:00:00`).getDate()).padStart(2, "0")
-					: formatDayMonth(last.date, locale),
-				i: dayCount - 1,
-			});
+		const lastI = dayCount - 1;
+		if (dayCount > 0) {
+			const prev = dateTicks[dateTicks.length - 1];
+			if (!prev || prev.i !== lastI) {
+				const minGap = Math.max(1, Math.ceil(xEvery * 0.75));
+				const tick = { label: axisLabel(points[lastI].date), i: lastI };
+				if (prev && lastI - prev.i < minGap) {
+					dateTicks[dateTicks.length - 1] = tick;
+				} else {
+					dateTicks.push(tick);
+				}
+			}
 		}
 
 		const baseStroke = compact ? 2.5 : 3;
@@ -185,8 +190,8 @@ export const CashflowChart: FC<Props> = memo(
 
 		if (isLoading) {
 			return (
-				<div className={cn(styles["cashflow-chart"], styles["cashflow-chart--state"])}>
-					{t("states.loading")}
+				<div className={styles["cashflow-chart"]} aria-busy="true" aria-label={t("states.loading")}>
+					<Skeleton variant="chart" />
 				</div>
 			);
 		}

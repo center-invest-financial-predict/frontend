@@ -5,6 +5,7 @@ import { SlidersHorizontal } from "lucide-react";
 import { useGetPlanFactQuery } from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
+import { Skeleton } from "@/shared/ui/Skeleton";
 import { StateBanner } from "@/shared/ui/StateBanner";
 import { formatMoneyAbs } from "@/shared/lib/format/formatMoney";
 import { getRouteForecast, getRouteStrategies } from "@/shared/consts/router";
@@ -43,17 +44,36 @@ export const PlanFactPage = memo(() => {
 				</button>
 			</div>
 
-			{isLoading ? <StateBanner variant="loading" title={t("states.loading")} /> : null}
-			{isError || !data ? (
-				isLoading ? null : (
-					<StateBanner
-						variant="error"
-						title={t("states.errorTitle")}
-						actionLabel={t("states.errorRetry")}
-						onAction={() => refetch()}
-					/>
-				)
-			) : (
+			{isError && !data ? (
+				<StateBanner
+					variant="error"
+					title={t("states.errorTitle")}
+					actionLabel={t("states.errorRetry")}
+					onAction={() => refetch()}
+				/>
+			) : null}
+
+			{isLoading && !data ? (
+				<div className={styles["plan-fact-page__grid"]} aria-busy="true" aria-label={t("states.loading")}>
+					<Card className={styles["plan-fact-page__chart"]}>
+						<Skeleton variant="title" />
+						<Skeleton variant="chart" />
+						<Skeleton variant="row" count={3} />
+					</Card>
+					<div className={styles["plan-fact-page__side"]}>
+						<Card className={styles["plan-fact-page__late"]}>
+							<Skeleton variant="title" />
+							<Skeleton variant="row" count={2} />
+						</Card>
+						<Card className={styles["plan-fact-page__journal"]}>
+							<Skeleton variant="title" />
+							<Skeleton variant="row" count={4} />
+						</Card>
+					</div>
+				</div>
+			) : null}
+
+			{data ? (
 				<div className={styles["plan-fact-page__grid"]}>
 					<Card className={styles["plan-fact-page__chart"]}>
 						<div className={styles["plan-fact-page__chart-head"]}>
@@ -72,7 +92,7 @@ export const PlanFactPage = memo(() => {
 								</span>
 							</div>
 						</div>
-						<CashflowChart series={data.cashflow} showRisk={false} />
+						<CashflowChart series={data.cashflow} showRisk />
 						<div className={styles["plan-fact-page__stats"]}>
 							<div>
 								<div className={styles["plan-fact-page__stat-label"]}>{t("planFact.factOn")}</div>
@@ -118,7 +138,7 @@ export const PlanFactPage = memo(() => {
 						</Card>
 					</div>
 				</div>
-			)}
+			) : null}
 		</Page>
 	);
 });

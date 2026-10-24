@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useGetStrategiesQuery, useUpdateStrategiesMutation, type StrategyKey } from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
+import { Skeleton } from "@/shared/ui/Skeleton";
 import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
 import { getRouteForecast } from "@/shared/consts/router";
@@ -60,7 +61,9 @@ export const StrategiesPage = memo(() => {
 	if (isLoading) {
 		return (
 			<Page className={styles["strat-page"]}>
-				<StateBanner variant="loading" title={t("states.loading")} />
+				<Skeleton variant="title" label={t("states.loading")} />
+				<Skeleton variant="row" count={4} />
+				<Skeleton variant="chart" />
 			</Page>
 		);
 	}

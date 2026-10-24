@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useGetOperationsQuery, useGetRegularOperationsQuery } from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
+import { Skeleton } from "@/shared/ui/Skeleton";
 import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
 import { formatDayMonth } from "@/shared/lib/format/formatDate";
@@ -56,7 +57,7 @@ export const OperationsPage = memo(() => {
 
 			{tab === "reg" ? (
 				regLoading ? (
-					<StateBanner variant="loading" title={t("states.loading")} />
+					<Skeleton variant="row" count={4} label={t("states.loading")} />
 				) : regError ? (
 					<StateBanner
 						variant="error"
@@ -100,7 +101,7 @@ export const OperationsPage = memo(() => {
 					</Card>
 				)
 			) : isLoading ? (
-				<StateBanner variant="loading" title={t("states.loading")} />
+				<Skeleton variant="row" count={6} label={t("states.loading")} />
 			) : isError || !data ? (
 				<StateBanner
 					variant="error"

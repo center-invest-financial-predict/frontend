@@ -1,0 +1,58 @@
+.skeleton-wrap {
+	width: 100%;
+
+	&--stack {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+	}
+}
+
+.skeleton {
+	width: 100%;
+	background: var(--color-shape);
+	border-radius: var(--radius-lg);
+	animation: skeleton-pulse 1.2s ease-in-out infinite;
+
+	&--line {
+		height: 16px;
+		max-width: 70%;
+	}
+
+	&--title {
+		height: 22px;
+		max-width: 45%;
+	}
+
+	&--row {
+		height: 48px;
+		border-radius: var(--radius-xl);
+	}
+
+	&--card {
+		height: 112px;
+		border-radius: var(--radius-2xl);
+	}
+
+	&--chart {
+		height: 240px;
+		border-radius: var(--radius-xl);
+	}
+}
+
+@keyframes skeleton-pulse {
+	0%,
+	100% {
+		opacity: 0.55;
+	}
+
+	50% {
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.skeleton {
+		animation: none;
+	}
+}
