@@ -91,6 +91,11 @@ export const Sidebar: FC = memo(() => {
 	const [activeChatId, setActiveChatId] = useState<string | null>(null);
 
 	const activeInn = profile?.business?.inn || companies[0]?.inn || "";
+	const companyName =
+		profile?.business?.name ||
+		companies.find((c) => c.inn === activeInn)?.name ||
+		companies[0]?.name ||
+		"";
 
 	useEffect(() => {
 		if (profile?.business?.inn || !companies.length) return;
@@ -175,6 +180,9 @@ export const Sidebar: FC = memo(() => {
 				<div className={styles["sidebar__company-wrap"]}>
 					<div className={styles.sidebar__company}>
 						<span className={styles["sidebar__company-name"]}>
+							{companyName || t("company.label")}
+						</span>
+						<span className={styles["sidebar__company-type"]}>
 							{activeInn ? t("company.innLabel", { inn: activeInn }) : t("company.innEmpty")}
 						</span>
 					</div>
