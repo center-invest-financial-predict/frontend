@@ -1,4 +1,4 @@
-import { FC, memo, useMemo, useState } from "react";
+import { FC, memo, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { CashflowSeriesDto } from "@/entities/Finance";
 import { formatDayMonth, formatDayMonthShort } from "@/shared/lib/format/formatDate";
@@ -42,7 +42,24 @@ export const CashflowChart: FC<Props> = memo(
 		const { t, i18n } = useTranslation();
 		const locale = i18n.language?.startsWith("en") ? "en-US" : "ru-RU";
 		const [hover, setHover] = useState<number | null>(null);
+		const [hoverY, setHoverY] = useState<number | null>(null);
 		const series = seriesProp ?? emptySeries;
+
+		const setHit = (i: number, e: ReactMouseEvent<SVGRectElement>) => {
+			setHover(i);
+			const svg = e.currentTarget.ownerSVGElement;
+			const ctm = svg?.getScreenCTM();
+			if (!svg || !ctm) return;
+			const pt = svg.createSVGPoint();
+			pt.x = e.clientX;
+			pt.y = e.clientY;
+			setHoverY(pt.matrixTransform(ctm.inverse()).y);
+		};
+
+		const clearHit = () => {
+			setHover(null);
+			setHoverY(null);
+		};
 
 		const points = series.points ?? [];
 		const dayCount = points.length;
@@ -94,10 +111,29 @@ export const CashflowChart: FC<Props> = memo(
 		}
 
 		const basePoly = points.map((p, i) => `${getX(i)},${getY(p.balance)}`).join(" ");
-		const negPoly = points
-			.map((p, i) => (p.pessimisticBalance == null ? null : `${getX(i)},${getY(p.pessimisticBalance)}`))
-			.filter(Boolean)
-			.join(" ");
+
+		// Black only where risk differs from base (+ neighbors so segments meet the green line)
+		const negDiffers = (i: number) => {
+			const p = points[i];
+			return p?.pessimisticBalance != null && p.pessimisticBalance !== p.balance;
+		};
+		let negPath = "";
+		if (showRisk) {
+			let pen = false;
+			for (let i = 0; i < dayCount; i++) {
+				const p = points[i];
+				const keep =
+					p.pessimisticBalance != null &&
+					(negDiffers(i) || (i > 0 && negDiffers(i - 1)) || (i < dayCount - 1 && negDiffers(i + 1)));
+				if (!keep) {
+					pen = false;
+					continue;
+				}
+				const cmd = pen ? "L" : "M";
+				negPath += `${cmd}${getX(i)} ${getY(p.pessimisticBalance!)}`;
+				pen = true;
+			}
+		}
 
 		const todayX = getX(todayIndex);
 		const todayLabelX = Math.min(Math.max(todayX, 28), W - 28);
@@ -127,22 +163,21 @@ export const CashflowChart: FC<Props> = memo(
 
 		const hoverPoint = hover != null ? points[hover] : null;
 		const isGapHover = showGap && hover === gapIndex && series.gap != null;
-		const tipValue = isGapHover
-			? series.gap!.balance
-			: showRisk && hoverPoint?.pessimisticBalance != null && hoverPoint.pessimisticBalance < hoverPoint.balance
-				? hoverPoint.pessimisticBalance
-				: (hoverPoint?.balance ?? 0);
-		const tipIsRisk =
-			isGapHover ||
-			(showRisk &&
-				hoverPoint?.pessimisticBalance != null &&
-				hoverPoint.pessimisticBalance < hoverPoint.balance &&
-				tipValue === hoverPoint.pessimisticBalance);
+		const riskVal = hoverPoint?.pessimisticBalance;
+		const baseVal = hoverPoint?.balance ?? 0;
+		const hasSplit = Boolean(showRisk && !isGapHover && riskVal != null && riskVal !== baseVal);
 
-		const showBaseInTip =
-			Boolean(showRisk && hoverPoint && tipIsRisk && !isGapHover && tipValue !== hoverPoint.balance);
+		let tipIsRisk = false;
+		if (isGapHover) {
+			tipIsRisk = true;
+		} else if (hasSplit && riskVal != null && hoverY != null) {
+			tipIsRisk = Math.abs(hoverY - getY(riskVal)) <= Math.abs(hoverY - getY(baseVal));
+		}
+
+		const tipValue = isGapHover ? series.gap!.balance : tipIsRisk && riskVal != null ? riskVal : baseVal;
+		const otherValue = hasSplit ? (tipIsRisk ? baseVal : riskVal!) : null;
 		const tipW = 128;
-		const tipH = showBaseInTip ? 54 : 40;
+		const tipH = otherValue != null ? 54 : 40;
 		const tipX = hoverPoint
 			? Math.max(pad.left, Math.min(getX(hover!) - tipW / 2, W - pad.right - tipW))
 			: 0;
@@ -186,7 +221,7 @@ export const CashflowChart: FC<Props> = memo(
 						preserveAspectRatio="xMidYMid meet"
 						role="img"
 						aria-label={t("today.balance30")}
-						onMouseLeave={() => setHover(null)}
+						onMouseLeave={clearHit}
 					>
 						{yTicks.map((tick) => {
 							const y = getY(tick);
@@ -215,17 +250,9 @@ export const CashflowChart: FC<Props> = memo(
 
 						{showBand && bandPoly ? <polygon points={bandPoly} fill="var(--color-primary-soft)" opacity="0.9" /> : null}
 
-						<polyline
-							points={basePoly}
-							fill="none"
-							stroke="var(--color-primary-bright)"
-							strokeWidth={baseStroke}
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						/>
-						{showRisk && negPoly ? (
-							<polyline
-								points={negPoly}
+						{showRisk && negPath ? (
+							<path
+								d={negPath}
 								fill="none"
 								stroke="var(--color-text)"
 								strokeWidth={2}
@@ -234,6 +261,14 @@ export const CashflowChart: FC<Props> = memo(
 								strokeLinejoin="round"
 							/>
 						) : null}
+						<polyline
+							points={basePoly}
+							fill="none"
+							stroke="var(--color-primary-bright)"
+							strokeWidth={baseStroke}
+							strokeLinecap="round"
+							strokeLinejoin="round"
+						/>
 
 						{dateTicks.map((item) => (
 							<text
@@ -283,7 +318,6 @@ export const CashflowChart: FC<Props> = memo(
 							/>
 						) : null}
 
-						{/* Full-height columns — hover works on green line, dashed line and gap dot */}
 						{points.map((p, i) => {
 							const x = getX(i);
 							const half = Math.max(colW / 2, 8);
@@ -296,9 +330,13 @@ export const CashflowChart: FC<Props> = memo(
 									height={cH}
 									fill="transparent"
 									className={styles["cashflow-chart__hit"]}
-									onMouseEnter={() => setHover(i)}
-									onFocus={() => setHover(i)}
-									onBlur={() => setHover(null)}
+									onMouseEnter={(e) => setHit(i, e)}
+									onMouseMove={(e) => setHit(i, e)}
+									onFocus={() => {
+										setHover(i);
+										setHoverY(null);
+									}}
+									onBlur={clearHit}
 									tabIndex={0}
 									role="img"
 									aria-label={`${formatDayMonthShort(p.date, locale)} ${formatMoneyAbs(
@@ -320,14 +358,36 @@ export const CashflowChart: FC<Props> = memo(
 									strokeWidth="1"
 									strokeDasharray="2 3"
 								/>
-								<circle
-									cx={getX(hover!)}
-									cy={getY(tipValue)}
-									r="5"
-									fill={tipIsRisk ? "var(--color-danger)" : "var(--color-primary-bright)"}
-									stroke="var(--color-surface)"
-									strokeWidth="2"
-								/>
+								{hasSplit && riskVal != null ? (
+									<circle
+										cx={getX(hover!)}
+										cy={getY(riskVal)}
+										r={tipIsRisk ? 6 : 4}
+										fill="var(--color-danger)"
+										stroke="var(--color-surface)"
+										strokeWidth="2"
+									/>
+								) : null}
+								{!isGapHover ? (
+									<circle
+										cx={getX(hover!)}
+										cy={getY(baseVal)}
+										r={!tipIsRisk ? 6 : hasSplit ? 4 : 5}
+										fill="var(--color-surface)"
+										stroke="var(--color-primary-bright)"
+										strokeWidth="3"
+									/>
+								) : null}
+								{isGapHover ? (
+									<circle
+										cx={getX(hover!)}
+										cy={getY(tipValue)}
+										r="6"
+										fill="var(--color-danger)"
+										stroke="var(--color-surface)"
+										strokeWidth="2"
+									/>
+								) : null}
 								<rect
 									x={tipX}
 									y={tipY}
@@ -356,7 +416,7 @@ export const CashflowChart: FC<Props> = memo(
 								>
 									{formatMoneyAbs(tipValue, locale)}
 								</text>
-								{showBaseInTip ? (
+								{otherValue != null ? (
 									<text
 										x={tipX + tipW / 2}
 										y={tipY + 46}
@@ -364,7 +424,7 @@ export const CashflowChart: FC<Props> = memo(
 										fontSize={10}
 										fill="var(--color-text-faint)"
 									>
-										{formatMoneyAbs(hoverPoint.balance, locale)}
+										{formatMoneyAbs(otherValue, locale)}
 									</text>
 								) : null}
 							</g>

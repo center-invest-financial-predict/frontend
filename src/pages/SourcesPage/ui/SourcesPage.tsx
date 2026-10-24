@@ -1,33 +1,16 @@
-import { memo, useState } from "react";
+import { memo } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
-import { useGetSourcesQuery, useToggleSourceMutation, useUploadSourceFileMutation } from "@/entities/Finance";
+import { useGetSourcesQuery, useToggleSourceMutation } from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
 import { StateBanner } from "@/shared/ui/StateBanner";
-import { getRouteAdd } from "@/shared/consts/router";
 import { cn } from "@/shared/lib/classNames/classNames";
 import styles from "./SourcesPage.module.scss";
 
 export const SourcesPage = memo(() => {
 	const { t } = useTranslation();
-	const navigate = useNavigate();
 	const { data, isLoading, isError, refetch } = useGetSourcesQuery();
 	const [toggleSource] = useToggleSourceMutation();
-	const [uploadFile, { isSuccess: uploadOk, isLoading: uploading }] = useUploadSourceFileMutation();
-	const [localOk, setLocalOk] = useState(false);
-
-	const onFile = async (file: File | undefined) => {
-		if (!file) return;
-		const body = new FormData();
-		body.append("file", file);
-		try {
-			await uploadFile(body).unwrap();
-			setLocalOk(true);
-		} catch {
-			setLocalOk(false);
-		}
-	};
 
 	return (
 		<Page className={styles["sources-page"]}>
@@ -66,41 +49,6 @@ export const SourcesPage = memo(() => {
 					))}
 				</div>
 			) : null}
-
-			<Card className={styles["sources-page__upload"]}>
-				<div>
-					<div className={styles["sources-page__name"]}>{t("sources.uploadTitle")}</div>
-					<p className={styles["sources-page__desc"]}>{t("sources.uploadHint")}</p>
-				</div>
-				<div className={styles["sources-page__upload-actions"]}>
-					<label className={styles["sources-page__file-btn"]}>
-						{uploading ? t("states.loading") : t("sources.chooseFile")}
-						<input
-							type="file"
-							accept=".csv,text/csv,text/plain"
-							className={styles["sources-page__file"]}
-							onChange={(e) => void onFile(e.target.files?.[0])}
-						/>
-					</label>
-				</div>
-				{uploadOk || localOk ? (
-					<>
-						<div className={styles["sources-page__ok"]}>{t("sources.uploadOk")}</div>
-						<button type="button" className={cn(styles["sources-page__btn"], styles["sources-page__btn--primary"])}>
-							{t("sources.uploadCta")}
-						</button>
-					</>
-				) : null}
-			</Card>
-			<Card className={styles["sources-page__future"]}>
-				<button
-					type="button"
-					className={cn(styles["sources-page__btn"], styles["sources-page__btn--primary"])}
-					onClick={() => navigate(getRouteAdd())}
-				>
-					{t("sources.futureCta")}
-				</button>
-			</Card>
 		</Page>
 	);
 });
