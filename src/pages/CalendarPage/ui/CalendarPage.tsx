@@ -7,6 +7,7 @@ import { Card } from "@/shared/ui/Card";
 import { Skeleton } from "@/shared/ui/Skeleton";
 import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
+import { dayOfMonth } from "@/shared/lib/format/formatDate";
 import { getRouteAdd, getRouteEvents } from "@/shared/consts/router";
 import styles from "./CalendarPage.module.scss";
 
@@ -31,13 +32,13 @@ export const CalendarPage = memo(() => {
 	const eventsByDay = useMemo(() => {
 		const map: Record<number, string> = {};
 		data?.events.forEach((e) => {
-			const day = Number(e.date.slice(8, 10));
-			map[day] = e.label;
+			const day = dayOfMonth(e.date);
+			if (day) map[day] = e.label;
 		});
 		return map;
 	}, [data?.events]);
 
-	const todayDay = data?.today ? Number(data.today.slice(8, 10)) : now.getDate();
+	const todayDay = data?.today ? dayOfMonth(data.today) || now.getDate() : now.getDate();
 	const daysInMonth = new Date(year, month, 0).getDate();
 	const startWeekday = (new Date(year, month - 1, 1).getDay() + 6) % 7;
 

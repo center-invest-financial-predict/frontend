@@ -710,38 +710,26 @@ const financeApi = rtkApi.injectEndpoints({
 			async queryFn({ year, month }, _api, _extra, baseQuery) {
 				const inn = getActiveInn();
 				if (!inn) return { error: noInnError() };
-				const result = await baseQuery({
-					url: `/api/companies/${inn}/events/calendar`,
-					params: { year, month },
-				});
-				if (result.error) {
-					const upcoming = await baseQuery(`/api/companies/${inn}/payments/upcoming`);
-					if (upcoming.error) return { error: asError(result) };
-					const items = (upcoming.data as { eventDate?: string; title?: string }[]) ?? [];
-					return {
-						data: {
-							year,
-							month,
-							today: new Date().toISOString().slice(0, 10),
-							events: items
-								.filter((e) => e.eventDate?.startsWith(`${year}-${String(month).padStart(2, "0")}`))
-								.map((e) => ({ date: e.eventDate ?? "", label: e.title ?? "" })),
-						},
-					};
-				}
-				const body = result.data as {
-					month?: string;
-					days?: Record<string, { title?: string; amount?: number }[]>;
-				};
-				const events = Object.entries(body.days ?? {}).flatMap(([date, list]) =>
-					(list ?? []).map((e) => ({ date, label: e.title ?? "" })),
-				);
+				const monthPrefix = `${year}-${String(month).padStart(2, "0")}`;
+				const n = new Date();
+				const today = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+				const [events, upcoming] = await Promise.all([
+					baseQuery(`/api/companies/${inn}/events`),
+					baseQuery(`/api/companies/${inn}/payments/upcoming`),
+				]);
+				if (events.error) return { error: asError(events) };
+				const raw = [
+					...((events.data as unknown[]) ?? []),
+					...((upcoming.error ? [] : (upcoming.data as unknown[])) ?? []),
+				] as { eventDate?: string; title?: string }[];
 				return {
 					data: {
 						year,
 						month,
-						today: new Date().toISOString().slice(0, 10),
-						events,
+						today,
+						events: raw
+							.filter((e) => e.eventDate?.startsWith(monthPrefix))
+							.map((e) => ({ date: e.eventDate ?? "", label: e.title ?? "" })),
 					},
 				};
 			},
