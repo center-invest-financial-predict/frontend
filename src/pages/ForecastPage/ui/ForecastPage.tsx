@@ -1,204 +1,176 @@
 import { memo, useState } from "react";
-import { cn } from "@/shared/lib/classNames/classNames";
-import { PageTitle } from "@/shared/ui/PageTitle";
+import { useTranslation } from "react-i18next";
 import { Page } from "@/widgets/Page";
+import { Card } from "@/shared/ui/Card";
+import { cn } from "@/shared/lib/classNames/classNames";
+import { CashflowChart } from "@/pages/TodayPage/ui/CashflowChart/CashflowChart";
 import styles from "./ForecastPage.module.scss";
 
+type ScenKey = "delay" | "drop" | "fixed" | "skip";
+
+type Scen = {
+	key: ScenKey;
+	titleKey: string;
+	on: boolean;
+	opt: string;
+	opts: string[];
+};
+
+const INITIAL: Scen[] = [
+	{
+		key: "delay",
+		titleKey: "forecast.scen.delay",
+		on: true,
+		opt: "+14 дн.",
+		opts: ["В срок", "+14 дн.", "+21 дн."],
+	},
+	{
+		key: "drop",
+		titleKey: "forecast.scen.drop",
+		on: false,
+		opt: "−20%",
+		opts: ["Без спада", "−10%", "−20%"],
+	},
+	{
+		key: "fixed",
+		titleKey: "forecast.scen.fixed",
+		on: false,
+		opt: "+10%",
+		opts: ["Без роста", "+10%"],
+	},
+	{
+		key: "skip",
+		titleKey: "forecast.scen.skip",
+		on: false,
+		opt: "Мельница",
+		opts: ["Мельница"],
+	},
+];
+
+const SAVED = [
+	{ n: "Дельта-Сервис позже на 14 дней", min: "−30 100 ₽", d: "5 ноя", gap: "Да", bad: true },
+	{ n: "Задержка 14 дней и спад выручки 20%", min: "−107 300 ₽", d: "5 ноя", gap: "Да", bad: true },
+	{ n: "Выручка ниже на 20%", min: "232 700 ₽", d: "5 ноя", gap: "Нет", bad: false },
+	{ n: "Постоянные расходы +10%", min: "280 400 ₽", d: "5 ноя", gap: "Нет", bad: false },
+];
+
 export const ForecastPage = memo(() => {
-	const [revenueDown, setRevenueDown] = useState(true);
-	const [revenuePct, setRevenuePct] = useState("-20%");
-	const [unplannedExp, setUnplannedExp] = useState(false);
-	const [unplannedVal, setUnplannedVal] = useState("150 тыс");
-	const [fixedCostUp, setFixedCostUp] = useState(false);
-	const [fixedCostPct, setFixedCostPct] = useState("+10%");
+	const { t } = useTranslation();
+	const [scens, setScens] = useState(INITIAL);
+	const hasRisk = scens.some((s) => s.on && (s.key === "delay" || s.key === "drop"));
+
+	const toggle = (key: ScenKey) => {
+		setScens((prev) => prev.map((s) => (s.key === key ? { ...s, on: !s.on } : s)));
+	};
+
+	const setOpt = (key: ScenKey, opt: string) => {
+		setScens((prev) =>
+			prev.map((s) => (s.key === key ? { ...s, opt, on: true } : s)),
+		);
+	};
 
 	return (
-		<Page>
-			<PageTitle className={styles["forecast-page__title"]}>Прогноз и сценарии</PageTitle>
-
-			<div className={styles["forecast-page__top-grid"]}>
-				<div className={styles["forecast-page__card"]}>
-					<h2 className={styles["forecast-page__section-title"]}>Параметры стресс-теста</h2>
-
-					<div className={styles["forecast-page__control"]}>
-						<label className={styles["forecast-page__checkbox-label"]}>
-							<input
-								type="checkbox"
-								checked={revenueDown}
-								onChange={(e) => setRevenueDown(e.target.checked)}
-							/>
-							Выручка ниже
-						</label>
-						<div className={styles["forecast-page__pills"]}>
-							{["-10%", "-20%", "-30%"].map((p) => (
-								<button
-									key={p}
-									type="button"
-									className={cn(
-										styles["forecast-page__pill"],
-										revenueDown &&
-											revenuePct === p &&
-											styles["forecast-page__pill--active"],
-									)}
-									onClick={() => {
-										setRevenueDown(true);
-										setRevenuePct(p);
-									}}
-								>
-									{p}
-								</button>
-							))}
-						</div>
-					</div>
-
-					<div className={styles["forecast-page__control"]}>
-						<label className={styles["forecast-page__checkbox-label"]}>
-							<input
-								type="checkbox"
-								checked={unplannedExp}
-								onChange={(e) => setUnplannedExp(e.target.checked)}
-							/>
-							Внеплановый расход
-						</label>
-						<div className={styles["forecast-page__pills"]}>
-							{["100 тыс", "150 тыс", "250 тыс"].map((p) => (
-								<button
-									key={p}
-									type="button"
-									className={cn(
-										styles["forecast-page__pill"],
-										unplannedExp &&
-											unplannedVal === p &&
-											styles["forecast-page__pill--active"],
-									)}
-									onClick={() => {
-										setUnplannedExp(true);
-										setUnplannedVal(p);
-									}}
-								>
-									{p}
-								</button>
-							))}
-						</div>
-					</div>
-
-					<div className={styles["forecast-page__control"]}>
-						<label className={styles["forecast-page__checkbox-label"]}>
-							<input
-								type="checkbox"
-								checked={fixedCostUp}
-								onChange={(e) => setFixedCostUp(e.target.checked)}
-							/>
-							Рост постоянных расходов
-						</label>
-						<div className={styles["forecast-page__pills"]}>
-							{["+5%", "+10%", "+20%"].map((p) => (
-								<button
-									key={p}
-									type="button"
-									className={cn(
-										styles["forecast-page__pill"],
-										fixedCostUp &&
-											fixedCostPct === p &&
-											styles["forecast-page__pill--active"],
-									)}
-									onClick={() => {
-										setFixedCostUp(true);
-										setFixedCostPct(p);
-									}}
-								>
-									{p}
-								</button>
-							))}
-						</div>
-					</div>
-				</div>
-
-				<div className={styles["forecast-page__card"]}>
-					<h2 className={styles["forecast-page__section-title"]}>Моделирование кассового разрыва</h2>
-					<div className={styles["forecast-page__chart"]}>
-						<svg width="100%" height="230" viewBox="0 0 560 230" preserveAspectRatio="none">
-							<line x1="65" y1="30" x2="540" y2="30" stroke="#f3f4f6" strokeWidth="1" />
-							<line x1="65" y1="80" x2="540" y2="80" stroke="#f3f4f6" strokeWidth="1" />
-							<line x1="65" y1="130" x2="540" y2="130" stroke="#f3f4f6" strokeWidth="1" />
-							<line x1="65" y1="180" x2="540" y2="180" stroke="#111827" strokeWidth="1.2" />
-							<text x="56" y="34" textAnchor="end" fontSize="11" fill="#9ca3af">400 тыс</text>
-							<text x="56" y="84" textAnchor="end" fontSize="11" fill="#9ca3af">200 тыс</text>
-							<text x="56" y="134" textAnchor="end" fontSize="11" fill="#9ca3af">0</text>
-							<text x="56" y="184" textAnchor="end" fontSize="11" fill="#9ca3af">-200 тыс</text>
-							<polyline
-								points="65,90 115,75 165,82 215,65 265,78 305,105 355,90 405,82 455,75 505,72 540,68"
-								fill="none"
-								stroke="#22c55e"
-								strokeWidth="2.5"
-								strokeLinecap="round"
-							/>
-							<polyline
-								points="65,90 115,78 165,95 215,110 265,118 305,185 355,140 405,115 455,95 505,85 540,78"
-								fill="none"
-								stroke="#1f2937"
-								strokeWidth="2"
-								strokeDasharray="5 4"
-								strokeLinecap="round"
-							/>
-							<circle cx="305" cy="185" r="4.5" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
-							<rect x="250" y="145" width="110" height="24" rx="5" fill="#dc2626" />
-							<text x="305" y="161" textAnchor="middle" fontSize="11" fontWeight="700" fill="#ffffff">
-								5 ноя: −30 100 ₽
-							</text>
-							{["23.10", "28.10", "02.11", "07.11", "12.11", "17.11", "22.11"].map((d, i) => (
-								<text key={d} x={65 + i * 78} y="215" textAnchor="middle" fontSize="11" fill="#9ca3af">
-									{d}
-								</text>
-							))}
-						</svg>
-					</div>
-
-					<div className={styles["forecast-page__alert"]}>
-						Итог: разрыв 5 ноября, не хватает 30 100 ₽
-					</div>
-				</div>
+		<Page className={styles["forecast-page"]}>
+			<div>
+				<h1 className={styles["forecast-page__title"]}>{t("forecast.title")}</h1>
+				<p className={styles["forecast-page__sub"]}>{t("forecast.subtitle")}</p>
 			</div>
 
-			<div className={styles["forecast-page__card"]}>
-				<h2 className={styles["forecast-page__section-title"]}>Сохранённые сценарии</h2>
-				<span className={styles["forecast-page__meta"]}>
-					Пересчитаны на данные от 23.10 08:40
-				</span>
+			<div className={styles["forecast-page__grid"]}>
+				<Card className={styles["forecast-page__scens"]}>
+					<div className={styles["forecast-page__card-title"]}>{t("forecast.scens")}</div>
+					<p className={styles["forecast-page__card-sub"]}>{t("forecast.scensHint")}</p>
+					{scens.map((s) => (
+						<div
+							key={s.key}
+							className={cn(
+								styles["forecast-page__scen"],
+								s.on && styles["forecast-page__scen--on"],
+							)}
+						>
+							<button
+								type="button"
+								className={styles["forecast-page__scen-tog"]}
+								onClick={() => toggle(s.key)}
+							>
+								<span
+									className={cn(
+										styles["forecast-page__check"],
+										s.on && styles["forecast-page__check--on"],
+									)}
+								/>
+								{t(s.titleKey)}
+							</button>
+							<div className={styles["forecast-page__opts"]}>
+								{s.opts.map((o) => (
+									<button
+										key={o}
+										type="button"
+										className={cn(
+											styles["forecast-page__opt"],
+											s.on && s.opt === o && styles["forecast-page__opt--on"],
+										)}
+										onClick={() => setOpt(s.key, o)}
+									>
+										{o}
+									</button>
+								))}
+							</div>
+						</div>
+					))}
+				</Card>
 
-				<table className={styles["forecast-page__table"]}>
-					<thead>
-						<tr>
-							<th className={styles["forecast-page__th"]}>Сценарий</th>
-							<th className={styles["forecast-page__th"]}>Минимум баланса</th>
-							<th className={styles["forecast-page__th"]}>Дата</th>
-							<th className={styles["forecast-page__th"]}>Разрыв</th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr>
-							<td className={cn(styles["forecast-page__td"], styles["forecast-page__td--strong"])}>
-								Дельта-Сервис позже на 14 дней
-							</td>
-							<td className={styles["forecast-page__td"]}>−30 100 ₽</td>
-							<td className={styles["forecast-page__td"]}>5 ноя</td>
-							<td className={cn(styles["forecast-page__td"], styles["forecast-page__td--danger"])}>
-								−30 100 ₽
-							</td>
-						</tr>
-						<tr>
-							<td className={cn(styles["forecast-page__td"], styles["forecast-page__td--strong"])}>
-								Задержка 14 дней и спад выручки 20%
-							</td>
-							<td className={styles["forecast-page__td"]}>−107 200 ₽</td>
-							<td className={styles["forecast-page__td"]}>5 ноя</td>
-							<td className={cn(styles["forecast-page__td"], styles["forecast-page__td--danger"])}>
-								−107 200 ₽
-							</td>
-						</tr>
-					</tbody>
-				</table>
+				<Card className={styles["forecast-page__chart"]}>
+					<div className={styles["forecast-page__chart-head"]}>
+						<div>
+							<div className={styles["forecast-page__card-title"]}>
+								{t("forecast.chartTitle")}
+							</div>
+							<p className={styles["forecast-page__card-sub"]}>{t("forecast.chartSub")}</p>
+						</div>
+						<div className={styles["forecast-page__legend"]}>
+							<span>
+								<span className={styles["forecast-page__leg-base"]} />
+								{t("forecast.base")}
+							</span>
+							<span>
+								<span className={styles["forecast-page__leg-neg"]} />
+								{t("forecast.neg")}
+							</span>
+						</div>
+					</div>
+					<CashflowChart showRisk={hasRisk} range={30} />
+					<div
+						className={cn(
+							styles["forecast-page__result"],
+							hasRisk && styles["forecast-page__result--bad"],
+						)}
+					>
+						{hasRisk ? t("forecast.resGap") : t("forecast.resOk")}
+					</div>
+				</Card>
 			</div>
+
+			<Card className={styles["forecast-page__saved"]}>
+				<div className={styles["forecast-page__card-title"]}>{t("forecast.saved")}</div>
+				<p className={styles["forecast-page__card-sub"]}>{t("forecast.savedSub")}</p>
+				<div className={styles["forecast-page__table-head"]}>
+					<span>{t("forecast.colScen")}</span>
+					<span>{t("forecast.colMin")}</span>
+					<span>{t("forecast.colDate")}</span>
+					<span>{t("forecast.colGap")}</span>
+				</div>
+				{SAVED.map((r) => (
+					<div key={r.n} className={styles["forecast-page__table-row"]}>
+						<span>{r.n}</span>
+						<span>{r.min}</span>
+						<span>{r.d}</span>
+						<span className={r.bad ? styles["forecast-page__gap-bad"] : undefined}>
+							{r.gap}
+						</span>
+					</div>
+				))}
+			</Card>
 		</Page>
 	);
 });

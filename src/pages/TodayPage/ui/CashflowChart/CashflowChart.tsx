@@ -1,233 +1,270 @@
-import { memo, useState } from "react";
+import { FC, memo } from "react";
 import { useTranslation } from "react-i18next";
-import { Card } from "@/shared/ui/Card";
-import { PillSwitch } from "@/shared/ui/PillSwitch";
+import { cn } from "@/shared/lib/classNames/classNames";
 import styles from "./CashflowChart.module.scss";
 
-export const CashflowChart = memo(() => {
-	const { t } = useTranslation();
-	const [mode, setMode] = useState<"forecast" | "planfact">("forecast");
-	const [view, setView] = useState<"graph" | "days">("graph");
+type Props = {
+	compact?: boolean;
+	showRisk?: boolean;
+	range?: 14 | 30;
+};
 
-	const W = 680;
-	const H = 200;
-	const pad = { left: 60, right: 20, top: 28, bottom: 26 };
-	const cW = W - pad.left - pad.right;
-	const cH = H - pad.top - pad.bottom;
-	const minY = -80;
-	const maxY = 850;
-	const rangeY = maxY - minY;
+export const CashflowChart: FC<Props> = memo(
+	({ compact = false, showRisk = true, range = 30 }) => {
+		const { t } = useTranslation();
 
-	const getY = (val: number) => pad.top + cH - ((val - minY) / rangeY) * cH;
-	const getX = (fraction: number) => pad.left + fraction * cW;
+		const W = compact ? 340 : 740;
+		const H = compact ? 150 : 340;
+		const pad = compact
+			? { left: 56, right: 12, top: 12, bottom: 20 }
+			: { left: 64, right: 16, top: 26, bottom: 26 };
+		const cW = W - pad.left - pad.right;
+		const cH = H - pad.top - pad.bottom;
+		const minY = -100;
+		const maxY = 800;
+		const rangeY = maxY - minY;
+		const cut = range === 14 ? 0.47 : 1;
+		const bandK = 18;
+		const showBand = showRisk && !compact;
+		const showToday = !compact;
+		const showGap = showRisk && !compact && cut >= 0.52;
 
-	const basePoints: [number, number][] = [
-		[0, 412],
-		[0.08, 480],
-		[0.16, 780],
-		[0.22, 650],
-		[0.3, 680],
-		[0.38, 450],
-		[0.45, 480],
-		[0.55, 340],
-		[0.65, 420],
-		[0.72, 470],
-		[0.8, 560],
-		[0.88, 490],
-		[0.94, 530],
-		[1.0, 607],
-	];
+		const getY = (val: number) => pad.top + cH - ((val - minY) / rangeY) * cH;
+		const getX = (fraction: number) => pad.left + (fraction / cut) * cW;
 
-	const negPoints: [number, number][] = [
-		[0, 412],
-		[0.08, 470],
-		[0.15, 520],
-		[0.22, 340],
-		[0.28, 380],
-		[0.35, 230],
-		[0.44, 250],
-		[0.52, -30.1],
-		[0.6, 260],
-		[0.7, 430],
-		[0.8, 520],
-		[0.9, 480],
-		[1.0, 580],
-	];
+		const basePoints: [number, number][] = [
+			[0, 412],
+			[0.08, 480],
+			[0.16, 780],
+			[0.22, 650],
+			[0.3, 680],
+			[0.38, 450],
+			[0.45, 480],
+			[0.55, 340],
+			[0.65, 420],
+			[0.72, 470],
+			[0.8, 560],
+			[0.88, 490],
+			[0.94, 530],
+			[1.0, 607],
+		].filter(([fx]) => fx <= cut) as [number, number][];
 
-	const basePoly = basePoints.map(([fx, v]) => `${getX(fx)},${getY(v)}`).join(" ");
-	const areaPoly = `${getX(0)},${getY(0)} ${basePoly} ${getX(1)},${getY(0)}`;
-	const negPoly = negPoints.map(([fx, v]) => `${getX(fx)},${getY(v)}`).join(" ");
-	const dipX = getX(0.52);
-	const dipY = getY(-30.1);
-	const zeroY = getY(0);
+		const negPoints: [number, number][] = [
+			[0, 412],
+			[0.08, 470],
+			[0.15, 520],
+			[0.22, 340],
+			[0.28, 380],
+			[0.35, 230],
+			[0.44, 250],
+			[0.52, -30.1],
+			[0.6, 260],
+			[0.7, 430],
+			[0.8, 520],
+			[0.9, 480],
+			[1.0, 580],
+		].filter(([fx]) => fx <= cut) as [number, number][];
 
-	return (
-		<Card as="section" className={styles["cashflow-chart"]}>
-			<div className={styles["cashflow-chart__top"]}>
-				<h2 className={styles["cashflow-chart__title"]}>{t("today.chartTitle")}</h2>
-				<PillSwitch
-					value={mode}
-					onChange={setMode}
-					options={[
-						{ value: "forecast", label: t("today.forecast") },
-						{ value: "planfact", label: t("today.planFact") },
-					]}
-				/>
-			</div>
+		let bandPoly = "";
+		if (showBand) {
+			const spreadAt = (fx: number, v: number, sign: 1 | -1) => {
+				const day = fx * 30;
+				return `${getX(fx)},${getY(v + sign * bandK * Math.sqrt(day))}`;
+			};
+			const hi = basePoints.map(([fx, v]) => spreadAt(fx, v, 1));
+			const lo = [...basePoints]
+				.reverse()
+				.map(([fx, v]) => spreadAt(fx, v, -1));
+			bandPoly = [...hi, ...lo].join(" ");
+		}
 
-			<div className={styles["cashflow-chart__sub"]}>
-				<PillSwitch
-					value={view}
-					onChange={setView}
-					options={[
-						{ value: "graph", label: t("today.graph") },
-						{ value: "days", label: t("today.byDays") },
-					]}
-				/>
-				<a className={styles["cashflow-chart__link"]}>{t("today.aboutForecast")}</a>
-			</div>
+		const basePoly = basePoints.map(([fx, v]) => `${getX(fx)},${getY(v)}`).join(" ");
+		const negPoly = negPoints.map(([fx, v]) => `${getX(fx)},${getY(v)}`).join(" ");
+		const todayX = getX(0);
+		const todayLabelX = Math.min(Math.max(todayX, 28), W - 28);
+		const dipX = getX(0.52);
+		const dipY = getY(-30.1);
+		const gapBw = 170;
+		const gapBh = 26;
+		const gapBx = Math.max(pad.left, Math.min(dipX - gapBw / 2, W - pad.right - gapBw));
+		const gapBy = Math.max(pad.top, dipY - 64);
 
-			<div className={styles["cashflow-chart__canvas"]}>
-				<svg
-					className={styles["cashflow-chart__svg"]}
-					viewBox={`0 0 ${W} ${H}`}
-					width="100%"
-					height="100%"
-				>
-					{[0, 200, 400, 600, 800].map((tick) => {
-						const y = getY(tick);
-						const isZero = tick === 0;
-						return (
-							<g key={tick}>
-								<line
-									x1={pad.left}
-									y1={y}
-									x2={W - pad.right}
-									y2={y}
-									stroke={isZero ? "#374151" : "#e5e7eb"}
-									strokeWidth={isZero ? 1.2 : 0.8}
-								/>
-								<text
-									x={pad.left - 8}
-									y={y + 4}
-									textAnchor="end"
-									fontSize="11"
-									fill="#9ca3af"
-								>
-									{tick === 0 ? "0" : `${tick} тыс`}
-								</text>
-							</g>
-						);
-					})}
+		const yTicks = compact ? [0, 400, 800] : [0, 200, 400, 600, 800];
 
-					<line
-						x1={getX(0.04)}
-						y1={pad.top}
-						x2={getX(0.04)}
-						y2={pad.top + cH}
-						stroke="#9ca3af"
-						strokeWidth="1.2"
-						strokeDasharray="4 4"
-					/>
-					<text
-						x={getX(0.04)}
-						y={pad.top - 6}
-						textAnchor="middle"
-						fontSize="11"
-						fontWeight="600"
-						fill="#374151"
-					>
-						{t("today.metricToday")}
-					</text>
-
-					<polygon points={areaPoly} fill="#22c55e" fillOpacity="0.14" />
-					<polyline
-						points={basePoly}
-						fill="none"
-						stroke="#16a34a"
-						strokeWidth="2.5"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-					/>
-					<polyline
-						points={negPoly}
-						fill="none"
-						stroke="#1f2937"
-						strokeWidth="2"
-						strokeDasharray="5 4"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-					/>
-					<circle cx={dipX} cy={dipY} r="4.5" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
-					<line
-						x1={dipX}
-						y1={zeroY}
-						x2={dipX}
-						y2={dipY}
-						stroke="#ef4444"
-						strokeWidth="1"
-						strokeDasharray="2 2"
-					/>
-					<g transform={`translate(${dipX - 58}, ${dipY - 32})`}>
-						<rect width="116" height="22" rx="5" fill="#dc2626" />
-						<text
-							x="58"
-							y="15"
-							textAnchor="middle"
-							fontSize="11"
-							fontWeight="700"
-							fill="#ffffff"
-						>
-							5 ноя: −30 100 ₽
-						</text>
-					</g>
-
-					{[
-						{ label: "23.10", f: 0.04 },
+		const dates = compact
+			? [
+					{ label: "23.10", f: 0 },
+					{ label: "22.11", f: 1.0 },
+				]
+			: range === 14
+				? [
+						{ label: "23.10", f: 0 },
+						{ label: "28.10", f: 0.2 },
+						{ label: "02.11", f: 0.36 },
+						{ label: "06.11", f: 0.47 },
+					]
+				: [
+						{ label: "23.10", f: 0 },
 						{ label: "28.10", f: 0.2 },
 						{ label: "02.11", f: 0.36 },
 						{ label: "07.11", f: 0.53 },
 						{ label: "12.11", f: 0.69 },
 						{ label: "17.11", f: 0.85 },
 						{ label: "22.11", f: 1.0 },
-					].map((item) => (
-						<text
-							key={item.label}
-							x={getX(item.f)}
-							y={pad.top + cH + 20}
-							textAnchor="middle"
-							fontSize="11"
-							fill="#9ca3af"
-						>
-							{item.label}
-						</text>
-					))}
-				</svg>
-			</div>
+					];
 
-			<div className={styles["cashflow-chart__metrics"]}>
-				<div className={styles["cashflow-chart__metric"]}>
-					<span className={styles["cashflow-chart__metric-label"]}>
-						{t("today.metricToday")}
-					</span>
-					<span className={styles["cashflow-chart__metric-value"]}>412 300 ₽</span>
-					<div className={styles["cashflow-chart__metric-line"]} />
-				</div>
-				<div className={styles["cashflow-chart__metric"]}>
-					<span className={styles["cashflow-chart__metric-label"]}>
-						{t("today.metricMin")}
-					</span>
-					<span className={styles["cashflow-chart__metric-value"]}>309 900 ₽</span>
-					<div className={styles["cashflow-chart__metric-line"]} />
-				</div>
-				<div className={styles["cashflow-chart__metric"]}>
-					<span className={styles["cashflow-chart__metric-label"]}>
-						{t("today.metricIn30")}
-					</span>
-					<span className={styles["cashflow-chart__metric-value"]}>607 400 ₽</span>
-					<div className={styles["cashflow-chart__metric-line"]} />
+		const baseStroke = compact ? 2.5 : 3;
+		const negDash = compact ? "4 3" : "6 5";
+
+		return (
+			<div
+				className={cn(
+					styles["cashflow-chart"],
+					compact && styles["cashflow-chart--compact"],
+				)}
+			>
+				<div className={styles["cashflow-chart__canvas"]}>
+					<svg
+						className={styles["cashflow-chart__svg"]}
+						viewBox={`0 0 ${W} ${H}`}
+						preserveAspectRatio="xMidYMid meet"
+						role="img"
+						aria-label={t("today.balance30")}
+					>
+						{yTicks.map((tick) => {
+							const y = getY(tick);
+							const isZero = tick === 0;
+							return (
+								<g key={tick}>
+									<line
+										x1={pad.left}
+										y1={y}
+										x2={W - pad.right}
+										y2={y}
+										stroke={isZero ? "var(--color-text)" : "var(--color-border)"}
+										strokeWidth={isZero ? 1.5 : 1}
+									/>
+									<text
+										x={pad.left - 8}
+										y={y + 4}
+										textAnchor="end"
+										fontSize="12"
+										fill="var(--color-text-faint)"
+									>
+										{tick === 0
+											? "0"
+											: t("today.chartThousands", { value: tick })}
+									</text>
+								</g>
+							);
+						})}
+
+						{showBand && bandPoly ? (
+							<polygon
+								points={bandPoly}
+								fill="var(--color-primary-soft)"
+								opacity="0.95"
+							/>
+						) : null}
+
+						<polyline
+							points={basePoly}
+							fill="none"
+							stroke="var(--color-primary)"
+							strokeWidth={baseStroke}
+							strokeLinecap="round"
+							strokeLinejoin="round"
+						/>
+						{showRisk ? (
+							<polyline
+								points={negPoly}
+								fill="none"
+								stroke="var(--color-text)"
+								strokeWidth="2"
+								strokeDasharray={negDash}
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							/>
+						) : null}
+
+						{dates.map((item) => (
+							<text
+								key={item.label}
+								x={getX(item.f)}
+								y={H - 6}
+								textAnchor={item.f >= 1 ? "end" : "middle"}
+								fontSize="12"
+								fill="var(--color-text-faint)"
+							>
+								{item.label}
+							</text>
+						))}
+
+						{showToday ? (
+							<>
+								<line
+									x1={todayX}
+									y1={pad.top - 6}
+									x2={todayX}
+									y2={H - pad.bottom}
+									stroke="var(--color-text-faint)"
+									strokeWidth="1.2"
+									strokeDasharray="3 3"
+								/>
+								<text
+									x={todayLabelX}
+									y={12}
+									textAnchor="middle"
+									fontSize="12"
+									fontWeight="600"
+									fill="var(--color-text)"
+								>
+									{t("today.metricToday")}
+								</text>
+							</>
+						) : null}
+
+						{showGap ? (
+							<>
+								<line
+									x1={dipX}
+									y1={gapBy + gapBh}
+									x2={dipX}
+									y2={dipY - 6}
+									stroke="var(--color-danger)"
+									strokeWidth="1"
+								/>
+								<rect
+									x={gapBx}
+									y={gapBy}
+									width={gapBw}
+									height={gapBh}
+									rx="8"
+									fill="var(--color-danger)"
+								/>
+								<text
+									x={gapBx + gapBw / 2}
+									y={gapBy + 18}
+									textAnchor="middle"
+									fontSize="12"
+									fontWeight="600"
+									fill="var(--color-surface)"
+								>
+									{t("today.chartGap")}
+								</text>
+								<circle
+									cx={dipX}
+									cy={dipY}
+									r="6"
+									fill="var(--color-danger)"
+									stroke="var(--color-surface)"
+									strokeWidth="2"
+								/>
+							</>
+						) : null}
+					</svg>
 				</div>
 			</div>
-		</Card>
-	);
-});
+		);
+	},
+);

@@ -1,5 +1,5 @@
 ---
-description: React/TypeScript — компоненты, стили только в SCSS, UI, i18n JSON
+description: React/TypeScript — компоненты, хуки, структура кода
 globs: "**/*.{tsx,ts,jsx,js}"
 alwaysApply: false
 ---
@@ -9,21 +9,27 @@ alwaysApply: false
 - Только функциональные компоненты и хуки.
 - Один компонент — один файл; имя файла = имя компонента (`Button.tsx`).
 - Стили рядом: `Button.module.scss` + `import styles from './Button.module.scss'`.
-- **Запрещены инлайн-стили** (`style={{…}}`) и CSS-in-JS в JSX. Всё оформление — в SCSS (классы / модификаторы / data-атрибуты).
+- **Запрещены инлайн-стили** (`style={{…}}`) и CSS-in-JS в JSX. Оформление — в SCSS.
 - Классы: `styles.block` / `styles['block__elem']`; комбинации — `cn`.
-- Повторяющиеся куски UI (Card, Badge, Pill, IconButton, PageTitle…) — в `shared/ui`, не копировать разметку/стили по страницам.
-- Тексты UI — через i18n (`t('…')`), ключи в JSON (`public/locales/{lng}/*.json`). Не хардкодить пользовательские строки в TSX.
+- Повторяющиеся куски UI (Card, Badge, Pill…) — в `shared/ui`, не копировать по страницам.
+- Тексты UI — i18n (`t('…')`), ключи в `public/locales/{lng}/*.json`.
 - Не выноси хук/утилиту/тип в отдельный файл, пока нет 2+ реальных использований.
-- Не добавляй библиотеки и абстракции «на будущее».
-- Props: явный тип рядом с компонентом; не экспортируй без нужды.
-- Состояние минимальное; производные — при рендере.
-- Эффекты только для внешнего мира.
+- Не добавляй библиотеки, state management, error boundaries, loading/try-catch «на будущее».
+- Props: явный тип рядом с компонентом; не экспортируй тип без нужды.
+- Состояние минимальное; производные — при рендере, не дублируй в `useState`.
+- Эффекты только для синхронизации с внешним миром; не `useEffect` для вычислений.
 - Импорты: внешние → алиасы → относительные; не меняй порядок «заодно».
 
 ```tsx
 // ❌ BAD
-<div style={{ color: '#111' }} className="card">Заголовок</div>
+<div className="card card--active">
 
 // ✅ GOOD
-<div className={styles.card}>{t('card.title')}</div>
+<div className={cn(styles.card, isActive && styles['card--active'])}>
+
+// ❌ BAD — абстракция «на всякий случай»
+useCardState.ts + Card.types.ts + cardUtils.ts
+
+// ✅ GOOD — пока в одном месте
+Card.tsx + Card.module.scss
 ```

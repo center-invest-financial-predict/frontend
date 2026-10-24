@@ -13,7 +13,7 @@ type KpiCardData = {
 	trendBadge?: string;
 	trendDirection?: TrendDirection;
 	value: string;
-	subKey: string;
+	subKey?: string;
 	chartType: ChartType;
 };
 
@@ -22,11 +22,11 @@ const SparkLineGreen: FC = () => {
 	const fillPts = `0,44 ${pts} 150,44`;
 	return (
 		<svg width="100%" height="44" viewBox="0 0 150 44" preserveAspectRatio="none">
-			<polygon points={fillPts} fill="#22c55e" fillOpacity="0.18" />
+			<polygon points={fillPts} fill="var(--color-primary)" fillOpacity="0.18" />
 			<polyline
 				points={pts}
 				fill="none"
-				stroke="#16a34a"
+				stroke="var(--color-primary)"
 				strokeWidth="2.2"
 				strokeLinejoin="round"
 				strokeLinecap="round"
@@ -42,12 +42,19 @@ const SparkLineTrough: FC = () => {
 			<polyline
 				points={pts}
 				fill="none"
-				stroke="#22c55e"
+				stroke="var(--color-primary)"
 				strokeWidth="2"
 				strokeLinejoin="round"
 				strokeLinecap="round"
 			/>
-			<circle cx="75" cy="38" r="3.5" fill="#ef4444" stroke="#ffffff" strokeWidth="1" />
+			<circle
+				cx="75"
+				cy="38"
+				r="3.5"
+				fill="var(--color-danger)"
+				stroke="var(--color-surface)"
+				strokeWidth="1"
+			/>
 		</svg>
 	);
 };
@@ -58,13 +65,13 @@ const DonutChart: FC<{ percent: number }> = ({ percent }) => {
 	const dash = (percent / 100) * circ;
 	return (
 		<svg width="44" height="44" viewBox="0 0 44 44">
-			<circle cx="22" cy="22" r={r} fill="none" stroke="#f3f4f6" strokeWidth="4" />
+			<circle cx="22" cy="22" r={r} fill="none" stroke="var(--color-shape)" strokeWidth="4" />
 			<circle
 				cx="22"
 				cy="22"
 				r={r}
 				fill="none"
-				stroke="#ef4444"
+				stroke="var(--color-danger)"
 				strokeWidth="4"
 				strokeDasharray={`${dash} ${circ}`}
 				strokeLinecap="round"
@@ -111,54 +118,12 @@ const BarsDark: FC = () => (
 	</div>
 );
 
-const KpiCard: FC<KpiCardData & { t: (key: string) => string }> = ({
-	labelKey,
-	trendBadge,
-	trendDirection = "neutral",
-	value,
-	subKey,
-	chartType,
-	t,
-}) => (
-	<Card className={styles["kpi-cards__card"]}>
-		<div className={styles["kpi-cards__top"]}>
-			<span className={styles["kpi-cards__label"]}>{t(labelKey)}</span>
-			<div className={styles["kpi-cards__badge-row"]}>
-				{trendBadge ? (
-					<Badge
-						variant={
-							trendDirection === "up"
-								? "up"
-								: trendDirection === "down"
-									? "down"
-									: "neutral"
-						}
-					>
-						{trendDirection === "up" && "↑"}
-						{trendDirection === "down" && "↓"} {trendBadge}
-					</Badge>
-				) : null}
-			</div>
-			<div className={styles["kpi-cards__value"]}>{value}</div>
-			<span className={styles["kpi-cards__sub"]}>{t(subKey)}</span>
-		</div>
-		<div className={styles["kpi-cards__chart"]}>
-			{chartType === "sparkline" && <SparkLineGreen />}
-			{chartType === "sparkline-trough" && <SparkLineTrough />}
-			{chartType === "donut" && <DonutChart percent={41} />}
-			{chartType === "bars-green" && <BarsGreen />}
-			{chartType === "bars-dark" && <BarsDark />}
-		</div>
-	</Card>
-);
-
 const MOCK_CARDS: KpiCardData[] = [
 	{
 		labelKey: "today.kpi.balance",
 		trendBadge: "+352 000 ₽",
 		trendDirection: "up",
 		value: "412 300 ₽",
-		subKey: "today.kpi.in7days",
 		chartType: "sparkline",
 	},
 	{
@@ -180,7 +145,6 @@ const MOCK_CARDS: KpiCardData[] = [
 		trendBadge: "+119,9%",
 		trendDirection: "up",
 		value: "546 000 ₽",
-		subKey: "today.kpi.vsAvgWeek",
 		chartType: "bars-green",
 	},
 	{
@@ -188,7 +152,6 @@ const MOCK_CARDS: KpiCardData[] = [
 		trendBadge: "+79,6%",
 		trendDirection: "down",
 		value: "400 400 ₽",
-		subKey: "today.kpi.vsAvgWeek",
 		chartType: "bars-dark",
 	},
 ];
@@ -199,7 +162,37 @@ export const KpiCards = memo(() => {
 	return (
 		<div className={styles["kpi-cards"]}>
 			{MOCK_CARDS.map((card) => (
-				<KpiCard key={card.labelKey} {...card} t={t} />
+				<Card key={card.labelKey} className={styles["kpi-cards__card"]}>
+					<div className={styles["kpi-cards__head"]}>
+						<span className={styles["kpi-cards__label"]}>{t(card.labelKey)}</span>
+						{card.trendBadge ? (
+							<Badge
+								variant={
+									card.trendDirection === "up"
+										? "up"
+										: card.trendDirection === "down"
+											? "down"
+											: "neutral"
+								}
+							>
+								{card.trendDirection === "up" && "↑ "}
+								{card.trendDirection === "down" && "↓ "}
+								{card.trendBadge}
+							</Badge>
+						) : null}
+					</div>
+					<div className={styles["kpi-cards__value"]}>{card.value}</div>
+					{card.subKey ? (
+						<span className={styles["kpi-cards__sub"]}>{t(card.subKey)}</span>
+					) : null}
+					<div className={styles["kpi-cards__chart"]}>
+						{card.chartType === "sparkline" && <SparkLineGreen />}
+						{card.chartType === "sparkline-trough" && <SparkLineTrough />}
+						{card.chartType === "donut" && <DonutChart percent={41} />}
+						{card.chartType === "bars-green" && <BarsGreen />}
+						{card.chartType === "bars-dark" && <BarsDark />}
+					</div>
+				</Card>
 			))}
 		</div>
 	);

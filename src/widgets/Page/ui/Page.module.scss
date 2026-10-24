@@ -1,5 +1,9 @@
 .page {
 	flex-grow: 1;
-	padding: var(--space-6) var(--space-7) 40px;
-	background: var(--color-bg);
+	padding: var(--space-5);
+	background: var(--color-shape);
+
+	@media (max-width: 860px) {
+		padding: var(--space-4);
+	}
 }

@@ -2,8 +2,8 @@
 	background: var(--color-surface);
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-2xl);
-	box-shadow: var(--shadow-md);
-	padding: var(--space-6);
+	box-shadow: none;
+	padding: var(--space-5);
 
 	&--compact {
 		padding: 14px var(--space-4);

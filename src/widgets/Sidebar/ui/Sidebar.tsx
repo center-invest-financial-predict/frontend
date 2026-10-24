@@ -7,14 +7,17 @@ import {
 	BarChart3,
 	FileText,
 	Plus,
-	Calendar as CalendarIcon,
 	AlignLeft,
-	Database,
 	SlidersHorizontal,
+	Calendar,
+	Database,
 	ChevronDown,
+	ChevronRight,
+	MessageSquarePlus,
 	LucideIcon,
 } from "lucide-react";
 import {
+	getRouteAssistant,
 	getRouteCalendar,
 	getRouteEvents,
 	getRouteForecast,
@@ -24,13 +27,10 @@ import {
 	getRouteSources,
 	getRouteStrategies,
 	getRouteToday,
-	getRouteAssistant,
 } from "@/shared/consts/router";
-import { Badge } from "@/shared/ui/Badge";
 import { cn } from "@/shared/lib/classNames/classNames";
+import { useAppSelector } from "@/shared/lib/hooks";
 import styles from "./Sidebar.module.scss";
-
-type SidebarGroup = "work" | "assist";
 
 type WorkLink = {
 	labelKey: string;
@@ -45,123 +45,143 @@ const WORK_LINKS: WorkLink[] = [
 	{ labelKey: "nav.forecast", path: getRouteForecast(), icon: TrendingUp },
 	{ labelKey: "nav.planFact", path: getRoutePlanFact(), icon: BarChart3 },
 	{ labelKey: "nav.events", path: getRouteEvents(), icon: FileText, badge: "1" },
-	{ labelKey: "nav.add", path: getRouteEvents(), icon: Plus },
-	{ labelKey: "nav.calendar", path: getRouteCalendar(), icon: CalendarIcon },
+	{ labelKey: "nav.add", path: getRouteSources(), icon: Plus },
+	{ labelKey: "nav.calendar", path: getRouteCalendar(), icon: Calendar },
 	{ labelKey: "nav.operations", path: getRouteOperations(), icon: AlignLeft },
-	{ labelKey: "nav.sources", path: getRouteSources(), icon: Database },
+];
+
+const EXTRA_LINKS: WorkLink[] = [
+	{ labelKey: "nav.sources", path: `${getRouteSources()}?tab=conn`, icon: Database },
 	{ labelKey: "nav.strategies", path: getRouteStrategies(), icon: SlidersHorizontal },
 ];
 
-const CHAT_KEYS = ["nav.chats.gap", "nav.chats.delay", "nav.chats.taxes"] as const;
+const CHATS = ["nav.chat1", "nav.chat2", "nav.chat3"] as const;
 
 export const Sidebar: FC = memo(() => {
 	const { t } = useTranslation();
 	const location = useLocation();
 	const navigate = useNavigate();
+	const profile = useAppSelector((state) => state.user.profile);
 	const currentPath = location.pathname;
-	const [openGroup, setOpenGroup] = useState<SidebarGroup | null>("work");
-
-	const workOpen = openGroup === "work";
-	const assistOpen = openGroup === "assist";
-
-	const toggleGroup = (group: SidebarGroup) => {
-		setOpenGroup((prev) => (prev === group ? null : group));
-	};
+	const [bizOpen, setBizOpen] = useState(false);
+	const [workOpen, setWorkOpen] = useState(true);
+	const [assistSectionOpen, setAssistSection] = useState(true);
+	const companyName = profile?.business?.name || t("company.name");
+	const companyInn = profile?.business?.inn || "6100123456";
 
 	const isActive = (path: string, matchMain?: boolean) => {
-		if (matchMain) return currentPath === path || currentPath === getRouteMain();
-		return currentPath === path;
+		const clean = path.split("?")[0];
+		if (matchMain) return currentPath === clean || currentPath === getRouteMain();
+		return currentPath === clean;
 	};
+
+	const renderLinks = (links: WorkLink[]) =>
+		links.map(({ labelKey, path, icon: Icon, matchMain, badge }) => {
+			const active = isActive(path, matchMain);
+			return (
+				<button
+					key={labelKey}
+					type="button"
+					className={cn(
+						styles.sidebar__item,
+						active && styles["sidebar__item--active"],
+					)}
+					onClick={() => navigate(path)}
+				>
+					<Icon size={18} strokeWidth={1.3} />
+					<span className={styles["sidebar__item-label"]}>{t(labelKey)}</span>
+					{badge ? <span className={styles.sidebar__badge}>{badge}</span> : null}
+				</button>
+			);
+		});
 
 	return (
 		<aside className={styles.sidebar}>
-			<div className={styles.sidebar__company}>
-				<div className={styles["sidebar__company-text"]}>
-					<span className={styles["sidebar__company-name"]}>{t("company.name")}</span>
-					<span className={styles["sidebar__company-type"]}>{t("company.type")}</span>
-				</div>
-				<ChevronDown size={18} color="currentColor" />
+			<div className={styles["sidebar__company-wrap"]}>
+				<button
+					type="button"
+					className={styles.sidebar__company}
+					onClick={() => setBizOpen((v) => !v)}
+					aria-expanded={bizOpen}
+				>
+					<div className={styles["sidebar__company-text"]}>
+						<span className={styles["sidebar__company-name"]}>{companyName}</span>
+						<span className={styles["sidebar__company-type"]}>
+							{t("company.innLabel", { inn: companyInn })}
+						</span>
+					</div>
+					<ChevronDown size={18} color="currentColor" />
+				</button>
+				{bizOpen ? (
+					<div className={styles["sidebar__biz-list"]}>
+						<button type="button" className={styles["sidebar__biz-item"]}>
+							{companyName}
+						</button>
+						<button type="button" className={styles["sidebar__biz-item"]}>
+							{t("company.alt1")}
+						</button>
+						<button type="button" className={styles["sidebar__biz-item"]}>
+							{t("company.alt2")}
+						</button>
+					</div>
+				) : null}
 			</div>
 
-			<div className={styles.sidebar__groups}>
+			<nav className={styles.sidebar__nav}>
 				<button
 					type="button"
-					className={styles.sidebar__section}
-					onClick={() => toggleGroup("work")}
-					aria-expanded={workOpen}
+					className={styles["sidebar__section"]}
+					onClick={() => setWorkOpen((v) => !v)}
 				>
-					<span
-						className={cn(styles.sidebar__tri, workOpen && styles["sidebar__tri--open"])}
-						aria-hidden
-					/>
-					<span>{t("nav.work")}</span>
+					{workOpen ? (
+						<ChevronDown size={10} fill="currentColor" />
+					) : (
+						<ChevronRight size={10} fill="currentColor" />
+					)}
+					{t("nav.work")}
 				</button>
-
-				{workOpen && (
-					<nav className={styles.sidebar__nav}>
-						{WORK_LINKS.map(({ labelKey, path, icon: Icon, matchMain, badge }) => {
-							const active = isActive(path, matchMain);
-							return (
-								<div
-									key={labelKey}
-									className={cn(
-										styles.sidebar__item,
-										active && styles["sidebar__item--active"],
-									)}
-									onClick={() => navigate(path)}
-								>
-									<div className={styles["sidebar__item-left"]}>
-										<Icon size={18} strokeWidth={1.8} />
-										<span>{t(labelKey)}</span>
-									</div>
-									{badge ? <Badge variant="warning">{badge}</Badge> : null}
-								</div>
-							);
-						})}
-					</nav>
-				)}
-
-				<div className={styles.sidebar__spacer} />
+				{workOpen ? (
+					<>
+						{renderLinks(WORK_LINKS)}
+						{renderLinks(EXTRA_LINKS)}
+					</>
+				) : null}
 
 				<button
 					type="button"
-					className={styles.sidebar__section}
-					onClick={() => toggleGroup("assist")}
-					aria-expanded={assistOpen}
+					className={cn(styles["sidebar__section"], styles["sidebar__section--gap"])}
+					onClick={() => setAssistSection((v) => !v)}
 				>
-					<span
-						className={cn(
-							styles.sidebar__tri,
-							assistOpen && styles["sidebar__tri--open"],
-						)}
-						aria-hidden
-					/>
-					<span>{t("nav.assistant")}</span>
+					{assistSectionOpen ? (
+						<ChevronDown size={10} fill="currentColor" />
+					) : (
+						<ChevronRight size={10} fill="currentColor" />
+					)}
+					{t("nav.assistant")}
 				</button>
-
-				{assistOpen && (
-					<nav className={styles.sidebar__nav}>
+				{assistSectionOpen ? (
+					<>
 						<button
 							type="button"
 							className={styles["sidebar__new-chat"]}
-							onClick={() => navigate(getRouteAssistant())}
+							onClick={() => navigate(getRouteAssistant(), { state: { reset: true } })}
 						>
-							<Plus size={18} strokeWidth={1.8} />
+							<MessageSquarePlus size={18} strokeWidth={1.3} />
 							{t("nav.newChat")}
 						</button>
-						{CHAT_KEYS.map((key) => (
+						{CHATS.map((key) => (
 							<button
 								key={key}
 								type="button"
-								className={styles.sidebar__chat}
+								className={styles["sidebar__chat"]}
 								onClick={() => navigate(getRouteAssistant())}
 							>
 								{t(key)}
 							</button>
 						))}
-					</nav>
-				)}
-			</div>
+					</>
+				) : null}
+			</nav>
 		</aside>
 	);
 });

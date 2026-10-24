@@ -1,0 +1,80 @@
+.assistant-page {
+	&__inner {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+		width: 100%;
+		max-width: 820px;
+		margin: 0 auto;
+	}
+
+	&__title {
+		margin: 0;
+		color: var(--color-text);
+		font-size: var(--font-size-2xl);
+		font-weight: 600;
+		line-height: 34px;
+	}
+
+	&__sub {
+		margin: 0;
+		color: var(--color-text-faint);
+		font-size: var(--font-size-lg);
+		line-height: 24px;
+	}
+
+	&__thread {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+	}
+
+	&__row {
+		display: flex;
+		justify-content: flex-start;
+
+		&--user {
+			justify-content: flex-end;
+		}
+	}
+
+	&__bubble {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		max-width: 640px;
+		padding: 14px 18px;
+		border-radius: var(--radius-2xl);
+		font-size: 18px;
+		line-height: 28px;
+
+		&--bot {
+			border: 1px solid var(--color-border);
+			background: var(--color-surface);
+		}
+
+		&--user {
+			background: var(--color-shape);
+			font-size: var(--font-size-lg);
+			line-height: 24px;
+		}
+	}
+
+	&__refs {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+
+	&__ref {
+		padding: 2px var(--space-3);
+		border: 0;
+		border-radius: 100px;
+		background: var(--color-primary-soft);
+		color: var(--color-primary-text);
+		font-family: inherit;
+		font-size: var(--font-size-sm);
+		line-height: 20px;
+		cursor: pointer;
+	}
+}

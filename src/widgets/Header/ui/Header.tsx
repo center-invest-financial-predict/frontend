@@ -1,44 +1,98 @@
-import { FC, memo } from "react";
+import { FC, memo, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Search, Bell, HelpCircle, Moon, Sun, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Bell, HelpCircle, Moon, Search, Sun, User } from "lucide-react";
 import { useUIActions } from "@/features/UI";
+import { useUserActions } from "@/entities/User";
 import { useAppSelector } from "@/shared/lib/hooks";
 import { IconButton } from "@/shared/ui/IconButton";
+import { getRouteLogin, getRouteSettings } from "@/shared/consts/router";
 import styles from "./Header.module.scss";
 
 export const Header: FC = memo(() => {
 	const { t } = useTranslation();
+	const navigate = useNavigate();
 	const theme = useAppSelector((state) => state.ui.theme);
+	const auth = useAppSelector((state) => state.user.authData);
 	const { toggleTheme } = useUIActions();
+	const { logout } = useUserActions();
+	const [userOpen, setUserOpen] = useState(false);
+	const menuRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		if (!userOpen) return;
+		const onDoc = (e: MouseEvent) => {
+			if (!menuRef.current?.contains(e.target as Node)) setUserOpen(false);
+		};
+		document.addEventListener("mousedown", onDoc);
+		return () => document.removeEventListener("mousedown", onDoc);
+	}, [userOpen]);
+
+	const onLogout = () => {
+		logout();
+		navigate(getRouteLogin());
+	};
 
 	return (
 		<header className={styles.header}>
-			<div className={styles.header__search}>
-				<Search size={16} color="currentColor" />
-				<input
-					className={styles.header__input}
-					placeholder={t("header.searchPlaceholder")}
-				/>
-				<span className={styles.header__shortcut}>⌘K</span>
+			<div className={styles.header__search} role="search">
+				<Search size={18} strokeWidth={1.3} aria-hidden />
+				<span className={styles["header__search-text"]}>{t("header.search")}</span>
+				<span className={styles["header__search-kbd"]}>⌘K</span>
 			</div>
 
 			<div className={styles.header__actions}>
 				<IconButton title={t("header.notifications")}>
-					<Bell size={18} strokeWidth={1.9} />
+					<Bell size={18} strokeWidth={1.3} />
 				</IconButton>
 				<IconButton title={t("header.help")}>
-					<HelpCircle size={18} strokeWidth={1.9} />
+					<HelpCircle size={18} strokeWidth={1.3} />
 				</IconButton>
 				<IconButton title={t("header.theme")} onClick={() => toggleTheme()}>
 					{theme === "dark" ? (
-						<Sun size={18} strokeWidth={1.9} />
+						<Sun size={18} strokeWidth={1.3} />
 					) : (
-						<Moon size={18} strokeWidth={1.9} />
+						<Moon size={18} strokeWidth={1.3} />
 					)}
 				</IconButton>
-				<IconButton title={t("header.profile")}>
-					<User size={18} strokeWidth={1.9} />
-				</IconButton>
+
+				<div className={styles["header__user-wrap"]} ref={menuRef}>
+					<IconButton
+						title={t("header.profile")}
+						onClick={() => setUserOpen((v) => !v)}
+					>
+						<User size={18} strokeWidth={1.3} />
+					</IconButton>
+					{userOpen ? (
+						<div className={styles["header__user-menu"]}>
+							<div className={styles["header__user-info"]}>
+								<div className={styles["header__user-name"]}>
+									{auth?.name || t("header.userName")}
+								</div>
+								<div className={styles["header__user-role"]}>
+									{t("header.userRole")}
+								</div>
+							</div>
+							<button
+								type="button"
+								className={styles["header__user-item"]}
+								onClick={() => {
+									setUserOpen(false);
+									navigate(getRouteSettings());
+								}}
+							>
+								{t("nav.settings")}
+							</button>
+							<button
+								type="button"
+								className={styles["header__user-logout"]}
+								onClick={onLogout}
+							>
+								{t("nav.logout")}
+							</button>
+						</div>
+					) : null}
+				</div>
 			</div>
 		</header>
 	);

@@ -1,172 +1,158 @@
 .plan-fact-page {
-	&__header {
-		margin-bottom: var(--space-5);
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+
+	&__title {
+		margin: 0;
+		font-size: var(--font-size-2xl);
+		font-weight: 600;
+		line-height: 34px;
+		color: var(--color-text);
+	}
+
+	&__sub {
+		margin: 0;
+		color: var(--color-text-faint);
+		font-size: var(--font-size-lg);
 	}
 
 	&__grid {
 		display: grid;
-		grid-template-columns: 1fr 360px;
+		grid-template-columns: repeat(12, minmax(0, 1fr));
 		gap: var(--space-4);
+		align-items: start;
 
-		@media (max-width: 1024px) {
+		@media (max-width: 1100px) {
 			grid-template-columns: 1fr;
 		}
 	}
 
-	&__card {
-		padding: var(--space-6);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-2xl);
-		background: var(--color-surface);
-		box-shadow: var(--shadow-md);
+	&__chart {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		grid-column: span 8;
+		padding: var(--space-5);
+		min-width: 0;
+
+		@media (max-width: 1100px) {
+			grid-column: auto;
+		}
 	}
 
 	&__side {
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
-	}
+		grid-column: span 4;
+		min-width: 0;
 
-	&__card-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-bottom: var(--space-5);
-	}
-
-	&__card-title {
-		color: var(--color-text);
-		font-size: var(--font-size-xl);
-		font-weight: 700;
-
-		&--sm {
-			font-size: var(--font-size-lg);
+		@media (max-width: 1100px) {
+			grid-column: auto;
 		}
 	}
 
-	&__hint {
+	&__card-title {
+		font-size: 20px;
+		font-weight: 600;
+		line-height: 24px;
+	}
+
+	&__card-sub {
+		margin: 0;
 		color: var(--color-text-faint);
-		font-size: var(--font-size-sm);
+		font-size: var(--font-size-base);
+		line-height: 20px;
+	}
+
+	&__chart-head {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: var(--space-3);
 	}
 
 	&__legend {
 		display: flex;
-		gap: var(--space-4);
-		color: var(--color-text-muted);
-		font-size: var(--font-size-sm);
-	}
+		gap: 14px;
+		color: var(--color-text-faint);
+		font-size: var(--font-size-base);
 
-	&__legend-item {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-
-		&::before {
-			content: "";
-			width: 14px;
-			height: 2px;
-		}
-
-		&--fact::before {
-			background: var(--color-accent);
-		}
-
-		&--plan::before {
-			height: 0;
-			border-top: 2px dashed var(--color-text-faint);
-			background: transparent;
+		span {
+			display: flex;
+			align-items: center;
+			gap: 6px;
 		}
 	}
 
-	&__chart {
-		position: relative;
-		width: 100%;
-		height: 260px;
+	&__leg-fact {
+		width: 14px;
+		height: 3px;
+		background: var(--color-primary);
+	}
+
+	&__leg-plan {
+		width: 14px;
+		height: 3px;
+		background: var(--color-border-strong);
 	}
 
 	&__stats {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: var(--space-4);
-		margin-top: var(--space-6);
-		padding-top: 18px;
-		border-top: 1px solid var(--color-neutral-soft);
-	}
-
-	&__stat {
 		display: flex;
-		flex-direction: column;
-		gap: var(--space-1);
+		flex-wrap: wrap;
+		gap: 32px;
+		font-size: var(--font-size-lg);
 	}
 
 	&__stat-label {
-		color: var(--color-text-muted);
-		font-size: var(--font-size-sm);
-	}
-
-	&__stat-value {
-		color: var(--color-text);
-		font-size: var(--font-size-2xl);
-		font-weight: 700;
-
-		&--danger {
-			color: var(--color-danger);
-		}
-	}
-
-	&__overdue {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		padding-top: var(--space-3);
-	}
-
-	&__overdue-name {
-		color: var(--color-text);
+		color: var(--color-text-faint);
 		font-size: var(--font-size-base);
-		font-weight: 600;
 	}
 
-	&__overdue-meta {
-		margin-top: 2px;
+	&__stat-val {
+		font-size: var(--font-size-2xl);
+		line-height: 32px;
+	}
+
+	&__stat-bad {
+		color: var(--color-danger);
+		font-size: var(--font-size-2xl);
+		font-weight: 600;
+		line-height: 32px;
+	}
+
+	&__late,
+	&__journal {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		padding: var(--space-5);
+	}
+
+	&__late-row {
+		display: flex;
+		justify-content: space-between;
+		gap: var(--space-2);
+		padding-top: 10px;
+		border-top: 1px solid var(--color-border);
+	}
+
+	&__late-name {
+		font-size: var(--font-size-lg);
+		font-weight: 500;
+	}
+
+	&__j-row {
+		padding: var(--space-2) 0 2px;
+		border-top: 1px solid var(--color-border);
+		font-size: var(--font-size-lg);
+		line-height: 21px;
+	}
+
+	&__j-time {
 		color: var(--color-text-faint);
 		font-size: var(--font-size-sm);
-	}
-
-	&__overdue-amount {
-		color: var(--color-danger);
-		font-size: var(--font-size-lg);
-		font-weight: 700;
-	}
-
-	&__log-list {
-		display: flex;
-		flex-direction: column;
-		gap: 14px;
-		margin-top: 14px;
-	}
-
-	&__log-item {
-		display: flex;
-		flex-direction: column;
-		gap: 3px;
-		padding-bottom: 10px;
-		border-bottom: 1px solid var(--color-neutral-soft);
-		font-size: var(--font-size-md);
-
-		&:last-child {
-			padding-bottom: 0;
-			border-bottom: none;
-		}
-	}
-
-	&__log-date {
-		color: var(--color-text-faint);
-		font-size: var(--font-size-xs);
-	}
-
-	&__log-text {
-		color: var(--color-text);
-		line-height: 1.4;
+		line-height: 18px;
 	}
 }
