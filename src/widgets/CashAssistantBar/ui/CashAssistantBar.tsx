@@ -24,6 +24,9 @@ export const CashAssistantBar: FC = memo(() => {
 
 	return (
 		<div className={styles["cash-assistant-bar"]}>
+			{isListening ? (
+				<span className={styles["cash-assistant-bar__voice"]}>{t("assistantBar.voiceListening")}</span>
+			) : null}
 			<input
 				className={styles["cash-assistant-bar__input"]}
 				placeholder={t("assistantBar.placeholder")}
@@ -35,21 +38,16 @@ export const CashAssistantBar: FC = memo(() => {
 			/>
 			<button
 				type="button"
-				className={cn(
-					styles["cash-assistant-bar__mic"],
-					isListening && styles["cash-assistant-bar__mic--listening"],
-				)}
+				className={cn(styles["cash-assistant-bar__mic"], isListening && styles["cash-assistant-bar__mic--listening"])}
 				onClick={() => setIsListening(!isListening)}
 				title={isListening ? t("assistantBar.micStop") : t("assistantBar.micStart")}
 			>
 				<Mic size={20} strokeWidth={1.3} />
 			</button>
-			<span className={styles["cash-assistant-bar__hint"]}>{t("assistantBar.hint")}</span>
-			<button
-				type="button"
-				className={styles["cash-assistant-bar__send"]}
-				onClick={handleSend}
-			>
+			<span className={styles["cash-assistant-bar__hint"]}>
+				{isListening ? t("assistantBar.voiceListening") : t("assistantBar.hint")}
+			</span>
+			<button type="button" className={styles["cash-assistant-bar__send"]} onClick={handleSend}>
 				{t("assistantBar.send")}
 			</button>
 		</div>

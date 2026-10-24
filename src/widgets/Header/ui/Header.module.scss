@@ -44,8 +44,14 @@
 	&__actions {
 		display: flex;
 		align-items: center;
-		gap: var(--space-1);
+		gap: 0;
 		margin-left: auto;
+	}
+
+	&__user-divider {
+		height: 1px;
+		margin: var(--space-1) 0;
+		background: var(--color-border);
 	}
 
 	&__user-wrap {
@@ -65,7 +71,10 @@
 		padding: 6px;
 		border-radius: 14px;
 		background: var(--color-surface);
-		box-shadow: 0 0 24px rgba(0, 0, 0, 0.04), 0 0 0 1px var(--color-border);
+		box-shadow:
+			0 0 24px rgba(0, 0, 0, 0.04),
+			0 0 0 1px var(--color-border);
+		animation: header-menu-in 0.22s ease-out both;
 	}
 
 	&__user-info {
@@ -96,6 +105,9 @@
 		line-height: 22px;
 		text-align: left;
 		cursor: pointer;
+		transition:
+			background-color 0.18s ease,
+			color 0.18s ease;
 	}
 
 	&__user-item {
@@ -107,7 +119,7 @@
 	}
 
 	&__user-logout {
-		color: var(--color-danger);
+		color: var(--color-danger-deep);
 
 		&:hover {
 			background: var(--color-danger-soft);
@@ -117,6 +129,29 @@
 	@media (max-width: 700px) {
 		&__search-kbd {
 			display: none;
+		}
+	}
+}
+
+@keyframes header-menu-in {
+	from {
+		opacity: 0;
+		transform: translateY(-8px);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.header {
+		&__user-menu,
+		&__user-item,
+		&__user-logout {
+			animation: none;
+			transition-duration: 0s;
 		}
 	}
 }

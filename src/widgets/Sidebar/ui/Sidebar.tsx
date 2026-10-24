@@ -1,22 +1,9 @@
 import { FC, memo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Home, TrendingUp, FileText, Plus, AlignLeft, Database, MessageSquarePlus, LucideIcon } from "lucide-react";
 import {
-	Home,
-	TrendingUp,
-	BarChart3,
-	FileText,
-	Plus,
-	AlignLeft,
-	SlidersHorizontal,
-	Calendar,
-	Database,
-	ChevronDown,
-	ChevronRight,
-	MessageSquarePlus,
-	LucideIcon,
-} from "lucide-react";
-import {
+	getRouteAdd,
 	getRouteAssistant,
 	getRouteCalendar,
 	getRouteEvents,
@@ -36,23 +23,49 @@ type WorkLink = {
 	labelKey: string;
 	path: string;
 	icon: LucideIcon;
-	matchMain?: boolean;
+	group: string[];
 	badge?: string;
 };
 
+/** Как в макете NV: Обзор, Прогноз, Поступления, Добавить, История, Источники */
 const WORK_LINKS: WorkLink[] = [
-	{ labelKey: "nav.today", path: getRouteToday(), icon: Home, matchMain: true },
-	{ labelKey: "nav.forecast", path: getRouteForecast(), icon: TrendingUp },
-	{ labelKey: "nav.planFact", path: getRoutePlanFact(), icon: BarChart3 },
-	{ labelKey: "nav.events", path: getRouteEvents(), icon: FileText, badge: "1" },
-	{ labelKey: "nav.add", path: getRouteSources(), icon: Plus },
-	{ labelKey: "nav.calendar", path: getRouteCalendar(), icon: Calendar },
-	{ labelKey: "nav.operations", path: getRouteOperations(), icon: AlignLeft },
-];
-
-const EXTRA_LINKS: WorkLink[] = [
-	{ labelKey: "nav.sources", path: `${getRouteSources()}?tab=conn`, icon: Database },
-	{ labelKey: "nav.strategies", path: getRouteStrategies(), icon: SlidersHorizontal },
+	{
+		labelKey: "nav.today",
+		path: getRouteToday(),
+		icon: Home,
+		group: [getRouteToday(), getRouteMain()],
+	},
+	{
+		labelKey: "nav.forecast",
+		path: getRouteForecast(),
+		icon: TrendingUp,
+		group: [getRouteForecast(), getRoutePlanFact(), getRouteStrategies()],
+	},
+	{
+		labelKey: "nav.events",
+		path: getRouteEvents(),
+		icon: FileText,
+		group: [getRouteEvents(), getRouteCalendar()],
+		badge: "1",
+	},
+	{
+		labelKey: "nav.add",
+		path: getRouteAdd(),
+		icon: Plus,
+		group: [getRouteAdd()],
+	},
+	{
+		labelKey: "nav.operations",
+		path: getRouteOperations(),
+		icon: AlignLeft,
+		group: [getRouteOperations()],
+	},
+	{
+		labelKey: "nav.sources",
+		path: getRouteSources(),
+		icon: Database,
+		group: [getRouteSources()],
+	},
 ];
 
 const CHATS = ["nav.chat1", "nav.chat2", "nav.chat3"] as const;
@@ -69,31 +82,22 @@ export const Sidebar: FC = memo(() => {
 	const companyName = profile?.business?.name || t("company.name");
 	const companyInn = profile?.business?.inn || "6100123456";
 
-	const isActive = (path: string, matchMain?: boolean) => {
-		const clean = path.split("?")[0];
-		if (matchMain) return currentPath === clean || currentPath === getRouteMain();
-		return currentPath === clean;
+	const renderLink = (link: WorkLink) => {
+		const { labelKey, path, icon: Icon, badge, group } = link;
+		const active = group.includes(currentPath);
+		return (
+			<button
+				key={labelKey}
+				type="button"
+				className={cn(styles.sidebar__item, active && styles["sidebar__item--active"])}
+				onClick={() => navigate(path)}
+			>
+				<Icon size={18} strokeWidth={1.3} />
+				<span className={styles["sidebar__item-label"]}>{t(labelKey)}</span>
+				{badge ? <span className={styles.sidebar__badge}>{badge}</span> : null}
+			</button>
+		);
 	};
-
-	const renderLinks = (links: WorkLink[]) =>
-		links.map(({ labelKey, path, icon: Icon, matchMain, badge }) => {
-			const active = isActive(path, matchMain);
-			return (
-				<button
-					key={labelKey}
-					type="button"
-					className={cn(
-						styles.sidebar__item,
-						active && styles["sidebar__item--active"],
-					)}
-					onClick={() => navigate(path)}
-				>
-					<Icon size={18} strokeWidth={1.3} />
-					<span className={styles["sidebar__item-label"]}>{t(labelKey)}</span>
-					{badge ? <span className={styles.sidebar__badge}>{badge}</span> : null}
-				</button>
-			);
-		});
 
 	return (
 		<aside className={styles.sidebar}>
@@ -104,13 +108,8 @@ export const Sidebar: FC = memo(() => {
 					onClick={() => setBizOpen((v) => !v)}
 					aria-expanded={bizOpen}
 				>
-					<div className={styles["sidebar__company-text"]}>
-						<span className={styles["sidebar__company-name"]}>{companyName}</span>
-						<span className={styles["sidebar__company-type"]}>
-							{t("company.innLabel", { inn: companyInn })}
-						</span>
-					</div>
-					<ChevronDown size={18} color="currentColor" />
+					<span className={styles["sidebar__company-name"]}>{companyName}</span>
+					<span className={styles["sidebar__company-type"]}>{t("company.innLabel", { inn: companyInn })}</span>
 				</button>
 				{bizOpen ? (
 					<div className={styles["sidebar__biz-list"]}>
@@ -128,35 +127,34 @@ export const Sidebar: FC = memo(() => {
 			</div>
 
 			<nav className={styles.sidebar__nav}>
-				<button
-					type="button"
-					className={styles["sidebar__section"]}
-					onClick={() => setWorkOpen((v) => !v)}
-				>
-					{workOpen ? (
-						<ChevronDown size={10} fill="currentColor" />
-					) : (
-						<ChevronRight size={10} fill="currentColor" />
-					)}
+				<button type="button" className={styles["sidebar__section"]} onClick={() => setWorkOpen((v) => !v)}>
+					<svg
+						width="10"
+						height="10"
+						viewBox="0 0 12 12"
+						className={cn(styles["sidebar__tri"], workOpen && styles["sidebar__tri--open"])}
+						aria-hidden
+					>
+						<path d="M3 1.5l6 4.5-6 4.5z" fill="currentColor" />
+					</svg>
 					{t("nav.work")}
 				</button>
-				{workOpen ? (
-					<>
-						{renderLinks(WORK_LINKS)}
-						{renderLinks(EXTRA_LINKS)}
-					</>
-				) : null}
+				{workOpen ? WORK_LINKS.map(renderLink) : null}
 
 				<button
 					type="button"
 					className={cn(styles["sidebar__section"], styles["sidebar__section--gap"])}
 					onClick={() => setAssistSection((v) => !v)}
 				>
-					{assistSectionOpen ? (
-						<ChevronDown size={10} fill="currentColor" />
-					) : (
-						<ChevronRight size={10} fill="currentColor" />
-					)}
+					<svg
+						width="10"
+						height="10"
+						viewBox="0 0 12 12"
+						className={cn(styles["sidebar__tri"], assistSectionOpen && styles["sidebar__tri--open"])}
+						aria-hidden
+					>
+						<path d="M3 1.5l6 4.5-6 4.5z" fill="currentColor" />
+					</svg>
 					{t("nav.assistant")}
 				</button>
 				{assistSectionOpen ? (

@@ -48,3 +48,6 @@ Thumbs.db
 .cursor/mcp/figma/figma.env
 .cursor/mcp.json
 .cursor/rules/local/
+
+# Design mockups / reference (local only)
+docx/

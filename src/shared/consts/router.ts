@@ -5,6 +5,7 @@ export enum AppRoutes {
 	PLAN_FACT = "plan_fact",
 	EVENTS = "events",
 	CALENDAR = "calendar",
+	ADD = "add",
 	OPERATIONS = "operations",
 	SOURCES = "sources",
 	STRATEGIES = "strategies",
@@ -22,6 +23,7 @@ export const getRouteForecast = () => "/forecast";
 export const getRoutePlanFact = () => "/plan-fact";
 export const getRouteEvents = () => "/events";
 export const getRouteCalendar = () => "/calendar";
+export const getRouteAdd = () => "/add";
 export const getRouteOperations = () => "/operations";
 export const getRouteSources = () => "/sources";
 export const getRouteStrategies = () => "/strategies";

@@ -25,6 +25,16 @@
 		}
 	}
 
+	&__voice {
+		flex: none;
+		padding: 6px 14px;
+		border-radius: 100px;
+		background: var(--color-primary-soft);
+		color: var(--color-primary-text);
+		font-size: var(--font-size-base);
+		line-height: 20px;
+	}
+
 	&__mic {
 		display: flex;
 		flex: none;
@@ -37,10 +47,13 @@
 		background: var(--color-shape);
 		color: var(--color-text-secondary);
 		cursor: pointer;
+		transition:
+			background-color 0.18s ease,
+			color 0.18s ease;
 
 		&--listening {
-			background: var(--color-danger-soft);
-			color: var(--color-danger);
+			background: var(--color-primary);
+			color: #fff;
 		}
 	}
 
@@ -68,9 +81,19 @@
 		font-size: var(--font-size-lg);
 		font-weight: 500;
 		cursor: pointer;
+		transition: background-color 0.18s ease;
 
 		&:hover {
 			background: var(--color-primary-hover);
+		}
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.cash-assistant-bar {
+		&__mic,
+		&__send {
+			transition-duration: 0s;
 		}
 	}
 }

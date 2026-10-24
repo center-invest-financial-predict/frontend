@@ -17,6 +17,70 @@
 		font-size: var(--font-size-lg);
 	}
 
+	&__toolbar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+	}
+
+	&__tabs {
+		display: flex;
+		align-self: flex-start;
+		gap: 2px;
+		padding: 3px;
+		border-radius: var(--radius-xl);
+		background: var(--color-surface);
+	}
+
+	&__tab,
+	&__tab--on {
+		min-height: 40px;
+		padding: 6px 18px;
+		border: 0;
+		border-radius: 10px;
+		font-family: inherit;
+		font-size: var(--font-size-lg);
+		cursor: pointer;
+		transition:
+			background-color 0.18s ease,
+			color 0.18s ease;
+	}
+
+	&__tab {
+		background: var(--color-shape);
+		color: var(--color-text);
+	}
+
+	&__tab--on {
+		background: var(--color-primary);
+		color: #fff;
+	}
+
+	&__settings {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		min-height: 48px;
+		padding: 0 var(--space-5);
+		border: 1.5px solid var(--color-primary);
+		border-radius: var(--radius-xl);
+		background: var(--color-surface);
+		color: var(--color-primary-text);
+		font-family: inherit;
+		font-size: var(--font-size-lg);
+		font-weight: 600;
+		cursor: pointer;
+		transition:
+			background-color 0.18s ease,
+			color 0.18s ease;
+
+		&:hover {
+			background: var(--color-primary-soft);
+		}
+	}
+
 	&__grid {
 		display: grid;
 		grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -154,5 +218,15 @@
 		color: var(--color-text-faint);
 		font-size: var(--font-size-sm);
 		line-height: 18px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.plan-fact-page {
+		&__tab,
+		&__tab--on,
+		&__settings {
+			transition-duration: 0s;
+		}
 	}
 }

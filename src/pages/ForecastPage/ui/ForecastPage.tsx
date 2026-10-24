@@ -1,8 +1,11 @@
 import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import { SlidersHorizontal } from "lucide-react";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
 import { cn } from "@/shared/lib/classNames/classNames";
+import { getRouteAssistant, getRoutePlanFact, getRouteStrategies } from "@/shared/consts/router";
 import { CashflowChart } from "@/pages/TodayPage/ui/CashflowChart/CashflowChart";
 import styles from "./ForecastPage.module.scss";
 
@@ -54,19 +57,32 @@ const SAVED = [
 	{ n: "Постоянные расходы +10%", min: "280 400 ₽", d: "5 ноя", gap: "Нет", bad: false },
 ];
 
+const MINE = [{ name: "Разрыв 5 ноября", recalc: "23.10 08:40" }];
+
 export const ForecastPage = memo(() => {
 	const { t } = useTranslation();
+	const navigate = useNavigate();
 	const [scens, setScens] = useState(INITIAL);
+	const [mine, setMine] = useState(MINE);
+	const [renaming, setRenaming] = useState<number | null>(null);
 	const hasRisk = scens.some((s) => s.on && (s.key === "delay" || s.key === "drop"));
+	const active = scens.filter((s) => s.on);
 
 	const toggle = (key: ScenKey) => {
 		setScens((prev) => prev.map((s) => (s.key === key ? { ...s, on: !s.on } : s)));
 	};
 
 	const setOpt = (key: ScenKey, opt: string) => {
-		setScens((prev) =>
-			prev.map((s) => (s.key === key ? { ...s, opt, on: true } : s)),
-		);
+		setScens((prev) => prev.map((s) => (s.key === key ? { ...s, opt, on: true } : s)));
+	};
+
+	const reset = () => {
+		setScens(INITIAL.map((s) => ({ ...s, on: false })));
+	};
+
+	const save = () => {
+		const label = active.map((s) => `${t(s.titleKey)} ${s.opt}`).join(", ") || t("forecast.base");
+		setMine((prev) => [{ name: label, recalc: "23.10 08:40" }, ...prev]);
 	};
 
 	return (
@@ -76,29 +92,33 @@ export const ForecastPage = memo(() => {
 				<p className={styles["forecast-page__sub"]}>{t("forecast.subtitle")}</p>
 			</div>
 
+			<div className={styles["forecast-page__toolbar"]}>
+				<div className={styles["forecast-page__tabs"]}>
+					<button type="button" className={styles["forecast-page__tab--on"]}>
+						{t("forecast.tabScens")}
+					</button>
+					<button type="button" className={styles["forecast-page__tab"]} onClick={() => navigate(getRoutePlanFact())}>
+						{t("forecast.tabPlanFact")}
+					</button>
+				</div>
+				<button
+					type="button"
+					className={styles["forecast-page__settings"]}
+					onClick={() => navigate(getRouteStrategies())}
+				>
+					<SlidersHorizontal size={18} strokeWidth={1.3} aria-hidden />
+					{t("forecast.settings")}
+				</button>
+			</div>
+
 			<div className={styles["forecast-page__grid"]}>
 				<Card className={styles["forecast-page__scens"]}>
 					<div className={styles["forecast-page__card-title"]}>{t("forecast.scens")}</div>
 					<p className={styles["forecast-page__card-sub"]}>{t("forecast.scensHint")}</p>
 					{scens.map((s) => (
-						<div
-							key={s.key}
-							className={cn(
-								styles["forecast-page__scen"],
-								s.on && styles["forecast-page__scen--on"],
-							)}
-						>
-							<button
-								type="button"
-								className={styles["forecast-page__scen-tog"]}
-								onClick={() => toggle(s.key)}
-							>
-								<span
-									className={cn(
-										styles["forecast-page__check"],
-										s.on && styles["forecast-page__check--on"],
-									)}
-								/>
+						<div key={s.key} className={cn(styles["forecast-page__scen"], s.on && styles["forecast-page__scen--on"])}>
+							<button type="button" className={styles["forecast-page__scen-tog"]} onClick={() => toggle(s.key)}>
+								<span className={cn(styles["forecast-page__check"], s.on && styles["forecast-page__check--on"])} />
 								{t(s.titleKey)}
 							</button>
 							<div className={styles["forecast-page__opts"]}>
@@ -123,9 +143,7 @@ export const ForecastPage = memo(() => {
 				<Card className={styles["forecast-page__chart"]}>
 					<div className={styles["forecast-page__chart-head"]}>
 						<div>
-							<div className={styles["forecast-page__card-title"]}>
-								{t("forecast.chartTitle")}
-							</div>
+							<div className={styles["forecast-page__card-title"]}>{t("forecast.chartTitle")}</div>
 							<p className={styles["forecast-page__card-sub"]}>{t("forecast.chartSub")}</p>
 						</div>
 						<div className={styles["forecast-page__legend"]}>
@@ -140,16 +158,71 @@ export const ForecastPage = memo(() => {
 						</div>
 					</div>
 					<CashflowChart showRisk={hasRisk} range={30} />
-					<div
-						className={cn(
-							styles["forecast-page__result"],
-							hasRisk && styles["forecast-page__result--bad"],
-						)}
-					>
+					<div className={cn(styles["forecast-page__result"], hasRisk && styles["forecast-page__result--bad"])}>
 						{hasRisk ? t("forecast.resGap") : t("forecast.resOk")}
+					</div>
+					<div className={styles["forecast-page__chips"]}>
+						{active.length === 0 ? (
+							<span className={styles["forecast-page__chip-empty"]}>{t("forecast.noConditions")}</span>
+						) : (
+							active.map((s) => (
+								<span key={s.key} className={styles["forecast-page__chip"]}>
+									{t(s.titleKey)}: {s.opt}
+								</span>
+							))
+						)}
+						{active.length > 0 ? (
+							<button type="button" className={styles["forecast-page__chip-reset"]} onClick={reset}>
+								{t("forecast.reset")}
+							</button>
+						) : null}
+					</div>
+					<div className={styles["forecast-page__cta"]}>
+						<button type="button" className={styles["forecast-page__cta-primary"]} onClick={save}>
+							{t("forecast.save")}
+						</button>
+						<button
+							type="button"
+							className={styles["forecast-page__cta-secondary"]}
+							onClick={() => navigate(getRouteAssistant())}
+						>
+							{t("forecast.explain")}
+						</button>
 					</div>
 				</Card>
 			</div>
+
+			{mine.length > 0 ? (
+				<Card className={styles["forecast-page__mine"]}>
+					<div className={styles["forecast-page__card-title"]}>{t("forecast.mine")}</div>
+					<p className={styles["forecast-page__card-sub"]}>{t("forecast.mineSub")}</p>
+					{mine.map((m, i) => (
+						<div key={`${m.name}-${i}`} className={styles["forecast-page__mine-row"]}>
+							{renaming === i ? (
+								<input
+									className={styles["forecast-page__mine-input"]}
+									value={m.name}
+									onChange={(e) => {
+										const v = e.target.value;
+										setMine((prev) => prev.map((x, idx) => (idx === i ? { ...x, name: v } : x)));
+									}}
+									onBlur={() => setRenaming(null)}
+								/>
+							) : (
+								<span className={styles["forecast-page__mine-name"]}>{m.name}</span>
+							)}
+							<div className={styles["forecast-page__mine-actions"]}>
+								<button type="button" className={styles["forecast-page__mine-btn"]}>
+									{t("forecast.open")}
+								</button>
+								<button type="button" className={styles["forecast-page__mine-btn"]} onClick={() => setRenaming(i)}>
+									{t("forecast.rename")}
+								</button>
+							</div>
+						</div>
+					))}
+				</Card>
+			) : null}
 
 			<Card className={styles["forecast-page__saved"]}>
 				<div className={styles["forecast-page__card-title"]}>{t("forecast.saved")}</div>
@@ -165,9 +238,7 @@ export const ForecastPage = memo(() => {
 						<span>{r.n}</span>
 						<span>{r.min}</span>
 						<span>{r.d}</span>
-						<span className={r.bad ? styles["forecast-page__gap-bad"] : undefined}>
-							{r.gap}
-						</span>
+						<span className={r.bad ? styles["forecast-page__gap-bad"] : undefined}>{r.gap}</span>
 					</div>
 				))}
 			</Card>

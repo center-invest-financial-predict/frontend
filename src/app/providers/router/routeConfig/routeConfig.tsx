@@ -6,11 +6,13 @@ import { EventsPage } from "@/pages/EventsPage";
 import { CalendarPage } from "@/pages/CalendarPage";
 import { OperationsPage } from "@/pages/OperationsPage";
 import { SourcesPage } from "@/pages/SourcesPage";
+import { AddPage } from "@/pages/AddPage";
 import { StrategiesPage } from "@/pages/StrategiesPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { AssistantPage } from "@/pages/AssistantPage";
 import {
 	AppRoutes,
+	getRouteAdd,
 	getRouteCalendar,
 	getRouteEvents,
 	getRouteForecast,
@@ -31,7 +33,6 @@ import { AppRouteProps } from "@/shared/types/router";
 import { LazyLoginPage } from "@/pages/Login";
 import { LazyRegisterPage } from "@/pages/Register";
 import { LazyOnboardingPage } from "@/pages/Onboarding";
-
 
 export const routeConfig: Record<AppRoutes, AppRouteProps> = {
 	[AppRoutes.MAIN]: {
@@ -62,6 +63,11 @@ export const routeConfig: Record<AppRoutes, AppRouteProps> = {
 	[AppRoutes.CALENDAR]: {
 		path: getRouteCalendar(),
 		element: <CalendarPage />,
+		authOnly: true,
+	},
+	[AppRoutes.ADD]: {
+		path: getRouteAdd(),
+		element: <AddPage />,
 		authOnly: true,
 	},
 	[AppRoutes.OPERATIONS]: {

@@ -7,11 +7,7 @@ import { Header } from "@/widgets/Header";
 import { CashAssistantBar } from "@/widgets/CashAssistantBar";
 import { useUserActions } from "@/entities/User";
 import { useAppSelector } from "@/shared/lib/hooks";
-import {
-	getRouteLogin,
-	getRouteOnboarding,
-	getRouteRegister,
-} from "@/shared/consts/router";
+import { getRouteAssistant, getRouteLogin, getRouteOnboarding, getRouteRegister } from "@/shared/consts/router";
 import styles from "./App.module.scss";
 
 const App = () => {
@@ -30,8 +26,7 @@ const App = () => {
 		return <PageLoader />;
 	}
 
-	const isAuthRoute =
-		location.pathname === getRouteLogin() || location.pathname === getRouteRegister();
+	const isAuthRoute = location.pathname === getRouteLogin() || location.pathname === getRouteRegister();
 	const isOnboardingRoute = location.pathname === getRouteOnboarding();
 
 	if (!auth || isAuthRoute) {
@@ -76,7 +71,7 @@ const App = () => {
 							<AppRouter />
 						</Suspense>
 					</div>
-					<CashAssistantBar />
+					{location.pathname === getRouteAssistant() ? <CashAssistantBar /> : null}
 				</div>
 			</div>
 		</div>

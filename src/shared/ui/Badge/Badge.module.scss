@@ -3,17 +3,17 @@
 	align-items: center;
 	gap: var(--space-1);
 	flex: none;
-	padding: 2px 7px;
-	border-radius: var(--radius-xl);
-	font-size: var(--font-size-xs);
-	font-weight: 700;
-	line-height: 1.4;
+	padding: 1px 8px 1px 6px;
+	border-radius: 100px;
+	font-size: var(--font-size-sm);
+	font-weight: 600;
+	line-height: 18px;
 	background: var(--color-neutral-soft);
 	color: var(--color-text-secondary);
 
 	&--up {
 		background: var(--color-primary-soft);
-		color: var(--color-primary-text);
+		color: var(--color-primary-on-soft);
 	}
 
 	&--down {
@@ -28,7 +28,7 @@
 
 	&--green {
 		background: var(--color-primary-soft);
-		color: var(--color-primary-text);
+		color: var(--color-primary-on-soft);
 		font-size: var(--font-size-sm);
 		font-weight: 600;
 		padding: var(--space-1) 10px;

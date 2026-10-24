@@ -6,17 +6,16 @@
 
 	&__steps {
 		display: flex;
-		gap: var(--space-1);
+		flex-wrap: wrap;
+		gap: var(--space-2);
+		justify-content: center;
 		align-items: center;
 	}
 
 	&__step {
 		display: flex;
-		flex-direction: column;
 		align-items: center;
-		gap: 4px;
-		flex: 1;
-		min-width: 0;
+		justify-content: center;
 	}
 
 	&__step-dot {
@@ -30,16 +29,9 @@
 		color: var(--color-text-faint);
 		font-size: var(--font-size-sm);
 		font-weight: 600;
-	}
-
-	&__step-label {
-		overflow: hidden;
-		max-width: 100%;
-		color: var(--color-text-faint);
-		font-size: var(--font-size-sm);
-		line-height: 16px;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		transition:
+			background-color 0.18s ease,
+			color 0.18s ease;
 	}
 
 	&__step--done &__step-dot,
@@ -48,9 +40,15 @@
 		color: #fff;
 	}
 
-	&__step--current &__step-label {
-		color: var(--color-text);
-		font-weight: 600;
+	&__step--current &__step-dot {
+		animation: onboarding-step-in 0.28s ease-out;
+	}
+
+	&__panel {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+		animation: onboarding-panel-in 0.32s ease-out both;
 	}
 
 	&__title {
@@ -99,6 +97,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2);
+		animation: onboarding-panel-in 0.28s ease-out both;
 	}
 
 	&__option {
@@ -114,6 +113,9 @@
 		text-align: left;
 		cursor: pointer;
 		font-family: inherit;
+		transition:
+			background-color 0.18s ease,
+			border-color 0.18s ease;
 
 		&--active {
 			border-color: var(--color-primary);
@@ -160,6 +162,9 @@
 		font-family: inherit;
 		font-size: var(--font-size-lg);
 		cursor: pointer;
+		transition:
+			background-color 0.18s ease,
+			color 0.18s ease;
 
 		&--active {
 			background: var(--color-primary);
@@ -214,21 +219,23 @@
 
 	&__progress-fill {
 		height: 100%;
-		width: 28%;
+		width: 100%;
 		border-radius: 6px;
 		background: var(--color-primary);
-		transition: width 0.4s ease;
+		transform: scaleX(0.28);
+		transform-origin: left;
+		transition: transform 0.3s ease;
 
 		&--p1 {
-			width: 56%;
+			transform: scaleX(0.56);
 		}
 
 		&--p2 {
-			width: 84%;
+			transform: scaleX(0.84);
 		}
 
 		&--done {
-			width: 100%;
+			transform: scaleX(1);
 		}
 	}
 
@@ -251,6 +258,9 @@
 		font-size: var(--font-size-lg);
 		font-weight: 600;
 		cursor: pointer;
+		transition:
+			background-color 0.18s ease,
+			opacity 0.18s ease;
 
 		&:disabled {
 			opacity: 0.45;
@@ -298,5 +308,46 @@
 	&__check {
 		flex: none;
 		color: var(--color-primary);
+	}
+}
+
+@keyframes onboarding-step-in {
+	0% {
+		transform: scale(0.82);
+	}
+
+	60% {
+		transform: scale(1.08);
+	}
+
+	100% {
+		transform: scale(1);
+	}
+}
+
+@keyframes onboarding-panel-in {
+	from {
+		opacity: 0;
+		transform: translateY(14px);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.onboarding {
+		&__step-dot,
+		&__panel,
+		&__list,
+		&__option,
+		&__chip,
+		&__progress-fill,
+		&__primary {
+			animation: none;
+			transition-duration: 0s;
+		}
 	}
 }

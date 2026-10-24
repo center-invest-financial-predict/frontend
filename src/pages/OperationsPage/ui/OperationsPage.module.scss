@@ -36,6 +36,9 @@
 		font-family: inherit;
 		font-size: var(--font-size-lg);
 		cursor: pointer;
+		transition:
+			background-color 0.18s ease,
+			color 0.18s ease;
 
 		&--on {
 			background: var(--color-shape);
@@ -118,6 +121,7 @@
 		background: var(--color-shape);
 		font-size: var(--font-size-base);
 		line-height: 20px;
+		animation: ops-detail-in 0.28s ease-out both;
 	}
 
 	&__chips {
@@ -136,6 +140,9 @@
 		font-size: var(--font-size-lg);
 		line-height: 22px;
 		cursor: pointer;
+		transition:
+			background-color 0.18s ease,
+			color 0.18s ease;
 
 		&--sm {
 			padding: 3px 14px;
@@ -206,5 +213,28 @@
 
 	&__in {
 		color: var(--color-primary);
+	}
+}
+
+@keyframes ops-detail-in {
+	from {
+		opacity: 0;
+		transform: translateY(-12px);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ops-page {
+		&__pill,
+		&__reg-detail,
+		&__chip {
+			animation: none;
+			transition-duration: 0s;
+		}
 	}
 }

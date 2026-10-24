@@ -1,26 +1,51 @@
 :root {
+	/* surfaces */
 	--color-bg: #ffffff;
 	--color-surface: #ffffff;
-	--color-shape: #f1f3f9;
-	--color-border: rgba(0, 0, 0, 0.06);
-	--color-border-strong: #e5e7eb;
-	--color-text: #2a2a2c;
-	--color-text-secondary: #4b5563;
-	--color-text-muted: #6b7280;
-	--color-text-faint: #9ca3af;
-	--color-primary: #50b848;
-	--color-primary-hover: #459f3e;
-	--color-primary-soft: #e8f8e6;
-	--color-primary-text: #2f7a2a;
-	--color-accent: #50b848;
-	--color-danger: #dc2626;
-	--color-danger-soft: #fee2e2;
-	--color-danger-text: #b91c1c;
-	--color-warning: #f59e0b;
-	--color-warning-soft: #fef3c7;
-	--color-warning-text: #b45309;
-	--color-neutral-soft: #f3f4f6;
-	--color-control: #f4f4f2;
+	--color-shape: #f1f3f9; /* shape-55 */
+	--color-border: #e2e4e9; /* outlines-45 */
+	--color-border-soft: #eaecf1; /* outlines-50 */
+	--color-border-strong: #d4d5da; /* outlines-40 */
+	--color-border-dashed: #c8c9ce; /* outlines-30 */
+
+	/* text */
+	--color-text: #2a2a2c; /* text-10 */
+	--color-text-secondary: #3c3c3e; /* text-15 */
+	--color-text-muted: #68686c; /* text-30 */
+	--color-text-faint: #78787c; /* text-35 */
+
+	/*
+	 * primary scale from DS (fig-tokens):
+	 * 25 = CTA / pills / chips  #398233
+	 * 30 = charts / accents     #50b848
+	 * 15 = links / hover        #1c4119
+	 * 10 = text on soft fill    #142e12
+	 * 60-2 = soft fill          #e0efe0
+	 * 65 = soft pale            #f0f7f0
+	 */
+	--color-primary: #398233; /* primary-25 — кнопки, чипы, табы */
+	--color-primary-bright: #50b848; /* primary-30 — графики, прогресс */
+	--color-primary-hover: #1c4119; /* primary-15 — hover / ссылки */
+	--color-primary-strong: #58a41e;
+	--color-primary-mid: #91cc8e; /* primary-50 */
+	--color-primary-pale: #bddebb; /* primary-55 */
+	--color-primary-soft: #e0efe0; /* primary-60-2 */
+	--color-primary-soft-pale: #f0f7f0; /* primary-65 */
+	--color-primary-text: #1c4119; /* primary-15 */
+	--color-primary-on-soft: #142e12; /* primary-10 */
+	--color-accent: #50b848; /* alias primary-30 */
+
+	--color-danger: #d70f00; /* error-40 */
+	--color-danger-deep: #a30b00; /* error-30 */
+	--color-danger-soft: #fcedec; /* error-60 */
+	--color-danger-text: #400400; /* error-10 */
+
+	--color-warning: #fd8b00; /* secondary-20 */
+	--color-warning-soft: #fef8dd; /* secondary-60 */
+	--color-warning-text: #b45100; /* secondary-10 */
+
+	--color-neutral-soft: #f1f3f9;
+	--color-control: #f1f3f9;
 	--color-control-strong: #f1f3f9;
 
 	--radius-sm: 6px;
@@ -56,19 +81,24 @@
 	--z-header: 30;
 	--z-sidebar: 40;
 	--z-bar: 50;
+	--z-drawer: 40;
 }
 
 [data-theme="dark"] {
 	--color-bg: #121214;
 	--color-surface: #1c1c1f;
 	--color-shape: #222226;
-	--color-border: rgba(255, 255, 255, 0.08);
-	--color-border-strong: #2a2a2e;
+	--color-border: #2a2a2e;
+	--color-border-strong: #3a3a40;
+	--color-border-dashed: #4a4a50;
 	--color-text: #f3f4f6;
 	--color-text-secondary: #d1d5db;
 	--color-text-muted: #9ca3af;
-	--color-text-faint: #6b7280;
+	--color-text-faint: #78787c;
 	--color-control: #222226;
 	--color-control-strong: #2a2a2e;
 	--color-neutral-soft: #2a2a2e;
+	--color-primary-soft: #1a2a1a;
+	--color-primary-soft-pale: #152015;
+	--color-danger-soft: #2a1515;
 }

@@ -3,6 +3,27 @@
 	flex-direction: column;
 	gap: var(--space-4);
 
+	&__back {
+		align-self: flex-start;
+		min-height: 44px;
+		padding: 0 18px;
+		border: 1.5px solid var(--color-primary);
+		border-radius: var(--radius-xl);
+		background: var(--color-surface);
+		color: var(--color-primary-text);
+		font-family: inherit;
+		font-size: var(--font-size-lg);
+		font-weight: 600;
+		cursor: pointer;
+		transition:
+			background-color 0.18s ease,
+			color 0.18s ease;
+
+		&:hover {
+			background: var(--color-primary-soft);
+		}
+	}
+
 	&__head {
 		display: flex;
 		flex-wrap: wrap;
@@ -42,6 +63,9 @@
 		font-family: inherit;
 		font-size: var(--font-size-lg);
 		cursor: pointer;
+		transition:
+			background-color 0.18s ease,
+			color 0.18s ease;
 
 		&--on {
 			background: var(--color-shape);
@@ -157,6 +181,7 @@
 		border-radius: 100px;
 		background: var(--color-border-strong);
 		cursor: pointer;
+		transition: background-color 0.18s ease;
 
 		span {
 			position: absolute;
@@ -166,15 +191,27 @@
 			height: 20px;
 			border-radius: 100px;
 			background: #fff;
-			transition: left 0.15s;
+			transform: translateX(0);
+			transition: transform 0.18s ease;
 		}
 
 		&--on {
 			background: var(--color-primary);
 
 			span {
-				left: 21px;
+				transform: translateX(18px);
 			}
+		}
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.strat-page {
+		&__back,
+		&__pill,
+		&__toggle,
+		&__toggle span {
+			transition-duration: 0s;
 		}
 	}
 }

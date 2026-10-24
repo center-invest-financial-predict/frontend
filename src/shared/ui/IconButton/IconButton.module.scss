@@ -1,17 +1,28 @@
 .icon-button {
 	display: flex;
+	flex: none;
 	align-items: center;
 	justify-content: center;
-	padding: 6px;
+	width: 32px;
+	height: 32px;
+	padding: 0;
 	border: none;
-	border-radius: var(--radius-md);
+	border-radius: var(--radius-lg);
 	background: transparent;
 	color: var(--color-text-secondary);
 	cursor: pointer;
-	transition: background 0.15s, color 0.15s;
+	transition:
+		background-color 0.15s ease,
+		color 0.15s ease;
 
 	&:hover {
 		background: var(--color-neutral-soft);
 		color: var(--color-text);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.icon-button {
+		transition-duration: 0s;
 	}
 }

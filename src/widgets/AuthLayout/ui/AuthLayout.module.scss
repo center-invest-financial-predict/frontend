@@ -1,37 +1,11 @@
 .auth-layout {
 	display: flex;
 	overflow: hidden;
+	flex: 1;
 	width: 100%;
 	height: 100%;
 	min-height: 0;
 	background: var(--color-surface);
-
-	&__preview {
-		display: flex;
-		flex: none;
-		width: 50%;
-		padding: var(--space-4);
-		min-width: 0;
-	}
-
-	&__preview-panel {
-		display: flex;
-		flex: 1;
-		align-items: center;
-		justify-content: center;
-		overflow: hidden;
-		padding: 40px;
-		border-radius: 28px;
-		background: var(--color-shape);
-	}
-
-	&__preview-inner {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-3);
-		width: 100%;
-		max-width: 520px;
-	}
 
 	&__form {
 		display: flex;
@@ -40,157 +14,40 @@
 		align-items: center;
 		justify-content: center;
 		overflow: auto;
+		width: 100%;
 		min-width: 0;
-		padding: var(--space-6) 0;
+		min-height: 0;
+		padding: 32px 0;
 	}
 
 	&__form-inner {
 		display: flex;
 		flex-direction: column;
+		align-items: stretch;
 		gap: var(--space-4);
-		width: 400px;
-		max-width: 100%;
-		padding: 0 var(--space-6);
+		box-sizing: border-box;
+		width: 100%;
+		max-width: 400px;
+		margin: 0 auto;
+		padding: 0 32px;
+		animation: auth-form-in 0.3s ease-out both;
+	}
+}
+
+@keyframes auth-form-in {
+	from {
+		opacity: 0;
+		transform: translateY(12px);
 	}
 
-	&__chip {
-		align-self: flex-start;
-		padding: var(--space-2) var(--space-4);
-		border: 1px solid var(--color-border);
-		border-radius: 100px;
-		background: var(--color-surface);
-		color: var(--color-text);
-		font-size: var(--font-size-lg);
-		font-weight: 600;
-		line-height: 24px;
+	to {
+		opacity: 1;
+		transform: translateY(0);
 	}
+}
 
-	&__card {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-		padding: var(--space-5) var(--space-4);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-2xl);
-		background: var(--color-surface);
-	}
-
-	&__card-row {
-		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
-		gap: var(--space-2);
-	}
-
-	&__label {
-		color: var(--color-text-muted);
-		font-size: var(--font-size-base);
-		line-height: 20px;
-	}
-
-	&__value {
-		color: var(--color-text);
-		font-size: var(--font-size-2xl);
-		font-weight: 600;
-		line-height: 32px;
-	}
-
-	&__value--md {
-		font-size: 20px;
-		line-height: 28px;
-	}
-
-	&__sub {
-		color: var(--color-text-muted);
-		font-size: var(--font-size-base);
-		line-height: 20px;
-	}
-
-	&__chart {
-		height: 120px;
-		border-radius: 14px;
-		background:
-			linear-gradient(180deg, transparent 40%, var(--color-primary-soft)),
-			repeating-linear-gradient(
-				90deg,
-				transparent,
-				transparent 24px,
-				var(--color-border) 24px,
-				var(--color-border) 25px
-			);
-		border-bottom: 2px solid var(--color-primary);
-	}
-
-	&__kpi-grid {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: var(--space-3);
-		margin-top: -28px;
-		padding: 0 20px;
-		position: relative;
-	}
-
-	&__kpi-card {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1);
-		padding: var(--space-4);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-2xl);
-		background: var(--color-surface);
-
-		&--offset {
-			margin-top: 28px;
-		}
-	}
-
-	&__src-row {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: var(--space-3);
-		padding: var(--space-4);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-2xl);
-		background: var(--color-surface);
-	}
-
-	&__src-dot {
-		flex: none;
-		width: 12px;
-		height: 12px;
-		border-radius: 100px;
-		background: var(--color-primary);
-
-		&--muted {
-			background: var(--color-text-faint);
-		}
-	}
-
-	&__bar {
-		height: 8px;
-		border-radius: 8px;
-		background: var(--color-shape);
-		overflow: hidden;
-	}
-
-	&__bar-fill {
-		height: 100%;
-		width: 46%;
-		border-radius: 8px;
-		background: var(--color-primary);
-	}
-
-	@media (max-width: 900px) {
-		flex-direction: column;
-
-		&__preview {
-			display: none;
-		}
-
-		&__form {
-			justify-content: flex-start;
-			padding-top: var(--space-6);
-		}
+@media (prefers-reduced-motion: reduce) {
+	.auth-layout__form-inner {
+		animation: none;
 	}
 }

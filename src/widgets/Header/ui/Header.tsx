@@ -6,7 +6,7 @@ import { useUIActions } from "@/features/UI";
 import { useUserActions } from "@/entities/User";
 import { useAppSelector } from "@/shared/lib/hooks";
 import { IconButton } from "@/shared/ui/IconButton";
-import { getRouteLogin, getRouteSettings } from "@/shared/consts/router";
+import { getRouteLogin } from "@/shared/consts/router";
 import styles from "./Header.module.scss";
 
 export const Header: FC = memo(() => {
@@ -49,45 +49,21 @@ export const Header: FC = memo(() => {
 					<HelpCircle size={18} strokeWidth={1.3} />
 				</IconButton>
 				<IconButton title={t("header.theme")} onClick={() => toggleTheme()}>
-					{theme === "dark" ? (
-						<Sun size={18} strokeWidth={1.3} />
-					) : (
-						<Moon size={18} strokeWidth={1.3} />
-					)}
+					{theme === "dark" ? <Sun size={18} strokeWidth={1.3} /> : <Moon size={18} strokeWidth={1.3} />}
 				</IconButton>
 
 				<div className={styles["header__user-wrap"]} ref={menuRef}>
-					<IconButton
-						title={t("header.profile")}
-						onClick={() => setUserOpen((v) => !v)}
-					>
+					<IconButton title={t("header.profile")} onClick={() => setUserOpen((v) => !v)}>
 						<User size={18} strokeWidth={1.3} />
 					</IconButton>
 					{userOpen ? (
 						<div className={styles["header__user-menu"]}>
 							<div className={styles["header__user-info"]}>
-								<div className={styles["header__user-name"]}>
-									{auth?.name || t("header.userName")}
-								</div>
-								<div className={styles["header__user-role"]}>
-									{t("header.userRole")}
-								</div>
+								<div className={styles["header__user-name"]}>{auth?.name || t("header.userName")}</div>
+								<div className={styles["header__user-role"]}>{t("header.userRole")}</div>
 							</div>
-							<button
-								type="button"
-								className={styles["header__user-item"]}
-								onClick={() => {
-									setUserOpen(false);
-									navigate(getRouteSettings());
-								}}
-							>
-								{t("nav.settings")}
-							</button>
-							<button
-								type="button"
-								className={styles["header__user-logout"]}
-								onClick={onLogout}
-							>
+							<div className={styles["header__user-divider"]} />
+							<button type="button" className={styles["header__user-logout"]} onClick={onLogout}>
 								{t("nav.logout")}
 							</button>
 						</div>

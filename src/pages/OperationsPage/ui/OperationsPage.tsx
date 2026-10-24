@@ -82,8 +82,7 @@ export const OperationsPage = memo(() => {
 	const inn = filtered.filter((x) => x.a > 0).reduce((q, x) => q + x.a, 0);
 	const out = filtered.filter((x) => x.a < 0).reduce((q, x) => q + x.a, 0);
 
-	const fm = (n: number) =>
-		`${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n).toLocaleString("ru-RU")} ₽`;
+	const fm = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n).toLocaleString("ru-RU")} ₽`;
 
 	return (
 		<Page className={styles["ops-page"]}>
@@ -102,10 +101,7 @@ export const OperationsPage = memo(() => {
 					<button
 						key={k}
 						type="button"
-						className={cn(
-							styles["ops-page__pill"],
-							tab === k && styles["ops-page__pill--on"],
-						)}
+						className={cn(styles["ops-page__pill"], tab === k && styles["ops-page__pill--on"])}
 						onClick={() => setTab(k)}
 					>
 						{t(label)}
@@ -137,19 +133,12 @@ export const OperationsPage = memo(() => {
 									</span>
 								</span>
 								<span>{r.amt}</span>
-								<span
-									className={cn(
-										styles["ops-page__st"],
-										r.st.includes("проверки") && styles["ops-page__st--warn"],
-									)}
-								>
+								<span className={cn(styles["ops-page__st"], r.st.includes("проверки") && styles["ops-page__st--warn"])}>
 									{r.st}
 								</span>
 							</button>
 							{openReg === r.n ? (
-								<div className={styles["ops-page__reg-detail"]}>
-									{t("operations.regDetail")}
-								</div>
+								<div className={styles["ops-page__reg-detail"]}>{t("operations.regDetail")}</div>
 							) : null}
 						</div>
 					))}
@@ -159,7 +148,7 @@ export const OperationsPage = memo(() => {
 					<Card className={styles["ops-page__chart"]}>
 						<div className={styles["ops-page__card-title"]}>{t("operations.balTitle")}</div>
 						<p className={styles["ops-page__hint"]}>{t("operations.balSub")}</p>
-						<CashflowChart showRisk={false} range={30} />
+						<CashflowChart variant="history" />
 					</Card>
 
 					<Card className={styles["ops-page__list"]}>
@@ -174,10 +163,7 @@ export const OperationsPage = memo(() => {
 								<button
 									key={k}
 									type="button"
-									className={cn(
-										styles["ops-page__chip"],
-										dir === k && styles["ops-page__chip--on"],
-									)}
+									className={cn(styles["ops-page__chip"], dir === k && styles["ops-page__chip--on"])}
 									onClick={() => setDir(k)}
 								>
 									{t(label)}
@@ -229,9 +215,7 @@ export const OperationsPage = memo(() => {
 								<span>{r.d}</span>
 								<span>{r.n}</span>
 								<span>{r.cat}</span>
-								<span className={r.a > 0 ? styles["ops-page__in"] : undefined}>
-									{fm(r.a)}
-								</span>
+								<span className={r.a > 0 ? styles["ops-page__in"] : undefined}>{fm(r.a)}</span>
 							</div>
 						))}
 					</Card>

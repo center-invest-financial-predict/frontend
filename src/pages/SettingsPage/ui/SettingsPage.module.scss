@@ -49,9 +49,18 @@
 		font-family: inherit;
 		font-size: var(--font-size-base);
 		cursor: pointer;
+		transition:
+			background-color 0.18s ease,
+			color 0.18s ease;
 
 		&:hover {
 			background: var(--color-neutral-soft);
 		}
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.settings-page__logout {
+		transition-duration: 0s;
 	}
 }

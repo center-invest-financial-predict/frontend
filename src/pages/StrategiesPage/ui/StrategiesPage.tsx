@@ -1,8 +1,10 @@
 import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
 import { cn } from "@/shared/lib/classNames/classNames";
+import { getRouteForecast } from "@/shared/consts/router";
 import { CashflowChart } from "@/pages/TodayPage/ui/CashflowChart/CashflowChart";
 import styles from "./StrategiesPage.module.scss";
 
@@ -30,6 +32,7 @@ const RULES = [
 
 export const StrategiesPage = memo(() => {
 	const { t } = useTranslation();
+	const navigate = useNavigate();
 	const [strat, setStrat] = useState<Strat>("base");
 	const [own, setOwn] = useState({ hair: 5, delay: 7, min: 250 });
 	const [rulesOn, setRulesOn] = useState({ a: true, b: true, c: false });
@@ -38,6 +41,9 @@ export const StrategiesPage = memo(() => {
 
 	return (
 		<Page className={styles["strat-page"]}>
+			<button type="button" className={styles["strat-page__back"]} onClick={() => navigate(getRouteForecast())}>
+				← {t("strategies.back")}
+			</button>
 			<div className={styles["strat-page__head"]}>
 				<div>
 					<h1 className={styles["strat-page__title"]}>{t("strategies.title")}</h1>
@@ -48,10 +54,7 @@ export const StrategiesPage = memo(() => {
 						<button
 							key={s.key}
 							type="button"
-							className={cn(
-								styles["strat-page__pill"],
-								strat === s.key && styles["strat-page__pill--on"],
-							)}
+							className={cn(styles["strat-page__pill"], strat === s.key && styles["strat-page__pill--on"])}
 							onClick={() => setStrat(s.key)}
 						>
 							{t(s.labelKey)}
@@ -86,9 +89,7 @@ export const StrategiesPage = memo(() => {
 								step={step}
 								value={cur[key]}
 								disabled={!isOwn}
-								onChange={(e) =>
-									setOwn((p) => ({ ...p, [key]: Number(e.target.value) }))
-								}
+								onChange={(e) => setOwn((p) => ({ ...p, [key]: Number(e.target.value) }))}
 							/>
 						</div>
 					))}

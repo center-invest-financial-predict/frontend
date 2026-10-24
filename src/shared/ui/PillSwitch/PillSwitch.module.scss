@@ -15,7 +15,10 @@
 		font-size: var(--font-size-md);
 		font-weight: 500;
 		cursor: pointer;
-		transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+		transition:
+			color 0.15s ease,
+			background-color 0.15s ease,
+			box-shadow 0.15s ease;
 
 		&:hover {
 			color: var(--color-text);
@@ -26,5 +29,11 @@
 			color: var(--color-text);
 			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 		}
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.pill-switch__option {
+		transition-duration: 0s;
 	}
 }

@@ -43,6 +43,7 @@ export const AssistantPage = memo(() => {
 	const location = useLocation();
 	const state = (location.state as LocState) || null;
 	const [messages, setMessages] = useState<Msg[]>(DEFAULT_THREAD);
+	const [ctx, setCtx] = useState<string | null>(t("assist.ctxGap"));
 
 	useEffect(() => {
 		if (state?.reset) {
@@ -64,21 +65,30 @@ export const AssistantPage = memo(() => {
 					<p className={styles["assistant-page__sub"]}>{t("assist.pageHint")}</p>
 				</div>
 
+				{ctx ? (
+					<div className={styles["assistant-page__ctx"]}>
+						{ctx}
+						<button
+							type="button"
+							className={styles["assistant-page__ctx-clear"]}
+							aria-label={t("assist.ctxClear")}
+							onClick={() => setCtx(null)}
+						>
+							×
+						</button>
+					</div>
+				) : null}
+
 				<div className={styles["assistant-page__thread"]}>
 					{messages.map((m, i) => (
 						<div
 							key={`${m.from}-${i}`}
-							className={cn(
-								styles["assistant-page__row"],
-								m.from === "user" && styles["assistant-page__row--user"],
-							)}
+							className={cn(styles["assistant-page__row"], m.from === "user" && styles["assistant-page__row--user"])}
 						>
 							<div
 								className={cn(
 									styles["assistant-page__bubble"],
-									m.from === "user"
-										? styles["assistant-page__bubble--user"]
-										: styles["assistant-page__bubble--bot"],
+									m.from === "user" ? styles["assistant-page__bubble--user"] : styles["assistant-page__bubble--bot"],
 								)}
 							>
 								<span>{m.text}</span>

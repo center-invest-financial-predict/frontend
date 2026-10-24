@@ -31,6 +31,61 @@
 		gap: var(--space-4);
 	}
 
+	&__upload {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+		padding: var(--space-5);
+	}
+
+	&__upload-actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	&__file-btn {
+		position: relative;
+		display: flex;
+		align-items: center;
+		overflow: hidden;
+		min-height: 44px;
+		padding: 0 18px;
+		border-radius: var(--radius-xl);
+		font-size: var(--font-size-lg);
+		cursor: pointer;
+	}
+
+	&__future {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-5);
+
+		.sources-page__desc {
+			margin: 0;
+		}
+
+		.sources-page__btn {
+			align-self: center;
+			margin-top: 0;
+			padding: 0 20px;
+		}
+	}
+
+	&__ok {
+		padding: 10px 14px;
+		border-radius: 14px;
+		background: var(--color-primary-soft);
+		color: var(--color-primary-text);
+		font-size: var(--font-size-base);
+		line-height: 20px;
+		animation: sources-result-in 0.3s ease-out both;
+	}
+
 	&__card {
 		display: flex;
 		flex-direction: column;
@@ -50,7 +105,7 @@
 
 		&--on {
 			background: var(--color-primary-soft);
-			color: var(--color-primary-text);
+			color: var(--color-primary-on-soft);
 		}
 	}
 
@@ -61,6 +116,7 @@
 	}
 
 	&__desc {
+		margin: 0;
 		color: var(--color-text-muted);
 		font-size: var(--font-size-base);
 		line-height: 20px;
@@ -79,6 +135,9 @@
 		font-size: var(--font-size-lg);
 		font-weight: 500;
 		cursor: pointer;
+		transition:
+			background-color 0.18s ease,
+			color 0.18s ease;
 
 		&--primary {
 			border: 0;
@@ -114,6 +173,9 @@
 		font-family: inherit;
 		font-size: var(--font-size-lg);
 		cursor: pointer;
+		transition:
+			background-color 0.18s ease,
+			color 0.18s ease;
 
 		&--on {
 			background: var(--color-shape);
@@ -143,6 +205,9 @@
 		font-family: inherit;
 		font-size: var(--font-size-lg);
 		cursor: pointer;
+		transition:
+			background-color 0.18s ease,
+			color 0.18s ease;
 
 		&--on {
 			background: var(--color-primary);
@@ -181,6 +246,11 @@
 		font-size: var(--font-size-lg);
 		font-weight: 500;
 		cursor: pointer;
+		transition: background-color 0.18s ease;
+
+		&:hover {
+			background: var(--color-primary-hover);
+		}
 	}
 
 	&__drop {
@@ -206,9 +276,11 @@
 
 	&__file {
 		position: absolute;
-		width: 1px;
-		height: 1px;
+		inset: 0;
+		width: 100%;
+		height: 100%;
 		opacity: 0;
+		cursor: pointer;
 	}
 
 	&__link {
@@ -222,5 +294,30 @@
 		font-size: var(--font-size-lg);
 		text-decoration: underline;
 		cursor: pointer;
+	}
+}
+
+@keyframes sources-result-in {
+	from {
+		opacity: 0;
+		transform: translateY(14px);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sources-page {
+		&__ok,
+		&__btn,
+		&__pill,
+		&__chip,
+		&__submit {
+			animation: none;
+			transition-duration: 0s;
+		}
 	}
 }

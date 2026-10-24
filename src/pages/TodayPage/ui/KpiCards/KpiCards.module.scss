@@ -45,7 +45,7 @@
 		align-items: flex-end;
 		margin-top: auto;
 		padding-top: 6px;
-		height: 44px;
+		height: 52px;
 	}
 
 	&__bars {
@@ -71,7 +71,7 @@
 
 		&--h32 {
 			height: 32px;
-			background: var(--color-primary);
+			background: var(--color-primary-bright);
 		}
 
 		&--muted {

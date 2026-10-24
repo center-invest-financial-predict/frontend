@@ -3,14 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useUserActions } from "@/entities/User";
 import { AuthLayout } from "@/widgets/AuthLayout";
-import {
-	ONBOARDING_DONE,
-	ONBOARDING_DRAFT,
-	USER_ACCESS_TOKEN,
-	USER_EMAIL,
-	USER_NAME,
-	USER_PROFILE,
-} from "@/shared/consts/localStorage";
+import { ONBOARDING_DONE, USER_ACCESS_TOKEN, USER_EMAIL, USER_NAME, USER_PROFILE } from "@/shared/consts/localStorage";
 import { getRouteMain, getRouteOnboarding } from "@/shared/consts/router";
 import { useAppSelector } from "@/shared/lib/hooks";
 import { cn } from "@/shared/lib/classNames/classNames";
@@ -54,9 +47,7 @@ const LoginPage = () => {
 	}, [email, fio, password, password2, tab]);
 
 	if (auth) {
-		return (
-			<Navigate to={onboardingDone ? getRouteMain() : getRouteOnboarding()} replace />
-		);
+		return <Navigate to={onboardingDone ? getRouteMain() : getRouteOnboarding()} replace />;
 	}
 
 	const onSubmit = (e: FormEvent) => {
@@ -83,7 +74,6 @@ const LoginPage = () => {
 		});
 
 		if (tab === "up") {
-			localStorage.removeItem(ONBOARDING_DRAFT);
 			localStorage.removeItem(USER_PROFILE);
 			setOnboardingDone(false);
 			navigate(getRouteOnboarding());
@@ -96,17 +86,14 @@ const LoginPage = () => {
 	};
 
 	return (
-		<AuthLayout preview="kpi">
+		<AuthLayout>
 			<form className={styles["login-page"]} onSubmit={onSubmit}>
 				<div className={styles["login-page__seg"]} role="tablist">
 					<button
 						type="button"
 						role="tab"
 						aria-selected={tab === "in"}
-						className={cn(
-							styles["login-page__seg-btn"],
-							tab === "in" && styles["login-page__seg-btn--active"],
-						)}
+						className={cn(styles["login-page__seg-btn"], tab === "in" && styles["login-page__seg-btn--active"])}
 						onClick={() => {
 							setTab("in");
 							setAuthError(false);
@@ -118,10 +105,7 @@ const LoginPage = () => {
 						type="button"
 						role="tab"
 						aria-selected={tab === "up"}
-						className={cn(
-							styles["login-page__seg-btn"],
-							tab === "up" && styles["login-page__seg-btn--active"],
-						)}
+						className={cn(styles["login-page__seg-btn"], tab === "up" && styles["login-page__seg-btn--active"])}
 						onClick={() => {
 							setTab("up");
 							setAuthError(false);
@@ -186,17 +170,11 @@ const LoginPage = () => {
 					</div>
 				) : null}
 
-				<button
-					type="submit"
-					className={styles["login-page__submit"]}
-					disabled={touched && !canSubmit}
-				>
+				<button type="submit" className={styles["login-page__submit"]} disabled={touched && !canSubmit}>
 					{tab === "up" ? t("auth.createAccount") : t("auth.submit")}
 				</button>
 
-				{tab === "up" ? (
-					<div className={styles["login-page__terms"]}>{t("auth.terms")}</div>
-				) : null}
+				{tab === "up" ? <div className={styles["login-page__terms"]}>{t("auth.terms")}</div> : null}
 			</form>
 		</AuthLayout>
 	);

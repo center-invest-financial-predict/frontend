@@ -1,10 +1,11 @@
 import { memo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
 import { cn } from "@/shared/lib/classNames/classNames";
-import { getRouteEvents, getRouteForecast } from "@/shared/consts/router";
+import { getRouteAssistant, getRouteForecast } from "@/shared/consts/router";
 import { CashflowChart } from "./CashflowChart/CashflowChart";
 import { KpiCards } from "./KpiCards/KpiCards";
 import styles from "./TodayPage.module.scss";
@@ -13,9 +14,16 @@ type Mode = "forecast" | "planfact";
 type View = "chart" | "days";
 
 const ACTIONS = [
-	{ titleKey: "today.actions.delta", effKey: "today.actions.deltaEff" },
-	{ titleKey: "today.actions.grain", effKey: "today.actions.grainEff" },
-	{ titleKey: "today.actions.overdraft", effKey: "today.actions.overdraftEff" },
+	{
+		titleKey: "today.actions.delta",
+		conclKey: "today.actions.deltaConcl",
+		hasCmp: true,
+	},
+	{
+		titleKey: "today.actions.grain",
+		conclKey: "today.actions.grainConcl",
+		hasCmp: false,
+	},
 ] as const;
 
 const ALERTS = [
@@ -42,14 +50,61 @@ const PAYS = [
 ] as const;
 
 const DAY_ROWS = [
-	{ d: "23.10", inn: "38 000", out: "12 400", bal: "412 300", nb: "412 300" },
-	{ d: "24.10", inn: "26 000", out: "8 200", bal: "430 100", nb: "430 100" },
-	{ d: "25.10", inn: "26 000", out: "15 000", bal: "441 100", nb: "441 100" },
-	{ d: "27.10", inn: "340 000", out: "22 000", bal: "759 100", nb: "419 100" },
-	{ d: "28.10", inn: "26 000", out: "186 400", bal: "598 700", nb: "258 700" },
-	{ d: "30.10", inn: "26 000", out: "214 000", bal: "410 700", nb: "70 700" },
-	{ d: "02.11", inn: "26 000", out: "180 000", bal: "256 700", nb: "−83 300" },
-	{ d: "05.11", inn: "26 000", out: "248 000", bal: "309 900", nb: "−30 100" },
+	{
+		d: "23.10",
+		inn: "38 000",
+		out: "12 400",
+		bal: "412 300",
+		nb: "412 300",
+		start: "386 700",
+		end: "412 300",
+		neg: "412 300",
+		negBad: false,
+		rest: "38 000",
+		ev: [] as { n: string; a: string; src: string; basis: string; in: boolean }[],
+	},
+	{
+		d: "27.10",
+		inn: "340 000",
+		out: "22 000",
+		bal: "759 100",
+		nb: "419 100",
+		start: "441 100",
+		end: "759 100",
+		neg: "419 100",
+		negBad: false,
+		rest: "",
+		ev: [
+			{
+				n: "Дельта-Сервис",
+				a: "+340 000 ₽",
+				src: "Счёт",
+				basis: "Ожидаемая оплата счёта №148",
+				in: true,
+			},
+		],
+	},
+	{
+		d: "05.11",
+		inn: "26 000",
+		out: "248 000",
+		bal: "309 900",
+		nb: "−30 100",
+		start: "531 900",
+		end: "309 900",
+		neg: "−30 100",
+		negBad: true,
+		rest: "26 000",
+		ev: [
+			{
+				n: "Зарплата",
+				a: "−248 000 ₽",
+				src: "Календарь",
+				basis: "Регулярный платёж 5 числа",
+				in: false,
+			},
+		],
+	},
 ] as const;
 
 const WEEKS = [
@@ -62,24 +117,51 @@ const WEEKS = [
 const TodayPage = memo(() => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
+	const reduceMotion = useReducedMotion();
 	const [mode, setMode] = useState<Mode>("forecast");
 	const [view, setView] = useState<View>("chart");
 	const [aboutOpen, setAboutOpen] = useState(false);
-	const [openAction, setOpenAction] = useState<string | null>(null);
 	const [period, setPeriod] = useState<"day" | "week" | "month">("week");
+	const [dayOpen, setDayOpen] = useState<(typeof DAY_ROWS)[number] | null>(null);
 
 	return (
 		<Page className={styles["today-page"]}>
-			<h1 className={styles["today-page__title"]}>{t("today.titleDate")}</h1>
+			<h1 className={styles["today-page__title"]}>{t("today.title")}</h1>
+
+			<div className={styles["today-page__risk"]}>
+				<div className={styles["today-page__risk-text"]}>
+					<div className={styles["today-page__risk-title"]}>
+						{t("today.riskTitle", {
+							sum: t("today.riskSum"),
+							date: t("today.riskDate"),
+						})}
+					</div>
+					<div className={styles["today-page__risk-sub"]}>{t("today.riskSub")}</div>
+				</div>
+				<div className={styles["today-page__risk-actions"]}>
+					<button
+						type="button"
+						className={styles["today-page__risk-primary"]}
+						onClick={() => navigate(getRouteForecast())}
+					>
+						{t("today.riskCheck")}
+					</button>
+					<button
+						type="button"
+						className={styles["today-page__risk-secondary"]}
+						onClick={() => navigate(getRouteAssistant())}
+					>
+						{t("today.riskAsk")}
+					</button>
+				</div>
+			</div>
 
 			<KpiCards />
 
 			<div className={styles["today-page__main"]}>
 				<Card className={styles["today-page__chart-card"]}>
 					<div className={styles["today-page__chart-head"]}>
-						<div className={styles["today-page__chart-title"]}>
-							{t("today.balance30")}
-						</div>
+						<div className={styles["today-page__chart-title"]}>{t("today.balance30")}</div>
 						<div className={styles["today-page__seg"]}>
 							{(
 								[
@@ -90,10 +172,7 @@ const TodayPage = memo(() => {
 								<button
 									key={key}
 									type="button"
-									className={cn(
-										styles["today-page__pill"],
-										mode === key && styles["today-page__pill--active"],
-									)}
+									className={cn(styles["today-page__pill"], mode === key && styles["today-page__pill--active"])}
 									onClick={() => setMode(key)}
 								>
 									{t(label)}
@@ -113,28 +192,19 @@ const TodayPage = memo(() => {
 								<button
 									key={key}
 									type="button"
-									className={cn(
-										styles["today-page__pill"],
-										view === key && styles["today-page__pill--active"],
-									)}
+									className={cn(styles["today-page__pill"], view === key && styles["today-page__pill--active"])}
 									onClick={() => setView(key)}
 								>
 									{t(label)}
 								</button>
 							))}
 						</div>
-						<button
-							type="button"
-							className={styles["today-page__link"]}
-							onClick={() => setAboutOpen((v) => !v)}
-						>
+						<button type="button" className={styles["today-page__link"]} onClick={() => setAboutOpen((v) => !v)}>
 							{t("today.about")}
 						</button>
 					</div>
 
-					{aboutOpen ? (
-						<div className={styles["today-page__about"]}>{t("today.aboutText")}</div>
-					) : null}
+					{aboutOpen ? <div className={styles["today-page__about"]}>{t("today.aboutText")}</div> : null}
 
 					{view === "chart" ? (
 						<div className={styles["today-page__chart-plot"]}>
@@ -150,7 +220,12 @@ const TodayPage = memo(() => {
 								<span>{t("today.colNeg")}</span>
 							</div>
 							{DAY_ROWS.map((row) => (
-								<div key={row.d} className={styles["today-page__days-row"]}>
+								<button
+									key={row.d}
+									type="button"
+									className={styles["today-page__days-row"]}
+									onClick={() => setDayOpen(row)}
+								>
 									<span>{row.d}</span>
 									<span className={styles["today-page__days-in"]}>{row.inn}</span>
 									<span>{row.out}</span>
@@ -163,7 +238,7 @@ const TodayPage = memo(() => {
 									>
 										{row.nb}
 									</span>
-								</div>
+								</button>
 							))}
 						</div>
 					)}
@@ -180,12 +255,7 @@ const TodayPage = memo(() => {
 								<span className={styles["today-page__strip-label"]}>{t(label)}</span>
 								<span className={styles["today-page__strip-value"]}>{value}</span>
 								<div className={styles["today-page__strip-bar"]}>
-									<div
-										className={cn(
-											styles["today-page__strip-fill"],
-											styles[`today-page__strip-fill--${w}`],
-										)}
-									/>
+									<div className={cn(styles["today-page__strip-fill"], styles[`today-page__strip-fill--${w}`])} />
 								</div>
 							</div>
 						))}
@@ -194,62 +264,36 @@ const TodayPage = memo(() => {
 
 				<div className={styles["today-page__side"]}>
 					<Card className={styles["today-page__actions"]}>
-						<div className={styles["today-page__chart-title"]}>
-							{t("today.consider")}
+						<div className={styles["today-page__actions-head"]}>
+							<div className={styles["today-page__chart-title"]}>{t("today.variants")}</div>
+							<button type="button" className={styles["today-page__link"]} onClick={() => navigate(getRouteForecast())}>
+								{t("today.allVariants")}
+							</button>
 						</div>
 						{ACTIONS.map((a) => (
 							<div key={a.titleKey} className={styles["today-page__action"]}>
-								<button
-									type="button"
-									className={styles["today-page__action-btn"]}
-									onClick={() =>
-										setOpenAction((v) => (v === a.titleKey ? null : a.titleKey))
-									}
-								>
-									<span>
-										<span className={styles["today-page__action-title"]}>
-											{t(a.titleKey)}
-										</span>
-										<span className={styles["today-page__action-hint"]}>
-											{t("today.checkVariant")}
-										</span>
-									</span>
-									<span className={styles["today-page__action-eff"]}>
-										{t(a.effKey)}
-									</span>
-								</button>
-								{openAction === a.titleKey ? (
-									<div className={styles["today-page__action-detail"]}>
-										{t("today.actionDetail")}
-									</div>
-								) : null}
+								<span className={styles["today-page__action-title"]}>{t(a.titleKey)}</span>
+								<span className={styles["today-page__action-concl"]}>{t(a.conclKey)}</span>
+								<div className={styles["today-page__action-pills"]}>
+									{a.hasCmp ? (
+										<button
+											type="button"
+											className={styles["today-page__action-pill--primary"]}
+											onClick={() => navigate(getRouteForecast())}
+										>
+											{t("today.compareScens")}
+										</button>
+									) : null}
+									<button
+										type="button"
+										className={styles["today-page__action-pill"]}
+										onClick={() => navigate(getRouteAssistant())}
+									>
+										{t("today.askAssist")}
+									</button>
+								</div>
 							</div>
 						))}
-					</Card>
-
-					<Card className={styles["today-page__scenario"]}>
-						<div className={styles["today-page__chart-title"]}>
-							{t("today.dayScenario")}
-						</div>
-						<div className={styles["today-page__mini-chart"]}>
-							<CashflowChart compact showRisk range={30} />
-						</div>
-						<div className={styles["today-page__legend"]}>
-							<div className={styles["today-page__legend-row"]}>
-								<span>
-									<span className={styles["today-page__legend-base"]} />
-									{t("today.base")}
-								</span>
-								<b>309 900 ₽</b>
-							</div>
-							<div className={styles["today-page__legend-row"]}>
-								<span>
-									<span className={styles["today-page__legend-neg"]} />
-									{t("today.negative")}
-								</span>
-								<b className={styles["today-page__days-neg"]}>−30 100 ₽</b>
-							</div>
-						</div>
 					</Card>
 				</div>
 			</div>
@@ -262,12 +306,7 @@ const TodayPage = memo(() => {
 						className={styles["today-page__alert"]}
 						onClick={() => navigate(getRouteForecast())}
 					>
-						<span
-							className={cn(
-								styles["today-page__alert-dot"],
-								styles[`today-page__alert-dot--${a.tone}`],
-							)}
-						/>
+						<span className={cn(styles["today-page__alert-dot"], styles[`today-page__alert-dot--${a.tone}`])} />
 						<span>
 							<span className={styles["today-page__alert-title"]}>{t(a.titleKey)}</span>
 							<span className={styles["today-page__alert-meta"]}>{t(a.metaKey)}</span>
@@ -279,10 +318,8 @@ const TodayPage = memo(() => {
 			<div className={styles["today-page__bottom"]}>
 				<Card className={styles["today-page__weeks"]}>
 					<div className={styles["today-page__weeks-head"]}>
-						<div className={styles["today-page__chart-title"]}>
-							{t("today.moneyWeeks")}
-						</div>
-						<div className={styles["today-page__seg"]}>
+						<div className={styles["today-page__chart-title"]}>{t("today.moneyWeeks")}</div>
+						<div className={cn(styles["today-page__seg"], styles["today-page__seg--sm"])}>
 							{(
 								[
 									["day", "today.perDay"],
@@ -308,7 +345,7 @@ const TodayPage = memo(() => {
 					<div className={styles["today-page__week-chart"]}>
 						<span className={styles["today-page__peak"]}>{t("today.peak")}</span>
 						{WEEKS.map((w) => (
-							<div key={w.label} className={styles["today-page__week"]}>
+							<button key={w.label} type="button" className={styles["today-page__week"]}>
 								<div className={styles["today-page__week-bars"]}>
 									<div className={styles["today-page__week-col"]}>
 										<span>{w.inV}</span>
@@ -332,26 +369,16 @@ const TodayPage = memo(() => {
 									</div>
 								</div>
 								<span className={styles["today-page__week-label"]}>{w.label}</span>
-							</div>
+							</button>
 						))}
 					</div>
 					<div className={styles["today-page__week-legend"]}>
 						<span>
-							<span
-								className={cn(
-									styles["today-page__swatch"],
-									styles["today-page__swatch--in"],
-								)}
-							/>
+							<span className={cn(styles["today-page__swatch"], styles["today-page__swatch--in"])} />
 							{t("today.came")}
 						</span>
 						<span>
-							<span
-								className={cn(
-									styles["today-page__swatch"],
-									styles["today-page__swatch--out"],
-								)}
-							/>
+							<span className={cn(styles["today-page__swatch"], styles["today-page__swatch--out"])} />
 							{t("today.went")}
 						</span>
 					</div>
@@ -366,30 +393,14 @@ const TodayPage = memo(() => {
 								<span>{c.val}</span>
 							</div>
 							<div className={styles["today-page__cat-track"]}>
-								<div
-									className={cn(
-										styles["today-page__cat-fill"],
-										styles[`today-page__cat-fill--${c.w}`],
-									)}
-								/>
+								<div className={cn(styles["today-page__cat-fill"], styles[`today-page__cat-fill--${c.w}`])} />
 							</div>
 						</div>
 					))}
 				</Card>
 
 				<Card className={styles["today-page__pays"]}>
-					<div className={styles["today-page__pays-head"]}>
-						<div className={styles["today-page__chart-title"]}>
-							{t("today.upcomingTitle")}
-						</div>
-						<button
-							type="button"
-							className={styles["today-page__link"]}
-							onClick={() => navigate(getRouteEvents())}
-						>
-							{t("today.allEvents")}
-						</button>
-					</div>
+					<div className={styles["today-page__chart-title"]}>{t("today.upcomingTitle")}</div>
 					{PAYS.map((p) => (
 						<div key={p.nameKey} className={styles["today-page__pay"]}>
 							<div className={styles["today-page__pay-date"]}>
@@ -407,12 +418,7 @@ const TodayPage = memo(() => {
 					<div className={styles["today-page__flow"]}>
 						<div className={styles["today-page__flow-row"]}>
 							<span>{t("today.in30")}</span>
-							<span
-								className={cn(
-									styles["today-page__flow-value"],
-									styles["today-page__flow-value--in"],
-								)}
-							>
+							<span className={cn(styles["today-page__flow-value"], styles["today-page__flow-value--in"])}>
 								1 428 000 ₽
 							</span>
 						</div>
@@ -449,6 +455,76 @@ const TodayPage = memo(() => {
 					</div>
 				</Card>
 			</div>
+
+			<AnimatePresence>
+				{dayOpen ? (
+					<motion.div
+						className={styles["today-page__drawer"]}
+						role="dialog"
+						aria-modal="true"
+						initial={{ opacity: 0, x: reduceMotion ? 0 : 56 }}
+						animate={{ opacity: 1, x: 0 }}
+						exit={{ opacity: 0, x: reduceMotion ? 0 : 56 }}
+						transition={{
+							duration: reduceMotion ? 0 : 0.3,
+							ease: "easeOut",
+						}}
+					>
+						<div className={styles["today-page__drawer-head"]}>
+							<div className={styles["today-page__chart-title"]}>{t("today.dayCalc", { date: dayOpen.d })}</div>
+							<button
+								type="button"
+								className={styles["today-page__drawer-close"]}
+								aria-label={t("today.close")}
+								onClick={() => setDayOpen(null)}
+							>
+								×
+							</button>
+						</div>
+						<p className={styles["today-page__drawer-hint"]}>{t("today.dayCalcHint")}</p>
+						<div className={styles["today-page__drawer-rows"]}>
+							<div>
+								<span>{t("today.dayStart")}</span>
+								<b>{dayOpen.start} ₽</b>
+							</div>
+							<div>
+								<span>{t("today.dayIn")}</span>
+								<b className={styles["today-page__days-in"]}>{dayOpen.inn} ₽</b>
+							</div>
+							<div>
+								<span>{t("today.dayOut")}</span>
+								<b>{dayOpen.out} ₽</b>
+							</div>
+							<div>
+								<span>{t("today.dayEnd")}</span>
+								<b>{dayOpen.end} ₽</b>
+							</div>
+						</div>
+						<div className={styles["today-page__drawer-section"]}>{t("today.dayEvents")}</div>
+						{dayOpen.ev.map((v) => (
+							<div key={v.n} className={styles["today-page__drawer-ev"]}>
+								<div className={styles["today-page__drawer-ev-row"]}>
+									<span>{v.n}</span>
+									<b className={v.in ? styles["today-page__days-in"] : undefined}>{v.a}</b>
+								</div>
+								<div className={styles["today-page__drawer-ev-src"]}>{t("today.daySrc", { src: v.src })}</div>
+								<div className={styles["today-page__drawer-ev-basis"]}>{v.basis}</div>
+							</div>
+						))}
+						{dayOpen.rest ? (
+							<div className={styles["today-page__drawer-rest"]}>
+								<span>{t("today.dayRest")}</span>
+								<b>{dayOpen.rest} ₽</b>
+							</div>
+						) : null}
+						<div className={styles["today-page__drawer-neg"]}>
+							{t("today.dayNeg")}{" "}
+							<b className={dayOpen.negBad ? styles["today-page__days-neg"] : undefined}>{dayOpen.neg} ₽</b>
+							{dayOpen.negBad ? t("today.dayNegWarn") : null}
+						</div>
+					</motion.div>
+				) : null}
+			</AnimatePresence>
 		</Page>
 	);
 });
