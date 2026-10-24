@@ -209,7 +209,8 @@ export const mapTodayDashboard = (args: {
 			? {
 					amount: -Math.abs(gapAmount),
 					date: gapDate,
-					subtitle: d.calculatedAt ? `Расчёт от ${d.calculatedAt}` : "",
+					subtitle: "",
+					calculatedAt: d.calculatedAt ?? undefined,
 				}
 			: null,
 		kpis,

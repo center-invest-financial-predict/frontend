@@ -167,6 +167,11 @@
 			background: var(--color-primary-soft);
 			color: var(--color-primary-text);
 		}
+
+		&--current {
+			background: var(--color-shape);
+			font-weight: 600;
+		}
 	}
 
 	&__result-title {

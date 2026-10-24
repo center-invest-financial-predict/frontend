@@ -230,9 +230,9 @@ export const AddPage = memo(() => {
 					<Card className={styles["add-page__form"]}>
 						<label className={styles["add-page__drop"]}>
 							<span className={styles["add-page__drop-title"]}>{t("add.dropTitle")}</span>
-							<span className={styles["add-page__drop-hint"]}>
-								{parsing ? t("states.loading") : t("add.dropHint")}
-							</span>
+							{parsing ? (
+								<span className={styles["add-page__drop-hint"]}>{t("states.loading")}</span>
+							) : null}
 							<input
 								type="file"
 								accept=".csv,text/csv,text/plain"

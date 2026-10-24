@@ -1,3 +1,16 @@
+/** ISO date-time → locale short date + time. */
+export const formatDateTimeShort = (isoDateTime: string, locale = "ru-RU"): string => {
+	const d = new Date(isoDateTime);
+	if (Number.isNaN(d.getTime())) return isoDateTime;
+	return d.toLocaleString(locale, {
+		day: "2-digit",
+		month: "2-digit",
+		year: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+};
+
 /** `2026-11-05` → `05.11.2026`. */
 export const formatIsoDateDots = (isoDate: string): string => {
 	const [y, m, d] = isoDate.split("-");

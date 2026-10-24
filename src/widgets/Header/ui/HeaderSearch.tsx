@@ -1,6 +1,6 @@
 import { KeyboardEvent, memo, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useReducedMotion } from "framer-motion";
 import { Search, X } from "lucide-react";
 import { useLazySearchCompanyQuery } from "@/entities/Finance";
@@ -9,13 +9,11 @@ import {
 	getRouteAssistant,
 	getRouteCalendar,
 	getRouteEvents,
-	getRouteFaq,
 	getRouteForecast,
 	getRouteOperations,
+	getRouteMain,
 	getRoutePlanFact,
-	getRouteSettings,
 	getRouteSources,
-	getRouteStrategies,
 	getRouteToday,
 } from "@/shared/consts/router";
 import { cn } from "@/shared/lib/classNames/classNames";
@@ -67,62 +65,34 @@ const PAGE_ENTRIES: SearchEntry[] = [
 		path: getRouteSources(),
 	},
 	{
-		id: "strategies",
-		titleKey: "strategies.title",
-		keywordsKey: "header.searchKeywords.strategies",
-		path: getRouteStrategies(),
-	},
-	{
-		id: "settings",
-		titleKey: "settings.title",
-		keywordsKey: "header.searchKeywords.settings",
-		path: getRouteSettings(),
-	},
-	{
 		id: "assistant",
 		titleKey: "assist.title",
 		keywordsKey: "header.searchKeywords.assistant",
 		path: getRouteAssistant(),
-	},
-	{
-		id: "faq",
-		titleKey: "faq.title",
-		keywordsKey: "header.searchKeywords.faq",
-		path: getRouteFaq(),
-		sectionId: "faq",
-	},
-];
-
-const SECTION_ENTRIES: SearchEntry[] = [
-	{
-		id: "settings-account",
-		titleKey: "settings.account",
-		keywordsKey: "header.searchKeywords.account",
-		path: getRouteSettings(),
-		sectionId: "settings-account",
-	},
-	{
-		id: "settings-business",
-		titleKey: "settings.business",
-		keywordsKey: "header.searchKeywords.business",
-		path: getRouteSettings(),
-		sectionId: "settings-business",
 	},
 ];
 
 const normalize = (value: string) => value.toLocaleLowerCase().replace(/ё/g, "е").trim();
 const MOBILE_MQ = "(max-width: 860px)";
 
+const isCurrentPage = (entry: SearchEntry, pathname: string): boolean => {
+	if (entry.path === getRouteToday()) {
+		return pathname === getRouteToday() || pathname === getRouteMain();
+	}
+	return pathname === entry.path;
+};
+
 export const HeaderSearch = memo(() => {
 	const { t, i18n } = useTranslation();
 	const locale = i18n.language?.startsWith("en") ? "en-US" : "ru-RU";
+	const { pathname } = useLocation();
 	const navigate = useNavigate();
 	const reduceMotion = useReducedMotion();
 	const rootRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const [isOpen, setIsOpen] = useState(false);
 	const [query, setQuery] = useState("");
-	const [activeIndex, setActiveIndex] = useState(0);
+	const [activeIndex, setActiveIndex] = useState(-1);
 	const [isMobile, setIsMobile] = useState(() =>
 		typeof window !== "undefined" ? window.matchMedia(MOBILE_MQ).matches : false,
 	);
@@ -177,7 +147,6 @@ export const HeaderSearch = memo(() => {
 
 		return [
 			{ id: "pages", label: t("header.searchPages"), entries: filterEntries(PAGE_ENTRIES) },
-			{ id: "sections", label: t("header.searchSections"), entries: filterEntries(SECTION_ENTRIES) },
 			{ id: "data", label: t("header.searchData"), entries: dataEntries },
 		].filter((group) => group.entries.length > 0);
 	}, [companySearch?.items, locale, query, t]);
@@ -187,13 +156,13 @@ export const HeaderSearch = memo(() => {
 	const closeSearch = () => {
 		setIsOpen(false);
 		setQuery("");
-		setActiveIndex(0);
+		setActiveIndex(-1);
 		inputRef.current?.blur();
 	};
 
 	const openSearch = () => {
 		setIsOpen(true);
-		setActiveIndex(0);
+		setActiveIndex(-1);
 		window.requestAnimationFrame(() => inputRef.current?.focus());
 	};
 
@@ -249,16 +218,18 @@ export const HeaderSearch = memo(() => {
 		if (event.key === "ArrowDown") {
 			event.preventDefault();
 			setIsOpen(true);
-			setActiveIndex((index) => (index + 1) % results.length);
+			setActiveIndex((index) => (index < 0 ? 0 : (index + 1) % results.length));
 		}
 		if (event.key === "ArrowUp") {
 			event.preventDefault();
 			setIsOpen(true);
-			setActiveIndex((index) => (index - 1 + results.length) % results.length);
+			setActiveIndex((index) =>
+				index < 0 ? results.length - 1 : (index - 1 + results.length) % results.length,
+			);
 		}
-		if (event.key === "Enter" && isOpen) {
+		if (event.key === "Enter" && isOpen && activeIndex >= 0) {
 			event.preventDefault();
-			selectEntry(results[activeIndex] ?? results[0]);
+			selectEntry(results[activeIndex]);
 		}
 	};
 
@@ -305,7 +276,7 @@ export const HeaderSearch = memo(() => {
 						onFocus={openSearch}
 						onChange={(event) => {
 							setQuery(event.target.value);
-							setActiveIndex(0);
+							setActiveIndex(-1);
 							setIsOpen(true);
 						}}
 					/>
@@ -328,15 +299,21 @@ export const HeaderSearch = memo(() => {
 										<h2>{group.label}</h2>
 										{group.entries.map((entry) => {
 											const index = results.indexOf(entry);
+											const keyboardActive = activeIndex >= 0 && index === activeIndex;
+											const current = isCurrentPage(entry, pathname);
 											return (
 												<button
 													key={entry.id}
 													type="button"
 													role="option"
-													aria-selected={index === activeIndex}
+													aria-selected={keyboardActive}
+													aria-current={current ? "page" : undefined}
 													className={cn(
 														styles["header-search__result"],
-														index === activeIndex && styles["header-search__result--active"],
+														keyboardActive && styles["header-search__result--active"],
+														!keyboardActive &&
+															current &&
+															styles["header-search__result--current"],
 													)}
 													onMouseEnter={() => setActiveIndex(index)}
 													onClick={() => selectEntry(entry)}

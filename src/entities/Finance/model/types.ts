@@ -90,6 +90,7 @@ export type TodayRiskDto = {
 	amount: number;
 	date: string;
 	subtitle: string;
+	calculatedAt?: string;
 };
 
 export type TodayStripDto = {

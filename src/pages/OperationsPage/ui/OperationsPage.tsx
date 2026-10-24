@@ -14,6 +14,14 @@ import styles from "./OperationsPage.module.scss";
 type Tab = "ops" | "reg";
 type Dir = "all" | "in" | "out";
 
+const sourceLabel = (raw: string, t: (key: string) => string): string => {
+	const code = raw.trim().toUpperCase().replace(/-/g, "_");
+	if (code === "1C" || code === "1С" || code === "ONE_C") return t("sources.names.ONE_C");
+	if (code === "CSV") return t("sources.names.CSV");
+	if (code === "GOS_SERVICE") return t("sources.names.GOS_SERVICE");
+	return raw;
+};
+
 export const OperationsPage = memo(() => {
 	const { t, i18n } = useTranslation();
 	const locale = i18n.language?.startsWith("en") ? "en-US" : "ru-RU";
@@ -165,7 +173,7 @@ export const OperationsPage = memo(() => {
 									)}
 									onClick={() => setCat(c)}
 								>
-									{c}
+									{sourceLabel(c, t)}
 								</button>
 							))}
 						</div>
@@ -195,10 +203,15 @@ export const OperationsPage = memo(() => {
 						</div>
 						{data.items.map((r) => (
 							<div key={r.id} className={styles["ops-page__tr"]}>
-								<span>{formatDayMonth(r.date, locale)}</span>
-								<span>{r.name}</span>
-								<span>{r.category}</span>
-								<span className={r.amount > 0 ? styles["ops-page__in"] : undefined}>
+								<span className={styles["ops-page__tr-date"]}>{formatDayMonth(r.date, locale)}</span>
+								<span className={styles["ops-page__tr-name"]}>{r.name}</span>
+								<span className={styles["ops-page__tr-cat"]}>{sourceLabel(r.category, t)}</span>
+								<span
+									className={cn(
+										styles["ops-page__tr-amt"],
+										r.amount > 0 && styles["ops-page__in"],
+									)}
+								>
 									{formatMoney(r.amount, locale)}
 								</span>
 							</div>

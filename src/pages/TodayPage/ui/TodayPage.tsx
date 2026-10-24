@@ -18,7 +18,13 @@ import { Card } from "@/shared/ui/Card";
 import { Skeleton } from "@/shared/ui/Skeleton";
 import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
-import { dayOfMonth, formatDayMonth, formatDayMonthShort, formatMonthShort } from "@/shared/lib/format/formatDate";
+import {
+	dayOfMonth,
+	formatDateTimeShort,
+	formatDayMonth,
+	formatDayMonthShort,
+	formatMonthShort,
+} from "@/shared/lib/format/formatDate";
 import { formatMoneyAbs } from "@/shared/lib/format/formatMoney";
 import { toHeightLevel, toWidthLevel } from "@/shared/lib/format/toBarLevel";
 import { getRouteAssistant, getRouteForecast, getRouteSources } from "@/shared/consts/router";
@@ -151,7 +157,15 @@ const TodayPage = memo(() => {
 								date: formatDayMonthShort(data.risk.date, locale),
 							})}
 						</div>
-						<div className={styles["today-page__risk-sub"]}>{data.risk.subtitle}</div>
+						{data.risk.calculatedAt ? (
+							<div className={styles["today-page__risk-sub"]}>
+								{t("today.riskCalcAt", {
+									date: formatDateTimeShort(data.risk.calculatedAt, locale),
+								})}
+							</div>
+						) : data.risk.subtitle ? (
+							<div className={styles["today-page__risk-sub"]}>{data.risk.subtitle}</div>
+						) : null}
 					</div>
 					<div className={styles["today-page__risk-actions"]}>
 						<button

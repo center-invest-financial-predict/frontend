@@ -260,6 +260,7 @@
 	"today": {
 		"title": "Overview",
 		"riskTitle": "Possible shortfall {{sum}}, {{date}}",
+		"riskCalcAt": "Calculated {{date}}",
 		"riskCheck": "Check options",
 		"riskAsk": "Explain in assistant",
 		"balance30": "Balance over 30 days",
@@ -365,7 +366,6 @@
 		"saveForecast": "Add to forecast",
 		"savedOk": "Event added to forecast",
 		"dropTitle": "Drop a table or click to choose",
-		"dropHint": "Future payments: date, name, amount. Example: 29.10.2026;Client payment;120000. Expenses with a minus. Past statements are uploaded in Data sources",
 		"parsedMeta": "Recognized rows: {{count}}. Categories assigned automatically.",
 		"connBank": "Bank",
 		"conn1c": "1C",

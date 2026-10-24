@@ -163,15 +163,12 @@
 		padding: 4px 0 16px;
 		border-bottom: 1px solid var(--color-border);
 
-		@media (max-width: 800px) {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
-
 		div {
 			display: flex;
 			flex-direction: column;
 			gap: 4px;
 			min-width: 0;
+			overflow: hidden;
 		}
 
 		span {
@@ -180,8 +177,10 @@
 		}
 
 		b {
+			overflow: hidden;
 			font-size: var(--font-size-2xl);
 			line-height: 32px;
+			text-overflow: ellipsis;
 			white-space: nowrap;
 		}
 	}
@@ -189,8 +188,9 @@
 	&__tr-head,
 	&__tr {
 		display: grid;
-		grid-template-columns: 90px 2fr 1.4fr 1.2fr;
+		grid-template-columns: 90px minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 1.2fr);
 		gap: var(--space-3);
+		align-items: start;
 		padding: 11px 0;
 		border-bottom: 1px solid var(--color-border);
 		font-size: var(--font-size-lg);
@@ -202,17 +202,96 @@
 		font-size: var(--font-size-base);
 	}
 
-	&__tr span:nth-child(2) {
-		font-weight: 500;
+	&__tr-date,
+	&__tr-name,
+	&__tr-cat,
+	&__tr-amt {
+		min-width: 0;
 	}
 
-	&__tr span:last-child {
+	&__tr-name {
+		overflow: hidden;
+		font-weight: 500;
+		text-overflow: ellipsis;
+	}
+
+	&__tr-cat {
+		overflow: hidden;
+		color: var(--color-text-muted);
+		text-overflow: ellipsis;
+	}
+
+	&__tr-amt {
 		text-align: right;
 		font-weight: 600;
+		white-space: nowrap;
 	}
 
 	&__in {
 		color: var(--color-primary);
+	}
+
+	@media (max-width: 800px) {
+		&__list,
+		&__chart,
+		&__reg {
+			padding: var(--space-4);
+		}
+
+		&__kpis {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: var(--space-3);
+
+			b {
+				font-size: var(--font-size-lg);
+				line-height: 24px;
+				white-space: normal;
+				overflow-wrap: anywhere;
+			}
+		}
+
+		&__reg-btn {
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: var(--space-2);
+		}
+
+		&__st {
+			justify-self: start;
+		}
+	}
+
+	@media (max-width: 700px) {
+		&__tr-head {
+			display: none;
+		}
+
+		&__tr {
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 4px var(--space-3);
+			padding: var(--space-3) 0;
+		}
+
+		&__tr-date {
+			order: 1;
+			color: var(--color-text-faint);
+			font-size: var(--font-size-base);
+		}
+
+		&__tr-amt {
+			order: 2;
+		}
+
+		&__tr-name {
+			order: 3;
+			grid-column: 1 / -1;
+			white-space: normal;
+		}
+
+		&__tr-cat {
+			order: 4;
+			grid-column: 1 / -1;
+			font-size: var(--font-size-base);
+		}
 	}
 }
 
