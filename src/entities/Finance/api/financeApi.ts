@@ -750,12 +750,18 @@ const financeApi = rtkApi.injectEndpoints({
 				};
 				return {
 					data: {
-						items: (body.sources ?? []).map((s) => ({
-							id: s.code ?? s.name ?? "",
-							name: s.name ?? s.code ?? "",
-							description: s.operationCount != null ? String(s.operationCount) : "",
-							connected: Boolean(s.connected),
-						})),
+						items: (body.sources ?? []).map((s) => {
+							const code = String(s.code ?? s.name ?? "")
+								.trim()
+								.toUpperCase()
+								.replace(/-/g, "_");
+							return {
+								id: code,
+								name: code || String(s.name ?? ""),
+								description: s.operationCount != null ? String(s.operationCount) : "",
+								connected: Boolean(s.connected),
+							};
+						}),
 					},
 				};
 			},

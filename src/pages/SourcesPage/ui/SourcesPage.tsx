@@ -8,6 +8,18 @@ import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
 import styles from "./SourcesPage.module.scss";
 
+const SOURCE_CODES = ["ONE_C", "CSV", "GOS_SERVICE"] as const;
+
+const sourceLabel = (id: string, name: string, t: (key: string) => string): string => {
+	const code = [id, name]
+		.map((v) => v.trim().toUpperCase().replace(/-/g, "_"))
+		.find((v) => (SOURCE_CODES as readonly string[]).includes(v));
+	if (code === "ONE_C") return t("sources.names.ONE_C");
+	if (code === "CSV") return t("sources.names.CSV");
+	if (code === "GOS_SERVICE") return t("sources.names.GOS_SERVICE");
+	return name || id;
+};
+
 export const SourcesPage = memo(() => {
 	const { t } = useTranslation();
 	const { data, isLoading, isError, refetch } = useGetSourcesQuery();
@@ -33,8 +45,7 @@ export const SourcesPage = memo(() => {
 			{data ? (
 				<div className={styles["sources-page__grid"]}>
 					{data.items.map((c) => {
-						const nameKey = `sources.names.${c.id}`;
-						const name = t(nameKey, { defaultValue: c.name });
+						const name = sourceLabel(c.id, c.name, t);
 						const desc =
 							c.description !== ""
 								? t("sources.opsCount", { count: Number(c.description) || c.description })
