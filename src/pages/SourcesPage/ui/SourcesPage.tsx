@@ -46,9 +46,10 @@ export const SourcesPage = memo(() => {
 				<div className={styles["sources-page__grid"]}>
 					{data.items.map((c) => {
 						const name = sourceLabel(c.id, c.name, t);
+						const opsCount = Number(c.description);
 						const desc =
-							c.description !== ""
-								? t("sources.opsCount", { count: Number(c.description) || c.description })
+							c.description !== "" && Number.isFinite(opsCount)
+								? t("sources.opsCount", { count: opsCount })
 								: "";
 						return (
 							<Card key={c.id} className={styles["sources-page__card"]}>
