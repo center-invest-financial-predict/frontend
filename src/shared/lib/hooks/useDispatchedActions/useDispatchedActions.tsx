@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { ActionCreator, ActionCreatorsMapObject, AsyncThunk, bindActionCreators } from "@reduxjs/toolkit";
 import { useAppDispatch } from "../useAppDispatch/useAppDispatch";
 
@@ -14,5 +15,8 @@ export const useDispatchedActions = <Actions extends ActionCreatorsMapObject = A
 ): BoundActions<Actions> => {
 	const dispatch = useAppDispatch();
 
-	return bindActionCreators(actions, dispatch);
+	return useMemo(
+		() => bindActionCreators(actions, dispatch) as BoundActions<Actions>,
+		[actions, dispatch],
+	);
 };
