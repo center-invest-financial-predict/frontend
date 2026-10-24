@@ -1,6 +1,6 @@
 import { UserRoles } from "../consts/UserRoles";
 
-export type DataSourceKind = "bank" | "file";
+export type DataSourceKind = "ONE_C" | "GOS_SERVICE" | "CSV";
 
 export interface Business {
 	inn: string;
@@ -19,7 +19,7 @@ export interface UserAssumptions {
 
 export interface UserProfile {
 	business?: Business;
-	source?: DataSourceKind | null;
+	sources?: DataSourceKind[];
 	assumptions?: UserAssumptions;
 }
 

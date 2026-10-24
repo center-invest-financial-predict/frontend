@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Check } from "lucide-react";
-import { useLazyLookupCompanyQuery, useSetMyInnsMutation, useUserActions } from "@/entities/User";
+import {
+	DataSourceKind,
+	useLazyLookupCompanyQuery,
+	useSetMyInnsMutation,
+	useUserActions,
+} from "@/entities/User";
 import { AuthLayout } from "@/widgets/AuthLayout";
 import { parseApiError } from "@/shared/api/parseApiError";
 import { getRouteLogin, getRouteMain } from "@/shared/consts/router";
@@ -11,9 +16,29 @@ import { cn } from "@/shared/lib/classNames/classNames";
 import { OnboardingDraft, OnboardingStep, readDraft, STEP_ORDER, stepIndex, writeDraft } from "../model/draft";
 import styles from "./OnboardingPage.module.scss";
 
-const PROGRESS_LABELS = ["account", "business", "money", "assumptions", "forecast"] as const;
+const PROGRESS_LABELS = ["account", "business", "money"] as const;
 
-const BUILD_KEYS = ["parse", "regular", "forecast"] as const;
+const SOURCE_OPTIONS: {
+	id: DataSourceKind;
+	titleKey: string;
+	descKey: string;
+}[] = [
+	{
+		id: "ONE_C",
+		titleKey: "onboarding.srcOneC",
+		descKey: "onboarding.srcOneCDesc",
+	},
+	{
+		id: "GOS_SERVICE",
+		titleKey: "onboarding.srcGos",
+		descKey: "onboarding.srcGosDesc",
+	},
+	{
+		id: "CSV",
+		titleKey: "onboarding.srcFile",
+		descKey: "onboarding.srcFileDesc",
+	},
+];
 
 const OnboardingPage = () => {
 	const { t } = useTranslation();
@@ -25,34 +50,11 @@ const OnboardingPage = () => {
 	const [lookupCompany, lookupState] = useLazyLookupCompanyQuery();
 
 	const [draft, setDraft] = useState<OnboardingDraft>(() => readDraft());
-	const [buildPhase, setBuildPhase] = useState(0);
-	const [buildReady, setBuildReady] = useState(false);
 	const [linkError, setLinkError] = useState<string | null>(null);
 
 	useEffect(() => {
 		writeDraft(draft);
 	}, [draft]);
-
-	useEffect(() => {
-		if (draft.step !== "building") {
-			setBuildPhase(0);
-			setBuildReady(false);
-			return;
-		}
-		setBuildPhase(0);
-		setBuildReady(false);
-		const t1 = window.setTimeout(() => setBuildPhase(1), 900);
-		const t2 = window.setTimeout(() => setBuildPhase(2), 1800);
-		const t3 = window.setTimeout(() => {
-			setBuildPhase(3);
-			setBuildReady(true);
-		}, 2700);
-		return () => {
-			window.clearTimeout(t1);
-			window.clearTimeout(t2);
-			window.clearTimeout(t3);
-		};
-	}, [draft.step]);
 
 	useEffect(() => {
 		const inn = draft.inn.replace(/\D/g, "");
@@ -75,6 +77,22 @@ const OnboardingPage = () => {
 	};
 
 	const goStep = (step: OnboardingStep) => update({ step });
+
+	const finishOnboarding = async () => {
+		if (!draft.business?.inn || setInnsState.isLoading) return;
+		try {
+			await setMyInns({ inns: [draft.business.inn] }).unwrap();
+			setProfile({
+				business: draft.business,
+				sources: draft.sources,
+				assumptions: draft.assumptions,
+			});
+			setOnboardingDone(true);
+			navigate(getRouteMain());
+		} catch (err) {
+			setLinkError(parseApiError(err, t("onboarding.innLinkFailed")));
+		}
+	};
 
 	const onBack = () => {
 		const i = stepIndex(draft.step);
@@ -100,36 +118,21 @@ const OnboardingPage = () => {
 			return;
 		}
 		if (draft.step === "sources") {
-			goStep("assumptions");
-			return;
-		}
-		if (draft.step === "assumptions") {
-			goStep("building");
-			return;
-		}
-		if (draft.step === "building" && buildReady) {
-			if (!draft.business?.inn || setInnsState.isLoading) return;
-			try {
-				await setMyInns({ inns: [draft.business.inn] }).unwrap();
-				setProfile({
-					business: draft.business,
-					source: draft.source,
-					assumptions: draft.assumptions,
-				});
-				setOnboardingDone(true);
-				navigate(getRouteMain());
-			} catch (err) {
-				setLinkError(parseApiError(err, t("onboarding.innLinkFailed")));
-			}
+			await finishOnboarding();
 		}
 	};
 
 	const canContinue =
 		draft.step === "business"
 			? !!draft.business
-			: draft.step === "building"
-				? buildReady && !setInnsState.isLoading
-				: true;
+			: draft.sources.length > 0 && !!draft.business?.inn && !setInnsState.isLoading;
+
+	const toggleSource = (id: DataSourceKind) => {
+		const sources = draft.sources.includes(id)
+			? draft.sources.filter((item) => item !== id)
+			: [...draft.sources, id];
+		update({ sources, lowData: sources.includes("CSV") });
+	};
 
 	const progressIndex = stepIndex(draft.step) + 1;
 
@@ -150,7 +153,7 @@ const OnboardingPage = () => {
 								)}
 								title={t(`onboarding.steps.${key}`)}
 							>
-								<span className={styles["onboarding__step-dot"]}>{done ? "✓" : i + 1}</span>
+								<span className={styles["onboarding__step-dot"]}>{i + 1}</span>
 							</div>
 						);
 					})}
@@ -206,7 +209,11 @@ const OnboardingPage = () => {
 													>
 														<span>
 															<span className={styles["onboarding__option-title"]}>
-																{t("company.innLabel", { inn: company.inn })}
+																{company.name || company.inn}
+															</span>
+															<span className={styles["onboarding__option-meta"]}>
+																{company.inn}
+																{company.industry ? ` · ${company.industry}` : ""}
 															</span>
 														</span>
 														{active ? (
@@ -225,158 +232,29 @@ const OnboardingPage = () => {
 						<>
 							<h1 className={styles.onboarding__title}>{t("onboarding.srcTitle")}</h1>
 							<div className={styles.onboarding__list}>
-								<button
-									type="button"
-									className={cn(
-										styles.onboarding__option,
-										draft.source === "bank" && styles["onboarding__option--active"],
-									)}
-									onClick={() => update({ source: "bank", lowData: false })}
-								>
-									<span>
-										<span className={styles["onboarding__option-title"]}>{t("onboarding.srcBank")}</span>
-										<span className={styles["onboarding__option-meta"]}>{t("onboarding.srcBankDesc")}</span>
-									</span>
-								</button>
-								<button
-									type="button"
-									className={cn(
-										styles.onboarding__option,
-										draft.source === "file" && styles["onboarding__option--active"],
-									)}
-									onClick={() => update({ source: "file", lowData: true })}
-								>
-									<span>
-										<span className={styles["onboarding__option-title"]}>{t("onboarding.srcFile")}</span>
-										<span className={styles["onboarding__option-meta"]}>{t("onboarding.srcFileDesc")}</span>
-									</span>
-								</button>
-							</div>
-							<div className={styles.onboarding__note}>
-								{draft.source === "file" ? t("onboarding.srcNoteFile") : t("onboarding.srcNoteBank")}
-							</div>
-						</>
-					) : null}
-
-					{draft.step === "assumptions" ? (
-						<>
-							<div className={styles.onboarding__head}>
-								<h1 className={styles.onboarding__title}>{t("onboarding.assTitle")}</h1>
-								<p className={styles.onboarding__sub}>{t("onboarding.assSub")}</p>
-							</div>
-							<label className={styles.onboarding__field}>
-								{t("onboarding.minBalance")}
-								<input
-									className={styles.onboarding__input}
-									value={draft.assumptions.minBalance}
-									onChange={(e) =>
-										update({
-											assumptions: {
-												...draft.assumptions,
-												minBalance: e.target.value,
-											},
-										})
-									}
-									inputMode="numeric"
-								/>
-							</label>
-							<div className={styles.onboarding__field}>
-								{t("onboarding.payDay")}
-								<div className={styles.onboarding__chips}>
-									{[5, 10, 15].map((day) => (
+								{SOURCE_OPTIONS.map((option) => {
+									const active = draft.sources.includes(option.id);
+									return (
 										<button
-											key={day}
+											key={option.id}
 											type="button"
 											className={cn(
-												styles.onboarding__chip,
-												draft.assumptions.payDay === day && styles["onboarding__chip--active"],
+												styles.onboarding__option,
+												active && styles["onboarding__option--active"],
 											)}
-											onClick={() =>
-												update({
-													assumptions: {
-														...draft.assumptions,
-														payDay: day,
-													},
-												})
-											}
+											onClick={() => toggleSource(option.id)}
 										>
-											{t("onboarding.payDayChip", { day })}
+											<span>
+												<span className={styles["onboarding__option-title"]}>{t(option.titleKey)}</span>
+												<span className={styles["onboarding__option-meta"]}>{t(option.descKey)}</span>
+											</span>
+											{active ? (
+												<Check className={styles.onboarding__check} size={20} strokeWidth={2} />
+											) : null}
 										</button>
-									))}
-								</div>
+									);
+								})}
 							</div>
-							<div className={styles.onboarding__field}>
-								{t("onboarding.notify")}
-								<div className={styles.onboarding__chips}>
-									<button
-										type="button"
-										className={cn(
-											styles.onboarding__chip,
-											draft.assumptions.notifyApp && styles["onboarding__chip--active"],
-										)}
-										onClick={() =>
-											update({
-												assumptions: {
-													...draft.assumptions,
-													notifyApp: !draft.assumptions.notifyApp,
-												},
-											})
-										}
-									>
-										{t("onboarding.notifyApp")}
-									</button>
-									<button
-										type="button"
-										className={cn(
-											styles.onboarding__chip,
-											draft.assumptions.notifyMail && styles["onboarding__chip--active"],
-										)}
-										onClick={() =>
-											update({
-												assumptions: {
-													...draft.assumptions,
-													notifyMail: !draft.assumptions.notifyMail,
-												},
-											})
-										}
-									>
-										{t("onboarding.notifyMail")}
-									</button>
-								</div>
-							</div>
-						</>
-					) : null}
-
-					{draft.step === "building" ? (
-						<>
-							<h1 className={styles.onboarding__title}>{t("onboarding.buildTitle")}</h1>
-							<div className={styles["onboarding__build-list"]}>
-								{BUILD_KEYS.map((key, i) => (
-									<div
-										key={key}
-										className={cn(
-											styles["onboarding__build-item"],
-											i < buildPhase && styles["onboarding__build-item--done"],
-											i === buildPhase && !buildReady && styles["onboarding__build-item--active"],
-											buildReady && styles["onboarding__build-item--done"],
-										)}
-									>
-										<span className={styles["onboarding__build-dot"]} />
-										{t(`onboarding.build.${key}`)}
-									</div>
-								))}
-							</div>
-							<div className={styles.onboarding__progress}>
-								<div
-									className={cn(
-										styles["onboarding__progress-fill"],
-										buildPhase >= 1 && styles["onboarding__progress-fill--p1"],
-										buildPhase >= 2 && styles["onboarding__progress-fill--p2"],
-										buildReady && styles["onboarding__progress-fill--done"],
-									)}
-								/>
-							</div>
-							{draft.lowData ? <div className={styles.onboarding__warn}>{t("onboarding.lowData")}</div> : null}
 						</>
 					) : null}
 				</div>
@@ -386,7 +264,7 @@ const OnboardingPage = () => {
 				<button type="button" className={styles.onboarding__primary} disabled={!canContinue} onClick={onNext}>
 					{setInnsState.isLoading
 						? t("onboarding.linking")
-						: draft.step === "building"
+						: draft.step === "sources"
 							? t("onboarding.openToday")
 							: t("onboarding.continue")}
 				</button>
@@ -395,17 +273,6 @@ const OnboardingPage = () => {
 					<button type="button" className={styles.onboarding__back} onClick={onBack}>
 						← {t("onboarding.back")}
 					</button>
-					{draft.step === "sources" || draft.step === "assumptions" ? (
-						<button
-							type="button"
-							className={styles.onboarding__skip}
-							onClick={() => goStep(draft.step === "sources" ? "assumptions" : "building")}
-						>
-							{t("onboarding.skip")}
-						</button>
-					) : (
-						<span />
-					)}
 				</div>
 			</div>
 		</AuthLayout>
