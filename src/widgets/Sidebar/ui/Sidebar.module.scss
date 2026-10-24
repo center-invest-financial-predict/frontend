@@ -97,6 +97,11 @@
 		&:hover {
 			background: var(--color-shape);
 		}
+
+		&--active {
+			background: var(--color-primary-soft);
+			color: var(--color-primary-text);
+		}
 	}
 
 	&__nav {

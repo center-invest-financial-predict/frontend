@@ -5,11 +5,7 @@
 	"company": {
 		"label": "Business",
 		"innLabel": "TIN {{inn}}",
-		"name": "Versta LLC, coffee shops",
-		"nameFull": "Versta LLC, coffee shops",
-		"type": "coffee shops",
-		"alt1": "IE Krylovа A. S., bakery",
-		"alt2": "Quiet Port LLC, warehouse"
+		"innEmpty": "No TIN selected"
 	},
 	"auth": {
 		"loginTitle": "Sign in",
@@ -68,6 +64,8 @@
 		"bizTitle": "Add your business",
 		"bizSub": "Enter TIN and select a company",
 		"inn": "TIN",
+		"lookupLoading": "Looking up company…",
+		"lookupFailed": "Company not found for this TIN",
 		"srcTitle": "Where to get data",
 		"srcBank": "Connect bank account",
 		"srcBankDesc": "Operations update automatically",

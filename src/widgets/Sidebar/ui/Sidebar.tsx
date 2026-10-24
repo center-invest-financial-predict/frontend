@@ -2,6 +2,7 @@ import { FC, memo, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Home, TrendingUp, FileText, Plus, AlignLeft, Database, MessageSquarePlus, LucideIcon } from "lucide-react";
+import { CompanyDto, useListCompaniesQuery, useUserActions } from "@/entities/User";
 import {
 	getRouteAdd,
 	getRouteAssistant,
@@ -16,7 +17,8 @@ import {
 	getRouteToday,
 } from "@/shared/consts/router";
 import { cn } from "@/shared/lib/classNames/classNames";
-import { useAppSelector } from "@/shared/lib/hooks";
+import { useAppDispatch, useAppSelector } from "@/shared/lib/hooks";
+import { rtkApi } from "@/shared/api/rtkApi";
 import {
 	ASSISTANT_CHATS_EVENT,
 	getActiveAssistantChatId,
@@ -31,10 +33,8 @@ type WorkLink = {
 	path: string;
 	icon: LucideIcon;
 	group: string[];
-	badge?: string;
 };
 
-/** Как в макете NV: Обзор, Прогноз, Поступления, Добавить, История, Источники */
 const WORK_LINKS: WorkLink[] = [
 	{
 		labelKey: "nav.today",
@@ -53,7 +53,6 @@ const WORK_LINKS: WorkLink[] = [
 		path: getRouteEvents(),
 		icon: FileText,
 		group: [getRouteEvents(), getRouteCalendar()],
-		badge: "1",
 	},
 	{
 		labelKey: "nav.add",
@@ -75,20 +74,68 @@ const WORK_LINKS: WorkLink[] = [
 	},
 ];
 
+const COMPANY_TAGS = [
+	"Today",
+	"Forecast",
+	"Scenarios",
+	"PlanFact",
+	"Operations",
+	"Events",
+	"Sources",
+	"Strategies",
+] as const;
+
 export const Sidebar: FC = memo(() => {
 	const { t } = useTranslation();
 	const location = useLocation();
 	const navigate = useNavigate();
+	const dispatch = useAppDispatch();
 	const [searchParams] = useSearchParams();
 	const profile = useAppSelector((state) => state.user.profile);
+	const { setProfile } = useUserActions();
+	const { data: companies = [] } = useListCompaniesQuery();
 	const currentPath = location.pathname;
 	const [bizOpen, setBizOpen] = useState(false);
 	const [workOpen, setWorkOpen] = useState(true);
 	const [assistSectionOpen, setAssistSection] = useState(true);
 	const [chats, setChats] = useState<AssistantThread[]>([]);
 	const [activeChatId, setActiveChatId] = useState<string | null>(null);
-	const companyName = profile?.business?.name || t("company.name");
-	const companyInn = profile?.business?.inn || "6100123456";
+
+	const activeInn = profile?.business?.inn || companies[0]?.inn || "";
+
+	useEffect(() => {
+		if (profile?.business?.inn || !companies.length) return;
+		const first = companies[0];
+		setProfile({
+			...profile,
+			business: {
+				inn: first.inn,
+				name: first.name || first.inn,
+				form: first.legalForm || "",
+				tax: "",
+				city: "",
+			},
+		});
+	}, [companies, profile, setProfile]);
+
+	const selectCompany = (company: CompanyDto) => {
+		if (company.inn === activeInn) {
+			setBizOpen(false);
+			return;
+		}
+		setProfile({
+			...profile,
+			business: {
+				inn: company.inn,
+				name: company.name || company.inn,
+				form: company.legalForm || "",
+				tax: "",
+				city: "",
+			},
+		});
+		dispatch(rtkApi.util.invalidateTags([...COMPANY_TAGS]));
+		setBizOpen(false);
+	};
 
 	const refreshChats = useCallback(() => {
 		setChats(listAssistantHistory());
@@ -102,7 +149,7 @@ export const Sidebar: FC = memo(() => {
 	}, [refreshChats]);
 
 	const renderLink = (link: WorkLink) => {
-		const { labelKey, path, icon: Icon, badge, group } = link;
+		const { labelKey, path, icon: Icon, group } = link;
 		const active = group.includes(currentPath);
 		return (
 			<button
@@ -113,7 +160,6 @@ export const Sidebar: FC = memo(() => {
 			>
 				<Icon size={18} strokeWidth={1.3} />
 				<span className={styles["sidebar__item-label"]}>{t(labelKey)}</span>
-				{badge ? <span className={styles.sidebar__badge}>{badge}</span> : null}
 			</button>
 		);
 	};
@@ -126,21 +172,27 @@ export const Sidebar: FC = memo(() => {
 					className={styles.sidebar__company}
 					onClick={() => setBizOpen((v) => !v)}
 					aria-expanded={bizOpen}
+					disabled={!companies.length && !activeInn}
 				>
-					<span className={styles["sidebar__company-name"]}>{companyName}</span>
-					<span className={styles["sidebar__company-type"]}>{t("company.innLabel", { inn: companyInn })}</span>
+					<span className={styles["sidebar__company-name"]}>
+						{activeInn ? t("company.innLabel", { inn: activeInn }) : t("company.innEmpty")}
+					</span>
 				</button>
 				{bizOpen ? (
 					<div className={styles["sidebar__biz-list"]}>
-						<button type="button" className={styles["sidebar__biz-item"]}>
-							{companyName}
-						</button>
-						<button type="button" className={styles["sidebar__biz-item"]}>
-							{t("company.alt1")}
-						</button>
-						<button type="button" className={styles["sidebar__biz-item"]}>
-							{t("company.alt2")}
-						</button>
+						{companies.map((company) => (
+							<button
+								key={company.inn}
+								type="button"
+								className={cn(
+									styles["sidebar__biz-item"],
+									company.inn === activeInn && styles["sidebar__biz-item--active"],
+								)}
+								onClick={() => selectCompany(company)}
+							>
+								{t("company.innLabel", { inn: company.inn })}
+							</button>
+						))}
 					</div>
 				) : null}
 			</div>

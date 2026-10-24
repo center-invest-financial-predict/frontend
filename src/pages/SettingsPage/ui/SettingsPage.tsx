@@ -1,43 +1,23 @@
 import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { useSignOutMutation, useUserActions } from "@/entities/User";
+import { useListCompaniesQuery, useSignOutMutation, useUserActions } from "@/entities/User";
 import { getRouteLogin } from "@/shared/consts/router";
+import { useAppSelector } from "@/shared/lib/hooks";
 import { ScreenHeader } from "@/shared/ui/ScreenHeader";
 import { Page } from "@/widgets/Page";
 import styles from "./SettingsPage.module.scss";
 
-const SECTIONS = [
-	{
-		id: "settings-business",
-		titleKey: "settings.business",
-		rows: [
-			{ labelKey: "settings.name", valueKey: "settings.nameValue" },
-			{ labelKey: "settings.inn", valueKey: "settings.innValue" },
-		],
-	},
-	{
-		id: "settings-accounts",
-		titleKey: "settings.accounts",
-		rows: [{ labelKey: "settings.accountCi", valueKey: "settings.connected" }],
-	},
-	{
-		id: "settings-users",
-		titleKey: "settings.users",
-		rows: [{ labelKey: "settings.owner", valueKey: "settings.you" }],
-	},
-	{
-		id: "settings-security",
-		titleKey: "settings.security",
-		rows: [{ labelKey: "settings.smsLogin", valueKey: "settings.enabled" }],
-	},
-] as const;
-
 export const SettingsPage = memo(() => {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
+	const auth = useAppSelector((state) => state.user.authData);
+	const profile = useAppSelector((state) => state.user.profile);
+	const { data: companies = [] } = useListCompaniesQuery();
 	const { logout } = useUserActions();
 	const [signOut] = useSignOutMutation();
+
+	const activeInn = profile?.business?.inn || companies[0]?.inn || "—";
 
 	const onLogout = async () => {
 		try {
@@ -57,24 +37,26 @@ export const SettingsPage = memo(() => {
 				<h2 className={styles["settings-page__heading"]}>{t("settings.account")}</h2>
 				<div className={styles["settings-page__row"]}>
 					<span className={styles["settings-page__label"]}>{t("settings.linkedBiz")}</span>
-					<span>3</span>
+					<span>{companies.length}</span>
 				</div>
+				{auth?.username ? (
+					<div className={styles["settings-page__row"]}>
+						<span className={styles["settings-page__label"]}>{t("auth.email")}</span>
+						<span>{auth.username}</span>
+					</div>
+				) : null}
 				<button type="button" className={styles["settings-page__logout"]} onClick={onLogout}>
 					{t("settings.logout")}
 				</button>
 			</div>
 
-			{SECTIONS.map((section) => (
-				<div id={section.id} key={section.titleKey} className={styles["settings-page__card"]}>
-					<h2 className={styles["settings-page__heading"]}>{t(section.titleKey)}</h2>
-					{section.rows.map((row) => (
-						<div key={row.labelKey} className={styles["settings-page__row"]}>
-							<span className={styles["settings-page__label"]}>{t(row.labelKey)}</span>
-							<span>{t(row.valueKey)}</span>
-						</div>
-					))}
+			<div id="settings-business" className={styles["settings-page__card"]}>
+				<h2 className={styles["settings-page__heading"]}>{t("settings.business")}</h2>
+				<div className={styles["settings-page__row"]}>
+					<span className={styles["settings-page__label"]}>{t("settings.inn")}</span>
+					<span>{activeInn}</span>
 				</div>
-			))}
+			</div>
 		</Page>
 	);
 });

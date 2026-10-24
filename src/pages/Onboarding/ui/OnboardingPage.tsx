@@ -1,14 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Check } from "lucide-react";
-import { useSetMyInnsMutation, useUserActions } from "@/entities/User";
+import { useLazyLookupCompanyQuery, useSetMyInnsMutation, useUserActions } from "@/entities/User";
 import { AuthLayout } from "@/widgets/AuthLayout";
 import { parseApiError } from "@/shared/api/parseApiError";
 import { getRouteLogin, getRouteMain } from "@/shared/consts/router";
 import { useAppSelector } from "@/shared/lib/hooks";
 import { cn } from "@/shared/lib/classNames/classNames";
-import { filterBusinesses } from "../model/demoBusinesses";
 import { OnboardingDraft, OnboardingStep, readDraft, STEP_ORDER, stepIndex, writeDraft } from "../model/draft";
 import styles from "./OnboardingPage.module.scss";
 
@@ -23,6 +22,7 @@ const OnboardingPage = () => {
 	const onboardingDone = useAppSelector((state) => state.user.onboardingDone);
 	const { logout, setOnboardingDone, setProfile } = useUserActions();
 	const [setMyInns, setInnsState] = useSetMyInnsMutation();
+	const [lookupCompany, lookupState] = useLazyLookupCompanyQuery();
 
 	const [draft, setDraft] = useState<OnboardingDraft>(() => readDraft());
 	const [buildPhase, setBuildPhase] = useState(0);
@@ -54,7 +54,14 @@ const OnboardingPage = () => {
 		};
 	}, [draft.step]);
 
-	const matches = useMemo(() => filterBusinesses(draft.inn), [draft.inn]);
+	useEffect(() => {
+		const inn = draft.inn.replace(/\D/g, "");
+		if (inn.length < 10) return;
+		const timer = window.setTimeout(() => {
+			void lookupCompany(inn);
+		}, 400);
+		return () => window.clearTimeout(timer);
+	}, [draft.inn, lookupCompany]);
 
 	if (!auth) {
 		return <Navigate to={getRouteLogin()} replace />;
@@ -163,27 +170,52 @@ const OnboardingPage = () => {
 								placeholder={t("onboarding.inn")}
 								inputMode="numeric"
 							/>
-							{draft.inn.trim() ? (
+							{draft.inn.replace(/\D/g, "").length >= 10 ? (
 								<div className={styles.onboarding__list}>
-									{matches.map((biz) => {
-										const active = draft.business?.inn === biz.inn;
-										return (
-											<button
-												key={biz.inn}
-												type="button"
-												className={cn(styles.onboarding__option, active && styles["onboarding__option--active"])}
-												onClick={() => update({ business: biz, inn: biz.inn })}
-											>
-												<span>
-													<span className={styles["onboarding__option-title"]}>{biz.name}</span>
-													<span className={styles["onboarding__option-meta"]}>
-														{biz.inn} · {biz.form} · {biz.tax}
-													</span>
-												</span>
-												{active ? <Check className={styles.onboarding__check} size={20} strokeWidth={2} /> : null}
-											</button>
-										);
-									})}
+									{lookupState.isFetching ? (
+										<div className={styles.onboarding__sub}>{t("onboarding.lookupLoading")}</div>
+									) : null}
+									{lookupState.isError ? (
+										<div className={styles.onboarding__error}>
+											{parseApiError(lookupState.error, t("onboarding.lookupFailed"))}
+										</div>
+									) : null}
+									{lookupState.data
+										? (() => {
+												const company = lookupState.data;
+												const active = draft.business?.inn === company.inn;
+												return (
+													<button
+														type="button"
+														className={cn(
+															styles.onboarding__option,
+															active && styles["onboarding__option--active"],
+														)}
+														onClick={() =>
+															update({
+																inn: company.inn,
+																business: {
+																	inn: company.inn,
+																	name: company.name || company.inn,
+																	form: company.legalForm || "",
+																	tax: "",
+																	city: "",
+																},
+															})
+														}
+													>
+														<span>
+															<span className={styles["onboarding__option-title"]}>
+																{t("company.innLabel", { inn: company.inn })}
+															</span>
+														</span>
+														{active ? (
+															<Check className={styles.onboarding__check} size={20} strokeWidth={2} />
+														) : null}
+													</button>
+												);
+											})()
+										: null}
 								</div>
 							) : null}
 						</>
