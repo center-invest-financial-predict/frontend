@@ -130,7 +130,6 @@ export const HeaderSearch = memo(() => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [query, setQuery] = useState("");
 	const [activeIndex, setActiveIndex] = useState(0);
-	const shortcut = navigator.userAgent.includes("Mac") ? "⌘K" : "Ctrl K";
 	const listId = "header-search-list";
 
 	const groups = useMemo(() => {
@@ -255,7 +254,6 @@ export const HeaderSearch = memo(() => {
 						setIsOpen(true);
 					}}
 				/>
-				<span className={styles["header-search__shortcut"]}>{shortcut}</span>
 			</div>
 
 			{isOpen ? (
