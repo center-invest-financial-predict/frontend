@@ -9,6 +9,7 @@ import styles from "./SettingsPage.module.scss";
 
 const SECTIONS = [
 	{
+		id: "settings-business",
 		titleKey: "settings.business",
 		rows: [
 			{ labelKey: "settings.name", valueKey: "settings.nameValue" },
@@ -16,14 +17,17 @@ const SECTIONS = [
 		],
 	},
 	{
+		id: "settings-accounts",
 		titleKey: "settings.accounts",
 		rows: [{ labelKey: "settings.accountCi", valueKey: "settings.connected" }],
 	},
 	{
+		id: "settings-users",
 		titleKey: "settings.users",
 		rows: [{ labelKey: "settings.owner", valueKey: "settings.you" }],
 	},
 	{
+		id: "settings-security",
 		titleKey: "settings.security",
 		rows: [{ labelKey: "settings.smsLogin", valueKey: "settings.enabled" }],
 	},
@@ -43,7 +47,7 @@ export const SettingsPage = memo(() => {
 		<Page>
 			<ScreenHeader title={t("settings.title")} subtitle={t("settings.subtitle")} />
 
-			<div className={styles["settings-page__card"]}>
+			<div id="settings-account" className={styles["settings-page__card"]}>
 				<h2 className={styles["settings-page__heading"]}>{t("settings.account")}</h2>
 				<div className={styles["settings-page__row"]}>
 					<span className={styles["settings-page__label"]}>{t("settings.linkedBiz")}</span>
@@ -55,7 +59,7 @@ export const SettingsPage = memo(() => {
 			</div>
 
 			{SECTIONS.map((section) => (
-				<div key={section.titleKey} className={styles["settings-page__card"]}>
+				<div id={section.id} key={section.titleKey} className={styles["settings-page__card"]}>
 					<h2 className={styles["settings-page__heading"]}>{t(section.titleKey)}</h2>
 					{section.rows.map((row) => (
 						<div key={row.labelKey} className={styles["settings-page__row"]}>

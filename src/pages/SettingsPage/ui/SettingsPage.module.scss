@@ -12,6 +12,10 @@
 		border: 0;
 		border-radius: var(--radius-2xl);
 		background: var(--color-shape);
+
+		&[data-search-active="true"] {
+			animation: settings-search-target 0.8s ease-out;
+		}
 	}
 
 	&__heading {
@@ -59,8 +63,26 @@
 	}
 }
 
+@keyframes settings-search-target {
+	from {
+		transform: translateY(-4px);
+		background: var(--color-primary-soft);
+	}
+
+	to {
+		transform: translateY(0);
+		background: var(--color-shape);
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
-	.settings-page__logout {
-		transition-duration: 0s;
+	.settings-page {
+		&__card {
+			animation: none;
+		}
+
+		&__logout {
+			transition-duration: 0s;
+		}
 	}
 }

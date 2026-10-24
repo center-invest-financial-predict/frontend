@@ -7,7 +7,13 @@ import { Header } from "@/widgets/Header";
 import { CashAssistantBar } from "@/widgets/CashAssistantBar";
 import { useUserActions } from "@/entities/User";
 import { useAppSelector } from "@/shared/lib/hooks";
-import { getRouteAssistant, getRouteLogin, getRouteOnboarding, getRouteRegister } from "@/shared/consts/router";
+import { PageHead } from "@/shared/ui/PageHead";
+import {
+	getRouteAssistant,
+	getRouteLogin,
+	getRouteOnboarding,
+	getRouteRegister,
+} from "@/shared/consts/router";
 import styles from "./App.module.scss";
 
 const App = () => {
@@ -26,54 +32,56 @@ const App = () => {
 		return <PageLoader />;
 	}
 
-	const isAuthRoute = location.pathname === getRouteLogin() || location.pathname === getRouteRegister();
+	const isAuthRoute =
+		location.pathname === getRouteLogin() || location.pathname === getRouteRegister();
 	const isOnboardingRoute = location.pathname === getRouteOnboarding();
 
+	let body: JSX.Element;
+
 	if (!auth || isAuthRoute) {
-		return (
-			<div className={styles.app}>
-				<div className={styles["app__auth"]}>
-					<Suspense fallback={<PageLoader />}>
-						<AppRouter />
-					</Suspense>
-				</div>
+		body = (
+			<div className={styles["app__auth"]}>
+				<Suspense fallback={<PageLoader />}>
+					<AppRouter />
+				</Suspense>
 			</div>
 		);
-	}
-
-	if (!onboardingDone) {
+	} else if (!onboardingDone) {
 		if (!isOnboardingRoute) {
 			return <Navigate to={getRouteOnboarding()} replace />;
 		}
-		return (
-			<div className={styles.app}>
-				<div className={styles["app__auth"]}>
-					<Suspense fallback={<PageLoader />}>
-						<AppRouter />
-					</Suspense>
-				</div>
+		body = (
+			<div className={styles["app__auth"]}>
+				<Suspense fallback={<PageLoader />}>
+					<AppRouter />
+				</Suspense>
 			</div>
 		);
-	}
-
-	if (isOnboardingRoute) {
+	} else if (isOnboardingRoute) {
 		return <Navigate to="/" replace />;
+	} else {
+		body = (
+			<>
+				<Sidebar />
+				<div className={styles.app__main}>
+					<div className={styles.app__column}>
+						<Header />
+						<div className={styles.app__content}>
+							<Suspense fallback={<PageLoader />}>
+								<AppRouter />
+							</Suspense>
+						</div>
+						{location.pathname === getRouteAssistant() ? <CashAssistantBar /> : null}
+					</div>
+				</div>
+			</>
+		);
 	}
 
 	return (
 		<div className={styles.app}>
-			<Sidebar />
-			<div className={styles.app__main}>
-				<div className={styles.app__column}>
-					<Header />
-					<div className={styles.app__content}>
-						<Suspense fallback={<PageLoader />}>
-							<AppRouter />
-						</Suspense>
-					</div>
-					{location.pathname === getRouteAssistant() ? <CashAssistantBar /> : null}
-				</div>
-			</div>
+			<PageHead />
+			{body}
 		</div>
 	);
 };

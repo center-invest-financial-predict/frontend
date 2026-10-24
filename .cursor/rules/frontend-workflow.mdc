@@ -30,7 +30,7 @@ alwaysApply: true
 - Конфликт стилей чинить в источнике, не маскировать поверх.
 - Если хочется абстракцию — сначала вариант без неё.
 
-См. также: `frontend-i18n-theme-ui`, `frontend-animation`, `react-code`, `bem-styles`.
+См. также: `frontend-i18n-theme-ui`, `frontend-animation`, `frontend-seo-meta`, `react-code`, `bem-styles`.
 
 ## Ответ
 

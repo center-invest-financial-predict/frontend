@@ -1,0 +1,174 @@
+---
+description: SEO / meta / OG / canonical / hreflang — генератор и i18n
+globs: "**/{index.html,**/locales/**,**/Head*,**/Seo*,**/meta*,**/PageHead*}*"
+alwaysApply: false
+---
+
+# SEO / Meta
+
+Договорённости для title, description, Open Graph, Twitter, canonical, hreflang.  
+В коде страницы — **не** собирать `<meta>` вручную: только через генератор (`buildPageMeta` → `PageHead`).
+
+Языки проекта: **en**, **ru**. Fallback — **en**.
+
+---
+
+## 1. Обязательные теги (публичная страница)
+
+| Тег | Правило |
+|-----|---------|
+| `<title>` | Уникальный, из SEO-namespace; один на документ |
+| `meta name="description"` | Уникальный; не пустой |
+| `link rel="canonical"` | Абсолютный URL; без utm/query аналитики |
+| `og:title`, `og:description`, `og:url`, `og:type`, `og:image`, `og:locale`, `og:site_name` | Всегда для публичных страниц |
+| Twitter Card | В том же генераторе (`summary_large_image` при наличии image) |
+
+### Hreflang
+
+| Тег | Правило |
+|-----|---------|
+| `link rel="alternate" hreflang="…"` | На каждый опубликованный язык + `x-default` |
+| URL в `href` | Реальные маршруты локалей проекта (не ломать схему `/en/...` vs prefix) |
+
+### Служебные (по необходимости)
+
+- `robots` — только если страница noindex (thank-you, поиск, служебные).
+- JSON-LD — точечно (Product, FAQPage, Article, SoftwareApplication), не на каждую страницу «на всякий случай».
+
+---
+
+## 2. Откуда тексты (i18n)
+
+Как в `frontend-i18n-theme-ui`:
+
+- Отдельный namespace SEO (`metadata` / `seo`).
+- Зеркальные ключи по языкам.
+- На странице грузится только нужный namespace.
+- Шаблон ключей страницы:
+
+```
+pages.<route>.title
+pages.<route>.description
+pages.<route>.ogTitle
+pages.<route>.ogDescription
+```
+
+Динамика (блог, сущность по alias): те же поля из CMS/MD **или** ключи `pages.blog.<alias>.*` — но в Head всё равно через генератор, не сырым HTML из контента без санитизации.
+
+**Не делать:** разные ключи в en/ru; title только на en; подставлять UI-перевод кнопки в `og:title`.
+
+---
+
+## 3. OG Image (превью)
+
+Превью «ломается», если картинка относительная, слишком маленькая или одна на весь сайт без смысла.
+
+| Требование | Значение |
+|------------|----------|
+| URL | Абсолютный (`https://…`) |
+| Размер | ≥ 1200×630 (под `summary_large_image`) |
+| Формат | JPG/PNG/WebP, стабильный CDN/static |
+| Содержание | Страница/продукт; не крошечный логотип в углу (лого как fallback — ок) |
+| Соотношение | ~1.91:1 |
+
+В генераторе: `ogImage` всегда из `host + path` или полного URL из конфига. Никогда `/images/…` без origin.
+
+---
+
+## 4. URL, host, canonical
+
+1. `host` / `SITE_ORIGIN` — один конфиг (без trailing slash или с единым правилом).
+2. Canonical = host + канонический путь (locale по правилам сайта).
+3. `og:url` согласован с canonical.
+4. Query для аналитики/utm **не** попадают в canonical.
+5. Thank-you / корзина / ЛК — чаще noindex + свой canonical или без индексации.
+
+---
+
+## 5. Рендер и «отображение»
+
+- Meta собирается **на сервере** (SSR/SSG), чтобы краулеры и парсеры OG видели теги в первом HTML. Не только в `useEffect`.
+- Один компонент/хелпер на приложение: `buildPageMeta(params)` → `PageHead`.
+- Layout задаёт дефолты (favicon, theme-color); страница **переопределяет** title/description/OG, а не дописывает второй `<title>`.
+- Проверка превью: Facebook Sharing Debugger, Twitter Card Validator, «View Source» (не только React DevTools).
+
+> В этом репозитории сейчас Vite SPA без SSR — при внедрении meta закладывать генератор так, чтобы его можно было кормить с SSR/пререндера; не оставлять meta только в клиентском эффекте.
+
+---
+
+## 6. Модель данных (API генератора)
+
+Вход (минимум):
+
+```ts
+{
+  title: string;
+  description: string;
+  canonicalUrl: string;
+  ogTitle?: string; // fallback → title
+  ogDescription?: string; // fallback → description
+  ogImage: string; // absolute
+  ogType?: "website" | "article" | "product";
+  siteName: string; // бренд, константа
+  locale: string; // og:locale
+  locales?: string[]; // hreflang
+  noIndex?: boolean;
+  jsonLd?: object | object[];
+}
+```
+
+Выход: готовые nodes / `<head>` children. Страница не собирает `<meta>` вручную.
+
+Обязательные исправления относительно наивных реализаций:
+
+- `og:site_name` ← `siteName`, **не** `title`.
+- Canonical — обязателен в генераторе.
+- Twitter-карточка — в том же генераторе.
+- Без опечаток вроде `ogAwailable`; флаг лучше `includeOpenGraph` или всегда включать OG для публичных страниц.
+
+---
+
+## 7. Типы страниц
+
+| Тип | Title/Desc | OG | Canonical | hreflang | JSON-LD |
+|-----|------------|-----|-----------|----------|---------|
+| Лендинг / листинг | да | да + image | да | да | по желанию |
+| Карточка продукта | да | да, type product/website | да | да | Product / SoftwareApplication |
+| Статья блога | да | да, type article | да | да | Article |
+| FAQ | да | да | да | да | FAQPage |
+| Thank-you / служебная | короткий title | можно без OG | да / noindex | нет или да | нет |
+
+---
+
+## 8. Чеклист внедрения
+
+1. Namespace SEO в локалях; ключи зеркальны.
+2. Константы: `SITE_ORIGIN`, `SITE_NAME`, дефолтный OG image.
+3. `buildPageMeta` + один `PageHead`.
+4. Подключить на все публичные маршруты (не только home).
+5. hreflang + `x-default` по реальной схеме URL.
+6. Проверить 3–5 URL в OG-дебаггерах и в «View Source».
+7. Отдельно: noindex для служебных; JSON-LD только где есть смысл.
+
+---
+
+## 9. Не делать
+
+- Два `<title>` (layout + page).
+- Относительный `og:image`.
+- `og:site_name` = title текущей страницы.
+- Пустые `og:description`.
+- SEO-тексты в UI-namespace.
+- Генерация meta только на клиенте.
+- Одна и та же description на все страницы.
+- Бесконечное размножение кастомных meta «на будущее» без потребителя.
+
+---
+
+## Связь с этим репозиторием
+
+Ориентир (когда появится): `public/locales/*/metadata.json` (или namespace `seo`) → `buildPageMeta` / `generateDynamicPageMeta` → `PageHead` + alternateLinks.
+
+Сейчас SEO-namespace и генератор могут ещё отсутствовать — при добавлении meta следовать §1–§9: закрыть canonical, `site_name`, Twitter, hreflang, SSR/пререндер для превью.
+
+См. также: `frontend-i18n-theme-ui`, `frontend-workflow`.

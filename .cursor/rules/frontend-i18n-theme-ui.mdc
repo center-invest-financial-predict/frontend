@@ -43,3 +43,5 @@ alwaysApply: true
 1. **i18n:** ключи → зеркальные en/ru → явные namespaces → SEO отдельно.
 2. **Theme:** корневой атрибут → токены → локальные dark-оверрайды → без flash.
 3. **UI:** слои → локальный state → controlled UI → минимальные абстракции.
+
+См. также: `frontend-seo-meta`, `frontend-workflow`, `bem-styles`.

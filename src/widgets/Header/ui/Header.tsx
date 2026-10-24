@@ -1,12 +1,14 @@
 import { FC, memo, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Bell, HelpCircle, Moon, Search, Sun, User } from "lucide-react";
+import { Bell, HelpCircle, Moon, Sun, User } from "lucide-react";
 import { useUIActions } from "@/features/UI";
 import { useUserActions } from "@/entities/User";
 import { useAppSelector } from "@/shared/lib/hooks";
 import { IconButton } from "@/shared/ui/IconButton";
+import { LanguageSwitcher } from "@/shared/ui/LanguageSwitcher";
 import { getRouteLogin } from "@/shared/consts/router";
+import { HeaderSearch } from "./HeaderSearch";
 import styles from "./Header.module.scss";
 
 export const Header: FC = memo(() => {
@@ -35,13 +37,10 @@ export const Header: FC = memo(() => {
 
 	return (
 		<header className={styles.header}>
-			<div className={styles.header__search} role="search">
-				<Search size={18} strokeWidth={1.3} aria-hidden />
-				<span className={styles["header__search-text"]}>{t("header.search")}</span>
-				<span className={styles["header__search-kbd"]}>⌘K</span>
-			</div>
+			<HeaderSearch />
 
 			<div className={styles.header__actions}>
+				<LanguageSwitcher />
 				<IconButton title={t("header.notifications")}>
 					<Bell size={18} strokeWidth={1.3} />
 				</IconButton>

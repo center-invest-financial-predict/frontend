@@ -1,0 +1,95 @@
+{
+	"siteName": "Cashflow Forecast",
+	"pages": {
+		"today": {
+			"title": "Today — Cashflow Forecast",
+			"description": "Cash balance, risks and actions for the next 30 days.",
+			"ogTitle": "Today — Cashflow Forecast",
+			"ogDescription": "See your cash position, upcoming gaps and recommended actions."
+		},
+		"forecast": {
+			"title": "Forecast — Cashflow Forecast",
+			"description": "Scenario modelling for receivables, revenue and expenses.",
+			"ogTitle": "Forecast — Cashflow Forecast",
+			"ogDescription": "Compare scenarios and see how delays and drops affect your cash."
+		},
+		"plan_fact": {
+			"title": "Plan vs fact — Cashflow Forecast",
+			"description": "Compare planned cashflow with actuals and late items.",
+			"ogTitle": "Plan vs fact — Cashflow Forecast",
+			"ogDescription": "Track plan-versus-fact deviations and overdue payments."
+		},
+		"events": {
+			"title": "Inflows and payments — Cashflow Forecast",
+			"description": "Upcoming, overdue and completed cash events.",
+			"ogTitle": "Inflows and payments — Cashflow Forecast",
+			"ogDescription": "Manage expected inflows, payments and overdue items."
+		},
+		"calendar": {
+			"title": "Calendar — Cashflow Forecast",
+			"description": "Cash events on a monthly calendar.",
+			"ogTitle": "Calendar — Cashflow Forecast",
+			"ogDescription": "See payments and inflows by day."
+		},
+		"add": {
+			"title": "Add data — Cashflow Forecast",
+			"description": "Add future payments manually or import a file.",
+			"ogTitle": "Add data — Cashflow Forecast",
+			"ogDescription": "Import or enter future payments into the forecast."
+		},
+		"operations": {
+			"title": "Operations history — Cashflow Forecast",
+			"description": "Bank operations and detected regular payments.",
+			"ogTitle": "Operations history — Cashflow Forecast",
+			"ogDescription": "Review history and recurring payment patterns."
+		},
+		"sources": {
+			"title": "Data sources — Cashflow Forecast",
+			"description": "Connect banks and upload statements for the forecast.",
+			"ogTitle": "Data sources — Cashflow Forecast",
+			"ogDescription": "Manage connections and statement imports."
+		},
+		"strategies": {
+			"title": "Forecast settings — Cashflow Forecast",
+			"description": "Assumptions and strategies for cashflow modelling.",
+			"ogTitle": "Forecast settings — Cashflow Forecast",
+			"ogDescription": "Tune probability and rules for the forecast."
+		},
+		"settings": {
+			"title": "Settings — Cashflow Forecast",
+			"description": "Account and workspace settings.",
+			"ogTitle": "Settings — Cashflow Forecast",
+			"ogDescription": "Manage profile and workspace preferences."
+		},
+		"assistant": {
+			"title": "Assistant — Cashflow Forecast",
+			"description": "Ask questions about cashflow, risks and scenarios.",
+			"ogTitle": "Assistant — Cashflow Forecast",
+			"ogDescription": "Get answers about your cash forecast."
+		},
+		"login": {
+			"title": "Sign in — Cashflow Forecast",
+			"description": "Sign in to your cashflow forecast workspace.",
+			"ogTitle": "Sign in — Cashflow Forecast",
+			"ogDescription": "Access your cashflow forecast."
+		},
+		"register": {
+			"title": "Create account — Cashflow Forecast",
+			"description": "Create an account to start cashflow forecasting.",
+			"ogTitle": "Create account — Cashflow Forecast",
+			"ogDescription": "Start forecasting cashflow for your business."
+		},
+		"onboarding": {
+			"title": "Setup — Cashflow Forecast",
+			"description": "Connect your business and data sources.",
+			"ogTitle": "Setup — Cashflow Forecast",
+			"ogDescription": "Set up your company and cash data."
+		},
+		"not_found": {
+			"title": "Page not found — Cashflow Forecast",
+			"description": "This page does not exist.",
+			"ogTitle": "Page not found — Cashflow Forecast",
+			"ogDescription": "The requested page was not found."
+		}
+	}
+}

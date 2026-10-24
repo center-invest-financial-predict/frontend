@@ -19,7 +19,6 @@ dist-ssr/
 .env.*.local
 *.env
 figma.env
-!.env.example
 
 # Caches & Tooling
 .vite/
