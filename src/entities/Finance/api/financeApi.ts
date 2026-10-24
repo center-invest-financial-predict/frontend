@@ -43,15 +43,6 @@ const asError = (result: { error?: FetchBaseQueryError }): FetchBaseQueryError =
 const normalizeSourceCode = (value: string): string =>
 	value.trim().toUpperCase().replace(/-/g, "_");
 
-/** Query param `source` for GET .../operations (`OperationResponse.source` enum). */
-const operationsSourceParam = (code: string): string | undefined => {
-	const c = normalizeSourceCode(code);
-	if (c === "ONE_C" || c === "1C") return "1C";
-	if (c === "CSV") return "csv";
-	if (c === "GOS_SERVICE") return "Gos_service";
-	return undefined;
-};
-
 type OperationsPageMeta = {
 	totalElements?: number;
 };
@@ -772,39 +763,23 @@ const financeApi = rtkApi.injectEndpoints({
 						lastDataDate?: string | null;
 					}[];
 				};
-				const rawSources = body.sources ?? [];
-				const items = await Promise.all(
-					rawSources.map(async (s) => {
-						const code = normalizeSourceCode(String(s.code ?? s.name ?? ""));
-						let operationCount =
-							typeof s.operationCount === "number" ? s.operationCount : undefined;
-						const sourceParam = operationsSourceParam(code);
-						if (sourceParam) {
-							const countRes = await baseQuery({
-								url: `/api/companies/${inn}/operations`,
-								params: {
-									source: sourceParam,
-									page: 0,
-									size: 1,
-									sort: "operationDate,DESC",
-								},
-							});
-							if (!countRes.error && countRes.data) {
-								const total = (countRes.data as OperationsPageMeta).totalElements;
-								if (typeof total === "number") operationCount = total;
-							}
-						}
-						return {
-							id: code,
-							name: code || String(s.name ?? ""),
-							description: operationCount != null ? String(operationCount) : "",
-							connected: Boolean(s.connected),
-							operationCount,
-							lastDataDate: s.lastDataDate ?? null,
-						};
-					}),
-				);
-				return { data: { items } };
+				return {
+					data: {
+						items: (body.sources ?? []).map((s) => {
+							const code = normalizeSourceCode(String(s.code ?? s.name ?? ""));
+							const operationCount =
+								typeof s.operationCount === "number" ? s.operationCount : undefined;
+							return {
+								id: code,
+								name: code || String(s.name ?? ""),
+								description: operationCount != null ? String(operationCount) : "",
+								connected: Boolean(s.connected),
+								operationCount,
+								lastDataDate: s.lastDataDate ?? null,
+							};
+						}),
+					},
+				};
 			},
 			providesTags: ["Sources"],
 		}),

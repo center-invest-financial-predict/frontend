@@ -9,7 +9,7 @@ import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
 import { Skeleton } from "@/shared/ui/Skeleton";
 import { StateBanner } from "@/shared/ui/StateBanner";
-import { parseApiError } from "@/shared/api/parseApiError";
+import { isApiUnreachableError, parseApiError } from "@/shared/api/parseApiError";
 import { cn } from "@/shared/lib/classNames/classNames";
 import { formatIsoDateDots } from "@/shared/lib/format/formatDate";
 import { useAppSelector } from "@/shared/lib/hooks";
@@ -79,7 +79,11 @@ export const SourcesPage = memo(() => {
 			}
 			void refetch();
 		} catch (err) {
-			setUploadMessage(parseApiError(err, t("sources.uploadFail")));
+			setUploadMessage(
+				isApiUnreachableError(err)
+					? t("states.apiUnreachable")
+					: parseApiError(err, t("sources.uploadFail")),
+			);
 		}
 	};
 
@@ -97,6 +101,7 @@ export const SourcesPage = memo(() => {
 				<StateBanner
 					variant="error"
 					title={t("states.errorTitle")}
+					hint={t("states.apiUnreachable")}
 					actionLabel={t("states.errorRetry")}
 					onAction={() => refetch()}
 				/>

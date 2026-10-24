@@ -188,6 +188,7 @@
 		"emptyCta": "Add",
 		"loading": "Computing forecast…",
 		"errorTitle": "Failed to load",
+		"apiUnreachable": "API server is unreachable (proxy cannot reach the backend). Check that the API is up, or run the app locally with API_PROXY_TARGET in .env.local.",
 		"errorRetry": "Retry",
 		"lowData": "Not enough data for a confident forecast"
 	},
