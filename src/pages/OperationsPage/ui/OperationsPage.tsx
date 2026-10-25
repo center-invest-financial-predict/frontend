@@ -91,7 +91,7 @@ export const OperationsPage = memo(() => {
 		if (dir === "in") list = list.filter((i) => i.amount > 0);
 		if (dir === "out") list = list.filter((i) => i.amount < 0);
 		if (cat !== "all") list = list.filter((i) => i.category === cat);
-		return list;
+		return [...list].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 	}, [activeItems, dir, cat]);
 
 	const totals = useMemo(() => {

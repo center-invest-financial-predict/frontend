@@ -1,7 +1,7 @@
 import { Business, DataSourceKind, UserAssumptions } from "@/entities/User";
 import { ONBOARDING_DRAFT } from "@/shared/consts/localStorage";
 
-export type OnboardingStep = "business" | "sources" | "assumptions";
+export type OnboardingStep = "business" | "sources";
 
 export type OnboardingDraft = {
 	step: OnboardingStep;
@@ -29,18 +29,15 @@ export const DEFAULT_DRAFT: OnboardingDraft = {
 };
 
 const isStep = (value: unknown): value is OnboardingStep =>
-	value === "business" || value === "sources" || value === "assumptions";
+	value === "business" || value === "sources";
 
 const isSource = (value: unknown): value is DataSourceKind =>
-	value === "ONE_C" || value === "GOS_SERVICE" || value === "CSV";
+	value === "ONE_C" || value === "GOS_SERVICE";
 
 const normalizeSources = (raw: unknown): DataSourceKind[] => {
 	if (Array.isArray(raw)) {
-		return raw
-			.map((item) => (item === "file" ? "CSV" : item))
-			.filter(isSource);
+		return raw.filter(isSource);
 	}
-	if (raw === "file" || raw === "CSV") return ["CSV"];
 	if (raw === "ONE_C" || raw === "GOS_SERVICE") return [raw];
 	return [];
 };
@@ -49,18 +46,18 @@ export const readDraft = (): OnboardingDraft => {
 	const raw = localStorage.getItem(ONBOARDING_DRAFT);
 	if (!raw) return { ...DEFAULT_DRAFT, assumptions: { ...DEFAULT_ASSUMPTIONS } };
 	try {
-		const parsed = JSON.parse(raw) as Partial<OnboardingDraft> & { source?: unknown };
+		const parsed = JSON.parse(raw) as Partial<OnboardingDraft> & { source?: unknown; step?: string };
 		const sources = normalizeSources(parsed.sources ?? parsed.source);
-		const step = isStep(parsed.step)
+		const step: OnboardingStep = isStep(parsed.step)
 			? parsed.step
-			: parsed.step === "building"
-				? "assumptions"
+			: parsed.step === "assumptions" || parsed.step === "building"
+				? "sources"
 				: "business";
 		return {
 			...DEFAULT_DRAFT,
 			...parsed,
 			sources,
-			lowData: sources.includes("CSV"),
+			lowData: false,
 			assumptions: { ...DEFAULT_ASSUMPTIONS, ...parsed.assumptions },
 			step,
 		};
@@ -73,6 +70,6 @@ export const writeDraft = (draft: OnboardingDraft) => {
 	localStorage.setItem(ONBOARDING_DRAFT, JSON.stringify(draft));
 };
 
-export const STEP_ORDER: OnboardingStep[] = ["business", "sources", "assumptions"];
+export const STEP_ORDER: OnboardingStep[] = ["business", "sources"];
 
 export const stepIndex = (step: OnboardingStep) => STEP_ORDER.indexOf(step);

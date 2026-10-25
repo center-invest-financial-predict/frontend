@@ -1,6 +1,7 @@
 import type { FetchBaseQueryError } from "@reduxjs/toolkit/query";
 import { rtkApi } from "@/shared/api/rtkApi";
 import { getActiveInn } from "@/shared/lib/companyInn";
+import { pickIsoDate } from "@/shared/lib/format/formatDate";
 import type {
 	AlertDto,
 	CategoryBucket,
@@ -39,6 +40,17 @@ const noInnError = (): FetchBaseQueryError => ({
 
 const asError = (result: { error?: FetchBaseQueryError }): FetchBaseQueryError =>
 	result.error ?? { status: 500, data: { message: "Request failed" } };
+
+const asList = <T>(data: unknown): T[] => {
+	if (Array.isArray(data)) return data as T[];
+	if (data && typeof data === "object") {
+		const o = data as { content?: unknown; items?: unknown; data?: unknown };
+		if (Array.isArray(o.content)) return o.content as T[];
+		if (Array.isArray(o.items)) return o.items as T[];
+		if (Array.isArray(o.data)) return o.data as T[];
+	}
+	return [];
+};
 
 const normalizeSourceCode = (value: string): string => {
 	const raw = value.trim().toUpperCase().replace(/-/g, "_").replace(/\s+/g, "_");
@@ -185,7 +197,7 @@ const financeApi = rtkApi.injectEndpoints({
 				if (!inn) return { error: noInnError() };
 				const result = await baseQuery(`/api/companies/${inn}/payments/upcoming`);
 				if (result.error) return { error: asError(result) };
-				return { data: (result.data as CashEventDto[]) ?? [] };
+				return { data: asList<CashEventDto>(result.data) };
 			},
 			providesTags: ["Today"],
 		}),
@@ -489,7 +501,7 @@ const financeApi = rtkApi.injectEndpoints({
 				const ops = (body.operations ?? []).map((op) => ({
 					id: `op-${op.id}`,
 					kind: "operation" as const,
-					date: op.operationDate ?? "",
+					date: pickIsoDate(op.operationDate, (op as { date?: unknown }).date),
 					name: op.counterpartyName || op.paymentPurpose || "",
 					amount:
 						op.direction === "Списание" ? -Math.abs(op.amount ?? 0) : Math.abs(op.amount ?? 0),
@@ -497,7 +509,7 @@ const financeApi = rtkApi.injectEndpoints({
 				const events = (body.events ?? []).map((e) => ({
 					id: `ev-${e.id}`,
 					kind: "event" as const,
-					date: e.eventDate ?? "",
+					date: pickIsoDate(e.eventDate, (e as { date?: unknown }).date),
 					name: e.title ?? "",
 					amount:
 						e.direction === "Поступление" ? Math.abs(e.amount ?? 0) : -Math.abs(e.amount ?? 0),
@@ -611,9 +623,14 @@ const financeApi = rtkApi.injectEndpoints({
 						op.direction === "OUT" ||
 						op.direction === "EXPENSE" ||
 						rawAmount < 0;
+					const date = pickIsoDate(
+						op.operationDate,
+						(op as { date?: unknown }).date,
+						(op as { createdAt?: unknown }).createdAt,
+					);
 					return {
-						id: String(op.id ?? op.operationId ?? `${op.operationDate ?? "op"}-${index}`),
-						date: op.operationDate ?? "",
+						id: String(op.id ?? op.operationId ?? `${date || "op"}-${index}`),
+						date,
 						name: op.counterpartyName || op.paymentPurpose || "",
 						amount: isOut ? -Math.abs(rawAmount) : Math.abs(rawAmount),
 						category: normalizeSourceCode(String(op.source ?? op.category ?? "")),
@@ -626,6 +643,7 @@ const financeApi = rtkApi.injectEndpoints({
 					const wanted = normalizeSourceCode(args.category);
 					items = items.filter((i) => i.category === wanted);
 				}
+				items = [...items].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 				const inflow = items.reduce((s, i) => (i.amount > 0 ? s + i.amount : s), 0);
 				const outflow = items.reduce((s, i) => (i.amount < 0 ? s + Math.abs(i.amount) : s), 0);
 				return {
@@ -691,36 +709,51 @@ const financeApi = rtkApi.injectEndpoints({
 					if (status === "DONE") return "done";
 					return "exp";
 				};
-				const raw = [
-					...((events.data as unknown[]) ?? []),
-					...((upcoming.error ? [] : (upcoming.data as unknown[])) ?? []),
-				] as {
+				type RawEvent = {
 					id?: number | null;
 					title?: string;
+					name?: string;
 					amount?: number;
-					eventDate?: string;
+					eventDate?: unknown;
+					date?: unknown;
+					dueDate?: unknown;
 					source?: string;
 					status?: string;
 					direction?: string;
 					category?: string;
-				}[];
-				return {
-					data: {
-						items: raw.map((e, i) => ({
+				};
+				const seen = new Set<string>();
+				const raw = [
+					...asList<RawEvent>(events.data),
+					...(upcoming.error ? [] : asList<RawEvent>(upcoming.data)),
+				].filter((e) => {
+					const key = String(e.id ?? `${e.title ?? e.name}-${e.eventDate ?? e.date}`);
+					if (seen.has(key)) return false;
+					seen.add(key);
+					return true;
+				});
+				const items = raw
+					.map((e, i) => {
+						const date = pickIsoDate(e.eventDate, e.date, e.dueDate);
+						const direction = String(e.direction ?? "");
+						const isIn =
+							direction === "Поступление" ||
+							direction === "IN" ||
+							direction === "INCOME" ||
+							direction === "in";
+						return {
 							id: String(e.id ?? `e${i}`),
-							date: e.eventDate ?? "",
-							name: e.title ?? "",
+							date,
+							name: e.title || e.name || "",
 							source: e.source ?? "",
 							status: e.status ?? "",
 							tab: statusToTab(e.status),
-							amount:
-								e.direction === "Поступление"
-									? Math.abs(e.amount ?? 0)
-									: -Math.abs(e.amount ?? 0),
+							amount: isIn ? Math.abs(e.amount ?? 0) : -Math.abs(e.amount ?? 0),
 							basis: e.category,
-						})),
-					},
-				};
+						};
+					})
+					.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+				return { data: { items } };
 			},
 			providesTags: ["Events"],
 		}),
@@ -732,27 +765,94 @@ const financeApi = rtkApi.injectEndpoints({
 				const monthParam = `${year}-${String(month).padStart(2, "0")}`;
 				const n = new Date();
 				const today = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
-				const result = await baseQuery({
+
+				type RawCalEvent = {
+					eventDate?: unknown;
+					date?: unknown;
+					dueDate?: unknown;
+					title?: string;
+					name?: string;
+					direction?: string;
+					amount?: number;
+					category?: string;
+				};
+
+				const labelOf = (e: RawCalEvent): string => {
+					const title = (e.title || e.name || "").trim();
+					if (title) return title;
+					if (e.category) return String(e.category);
+					if (e.direction === "Поступление" || e.direction === "IN" || e.direction === "INCOME") {
+						return "Поступление";
+					}
+					if (e.amount != null) return String(e.amount);
+					return "Событие";
+				};
+
+				const fromFlatList = (list: RawCalEvent[]) =>
+					list
+						.map((e) => {
+							const date = pickIsoDate(e.eventDate, e.date, e.dueDate);
+							if (!date || !date.startsWith(monthParam)) return null;
+							return { date, label: labelOf(e) };
+						})
+						.filter((e): e is { date: string; label: string } => Boolean(e));
+
+				const fromDaysMap = (
+					days: Record<string, RawCalEvent[] | undefined> | RawCalEvent[] | undefined,
+				) => {
+					const out: { date: string; label: string }[] = [];
+					if (!days) return out;
+					if (Array.isArray(days)) return fromFlatList(days);
+					Object.entries(days).forEach(([key, list]) => {
+						if (!Array.isArray(list) || list.length === 0) return;
+						list.forEach((e) => {
+							const date =
+								pickIsoDate(e.eventDate, e.date, e.dueDate) ||
+								(/^\d{4}-\d{2}-\d{2}/.test(key)
+									? key.slice(0, 10)
+									: `${monthParam}-${String(Number(key) || key).padStart(2, "0")}`);
+							if (!date.startsWith(monthParam)) return;
+							out.push({ date, label: labelOf(e) });
+						});
+					});
+					return out;
+				};
+
+				const calendarResult = await baseQuery({
 					url: `/api/companies/${inn}/events/calendar`,
 					params: { month: monthParam },
 				});
-				if (result.error) return { error: asError(result) };
-				const body = result.data as {
-					month?: string;
-					days?: Record<string, { eventDate?: string; title?: string }[] | undefined>;
-				};
-				const events: { date: string; label: string }[] = [];
-				Object.entries(body.days ?? {}).forEach(([key, list]) => {
-					if (!Array.isArray(list) || list.length === 0) return;
-					list.forEach((e) => {
-						const date =
-							e.eventDate ||
-							(/^\d{4}-\d{2}-\d{2}/.test(key)
-								? key.slice(0, 10)
-								: `${monthParam}-${String(Number(key) || key).padStart(2, "0")}`);
-						events.push({ date, label: e.title ?? "" });
-					});
-				});
+
+				let events: { date: string; label: string }[] = [];
+				if (!calendarResult.error && calendarResult.data) {
+					const body = calendarResult.data as {
+						month?: string;
+						days?: Record<string, RawCalEvent[] | undefined> | RawCalEvent[];
+						events?: RawCalEvent[];
+						items?: RawCalEvent[];
+						content?: RawCalEvent[];
+					};
+					events = [
+						...fromDaysMap(body.days),
+						...fromFlatList(asList<RawCalEvent>(body.events)),
+						...fromFlatList(asList<RawCalEvent>(body.items)),
+						...fromFlatList(asList<RawCalEvent>(body.content)),
+						...fromFlatList(asList<RawCalEvent>(calendarResult.data)),
+					];
+				}
+
+				if (events.length === 0) {
+					const [eventsRes, upcomingRes] = await Promise.all([
+						baseQuery(`/api/companies/${inn}/events`),
+						baseQuery(`/api/companies/${inn}/payments/upcoming`),
+					]);
+					const merged = [
+						...asList<RawCalEvent>(eventsRes.error ? null : eventsRes.data),
+						...asList<RawCalEvent>(upcomingRes.error ? null : upcomingRes.data),
+					];
+					events = fromFlatList(merged);
+				}
+
 				return {
 					data: {
 						year,
@@ -1014,7 +1114,7 @@ const financeApi = rtkApi.injectEndpoints({
 				return {
 					data: {
 						rows: rows.map((r) => ({
-							date: r.eventDate ?? "",
+							date: pickIsoDate(r.eventDate, (r as { date?: unknown }).date),
 							name: r.title ?? "",
 							category: r.category ?? "",
 							amount: r.amount ?? 0,

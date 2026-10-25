@@ -8,7 +8,6 @@ import {
 	useSetMyInnsMutation,
 	useUserActions,
 } from "@/entities/User";
-import { useUploadSourceFileMutation } from "@/entities/Finance";
 import { AuthLayout } from "@/widgets/AuthLayout";
 import { parseApiError } from "@/shared/api/parseApiError";
 import { getRouteLogin, getRouteMain } from "@/shared/consts/router";
@@ -17,7 +16,7 @@ import { cn } from "@/shared/lib/classNames/classNames";
 import { OnboardingDraft, OnboardingStep, readDraft, STEP_ORDER, stepIndex, writeDraft } from "../model/draft";
 import styles from "./OnboardingPage.module.scss";
 
-const PROGRESS_LABELS = ["business", "money", "assumptions"] as const;
+const PROGRESS_LABELS = ["business", "money"] as const;
 
 const digitsOnly = (value: string) => value.replace(/\D/g, "");
 
@@ -61,11 +60,6 @@ const SOURCE_OPTIONS: {
 		titleKey: "onboarding.srcGos",
 		descKey: "onboarding.srcGosDesc",
 	},
-	{
-		id: "CSV",
-		titleKey: "onboarding.srcFile",
-		descKey: "onboarding.srcFileDesc",
-	},
 ];
 
 const OnboardingPage = () => {
@@ -75,13 +69,11 @@ const OnboardingPage = () => {
 	const onboardingDone = useAppSelector((state) => state.user.onboardingDone);
 	const { logout, setOnboardingDone, setProfile } = useUserActions();
 	const [setMyInns, setInnsState] = useSetMyInnsMutation();
-	const [uploadSourceFile, uploadState] = useUploadSourceFileMutation();
 	const [lookupCompany, lookupState] = useLazyLookupCompanyQuery();
 
 	const [draft, setDraft] = useState<OnboardingDraft>(() => readDraft());
 	const [linkError, setLinkError] = useState<string | null>(null);
 	const [innTouched, setInnTouched] = useState(false);
-	const [csvFile, setCsvFile] = useState<File | null>(null);
 
 	useEffect(() => {
 		writeDraft(draft);
@@ -115,28 +107,15 @@ const OnboardingPage = () => {
 		return parseApiError(err, t("onboarding.innNotFound"));
 	};
 
-	const finishOnboarding = async () => {
-		if (!draft.business?.inn || setInnsState.isLoading || uploadState.isLoading) return;
-		if (draft.sources.includes("CSV") && !csvFile) return;
-		try {
-			setProfile({
-				business: draft.business,
-				sources: draft.sources,
-				assumptions: draft.assumptions,
-			});
-			if (csvFile) {
-				const formData = new FormData();
-				formData.append("file", csvFile);
-				await uploadSourceFile({
-					formData,
-					inn: digitsOnly(draft.business.inn),
-				}).unwrap();
-			}
-			setOnboardingDone(true);
-			navigate(getRouteMain());
-		} catch (err) {
-			setLinkError(parseApiError(err, t("onboarding.srcFileFailed")));
-		}
+	const finishOnboarding = () => {
+		if (!draft.business?.inn || setInnsState.isLoading) return;
+		setProfile({
+			business: draft.business,
+			sources: draft.sources,
+			assumptions: draft.assumptions,
+		});
+		setOnboardingDone(true);
+		navigate(getRouteMain());
 	};
 
 	const onBack = () => {
@@ -170,11 +149,7 @@ const OnboardingPage = () => {
 		}
 		if (draft.step === "sources") {
 			if (draft.sources.length === 0) return;
-			goStep("assumptions");
-			return;
-		}
-		if (draft.step === "assumptions") {
-			await finishOnboarding();
+			finishOnboarding();
 		}
 	};
 
@@ -204,21 +179,13 @@ const OnboardingPage = () => {
 	const canContinue =
 		draft.step === "business"
 			? isInnValid(draft.inn) && !!draft.business?.inn && !setInnsState.isLoading
-			: draft.step === "sources"
-				? draft.sources.length > 0 &&
-					!!draft.business?.inn &&
-					(!draft.sources.includes("CSV") || !!csvFile)
-				: !!draft.business?.inn &&
-					!setInnsState.isLoading &&
-					!uploadState.isLoading &&
-					(!draft.sources.includes("CSV") || !!csvFile);
+			: draft.sources.length > 0 && !!draft.business?.inn && !setInnsState.isLoading;
 
 	const toggleSource = (id: DataSourceKind) => {
 		const sources = draft.sources.includes(id)
 			? draft.sources.filter((item) => item !== id)
 			: [...draft.sources, id];
-		if (!sources.includes("CSV")) setCsvFile(null);
-		update({ sources, lowData: sources.includes("CSV") });
+		update({ sources, lowData: false });
 	};
 
 	const progressIndex = stepIndex(draft.step);
@@ -226,13 +193,6 @@ const OnboardingPage = () => {
 	const stepReachable = (i: number) => {
 		if (i <= 0) return true;
 		if (i === 1) return !!draft.business;
-		if (i === 2) {
-			return (
-				!!draft.business &&
-				draft.sources.length > 0 &&
-				(!draft.sources.includes("CSV") || !!csvFile)
-			);
-		}
 		return false;
 	};
 
@@ -403,113 +363,6 @@ const OnboardingPage = () => {
 									);
 								})}
 							</div>
-							{draft.sources.includes("CSV") ? (
-								<label className={styles["onboarding__file"]}>
-									<span className={styles["onboarding__file-label"]}>
-										{csvFile
-											? t("onboarding.srcFileReady", { name: csvFile.name })
-											: t("onboarding.srcFilePick")}
-									</span>
-									<input
-										className={styles["onboarding__file-input"]}
-										type="file"
-										accept=".csv,text/csv,text/plain"
-										onChange={(e) => {
-											setCsvFile(e.target.files?.[0] ?? null);
-											e.target.value = "";
-										}}
-									/>
-								</label>
-							) : null}
-						</>
-					) : null}
-
-					{draft.step === "assumptions" ? (
-						<>
-							<div className={styles.onboarding__head}>
-								<h1 className={styles.onboarding__title}>{t("onboarding.assTitle")}</h1>
-								<p className={styles.onboarding__sub}>{t("onboarding.assSub")}</p>
-							</div>
-							<label className={styles.onboarding__field}>
-								<span>{t("onboarding.minBalance")}</span>
-								<input
-									className={styles.onboarding__input}
-									value={draft.assumptions.minBalance}
-									onChange={(e) =>
-										update({
-											assumptions: {
-												...draft.assumptions,
-												minBalance: e.target.value,
-											},
-										})
-									}
-									inputMode="numeric"
-								/>
-							</label>
-							<div className={styles.onboarding__field}>
-								<span>{t("onboarding.payDay")}</span>
-								<div className={styles.onboarding__chips}>
-									{[5, 10, 15].map((day) => (
-										<button
-											key={day}
-											type="button"
-											className={cn(
-												styles.onboarding__chip,
-												draft.assumptions.payDay === day && styles["onboarding__chip--active"],
-											)}
-											onClick={() =>
-												update({
-													assumptions: {
-														...draft.assumptions,
-														payDay: day,
-													},
-												})
-											}
-										>
-											{t("onboarding.payDayChip", { day })}
-										</button>
-									))}
-								</div>
-							</div>
-							<div className={styles.onboarding__field}>
-								<span>{t("onboarding.notify")}</span>
-								<div className={styles.onboarding__chips}>
-									<button
-										type="button"
-										className={cn(
-											styles.onboarding__chip,
-											draft.assumptions.notifyApp && styles["onboarding__chip--active"],
-										)}
-										onClick={() =>
-											update({
-												assumptions: {
-													...draft.assumptions,
-													notifyApp: !draft.assumptions.notifyApp,
-												},
-											})
-										}
-									>
-										{t("onboarding.notifyApp")}
-									</button>
-									<button
-										type="button"
-										className={cn(
-											styles.onboarding__chip,
-											draft.assumptions.notifyMail && styles["onboarding__chip--active"],
-										)}
-										onClick={() =>
-											update({
-												assumptions: {
-													...draft.assumptions,
-													notifyMail: !draft.assumptions.notifyMail,
-												},
-											})
-										}
-									>
-										{t("onboarding.notifyMail")}
-									</button>
-								</div>
-							</div>
 						</>
 					) : null}
 				</div>
@@ -521,13 +374,11 @@ const OnboardingPage = () => {
 				) : null}
 
 				<button type="button" className={styles.onboarding__primary} disabled={!canContinue} onClick={onNext}>
-					{uploadState.isLoading
-						? t("onboarding.srcFileUploading")
-						: setInnsState.isLoading
-							? t("onboarding.linking")
-							: draft.step === "assumptions"
-								? t("onboarding.openToday")
-								: t("onboarding.continue")}
+					{setInnsState.isLoading
+						? t("onboarding.linking")
+						: draft.step === "sources"
+							? t("onboarding.openToday")
+							: t("onboarding.continue")}
 				</button>
 
 				<div className={styles.onboarding__nav}>

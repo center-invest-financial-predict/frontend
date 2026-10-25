@@ -11,7 +11,7 @@ import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
 import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
-import { formatDayMonth, formatIsoDateDots } from "@/shared/lib/format/formatDate";
+import { formatDayMonth } from "@/shared/lib/format/formatDate";
 import { formatMoney } from "@/shared/lib/format/formatMoney";
 import styles from "./AddPage.module.scss";
 
@@ -184,15 +184,12 @@ export const AddPage = memo(() => {
 							</label>
 							<label className={styles["add-page__field"]}>
 								{t("add.date")}
-								<span className={styles["add-page__date"]}>
-									<span className={styles["add-page__date-value"]}>{formatIsoDateDots(date)}</span>
-									<input
-										className={styles["add-page__date-input"]}
-										type="date"
-										value={date}
-										onChange={(e) => setDate(e.target.value)}
-									/>
-								</span>
+								<input
+									className={styles["add-page__input"]}
+									type="date"
+									value={date}
+									onChange={(e) => setDate(e.target.value || date)}
+								/>
 							</label>
 							<div className={styles["add-page__field"]} ref={catRef}>
 								<span id="add-category-label">{t("add.category")}</span>

@@ -32,7 +32,14 @@ export const EventsPage = memo(() => {
 	const [sel, setSel] = useState<EventDto | null>(null);
 
 	const items = data?.items ?? [];
-	const filtered = useMemo(() => items.filter((r) => r.tab === tab), [items, tab]);
+	const filtered = useMemo(
+		() =>
+			items
+				.filter((r) => r.tab === tab)
+				.slice()
+				.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
+		[items, tab],
+	);
 	const counts = useMemo(
 		() => ({
 			exp: items.filter((r) => r.tab === "exp").length,

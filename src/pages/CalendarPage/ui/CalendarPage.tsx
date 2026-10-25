@@ -32,8 +32,9 @@ export const CalendarPage = memo(() => {
 		const map: Record<number, string> = {};
 		data?.events.forEach((e) => {
 			const day = dayOfMonth(e.date);
-			if (!day || !e.label) return;
-			map[day] = map[day] ? `${map[day]}; ${e.label}` : e.label;
+			if (!day) return;
+			const label = (e.label || "").trim() || "•";
+			map[day] = map[day] ? `${map[day]}; ${label}` : label;
 		});
 		return map;
 	}, [data?.events]);

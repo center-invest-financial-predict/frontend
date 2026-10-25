@@ -1,3 +1,4 @@
+import { pickIsoDate } from "@/shared/lib/format/formatDate";
 import type { TodayDashboardDto } from "../model/types";
 
 export type DashboardResponse = {
@@ -53,8 +54,11 @@ export type AlertDto = {
 export type CashEventDto = {
 	id?: number | null;
 	title?: string;
+	name?: string;
 	amount?: number;
-	eventDate?: string;
+	eventDate?: unknown;
+	date?: unknown;
+	dueDate?: unknown;
 	direction?: string;
 };
 
@@ -230,12 +234,17 @@ export const mapTodayDashboard = (args: {
 			name: c.category,
 			amount: c.amount,
 		})),
-		upcoming: upcoming.map((e, i) => ({
-			id: String(e.id ?? `u${i}`),
-			date: e.eventDate ?? "",
-			name: e.title ?? "",
-			amount: e.direction === "Поступление" ? Math.abs(e.amount ?? 0) : -Math.abs(e.amount ?? 0),
-		})),
+		upcoming: [...upcoming]
+			.map((e, i) => ({
+				id: String(e.id ?? `u${i}`),
+				date: pickIsoDate(e.eventDate, e.date, e.dueDate),
+				name: e.title || e.name || "",
+				amount:
+					e.direction === "Поступление" || e.direction === "IN" || e.direction === "INCOME"
+						? Math.abs(e.amount ?? 0)
+						: -Math.abs(e.amount ?? 0),
+			}))
+			.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
 		alerts: alerts.map((a) => ({
 			id: a.id,
 			title: a.title,
