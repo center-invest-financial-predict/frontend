@@ -31,6 +31,8 @@ import type {
 	StrategiesDto,
 	SyncResultDto,
 	UpdateStrategiesArgs,
+	OperationImportDraftDto,
+	OperationImportPreviewDto,
 } from "../model/types";
 
 const noInnError = (): FetchBaseQueryError => ({
@@ -945,6 +947,32 @@ const financeApi = rtkApi.injectEndpoints({
 			invalidatesTags: ["Sources", "Today", "Operations", "Events"],
 		}),
 
+		previewOperationsImport: build.mutation<OperationImportPreviewDto, { formData: FormData; inn: string; sheetName?: string }>({
+			query: ({ formData, inn, sheetName }) => ({
+				url: `/api/companies/${inn}/operations/import/preview`,
+				method: "POST",
+				body: formData,
+				params: sheetName ? { sheetName } : undefined,
+			}),
+		}),
+
+		previewReceiptImport: build.mutation<OperationImportPreviewDto, { formData: FormData; inn: string }>({
+			query: ({ formData, inn }) => ({
+				url: `/api/companies/${inn}/operations/import/receipt`,
+				method: "POST",
+				body: formData,
+			}),
+		}),
+
+		confirmOperationsImport: build.mutation<SyncResultDto, { inn: string; operations: OperationImportDraftDto[] }>({
+			query: ({ inn, operations }) => ({
+				url: `/api/companies/${inn}/operations/import/confirm`,
+				method: "POST",
+				body: { operations },
+			}),
+			invalidatesTags: ["Sources", "Today", "Operations", "Events", "Forecast", "PlanFact"],
+		}),
+
 		getStrategies: build.query<StrategiesDto, void>({
 			async queryFn(_arg, _api, _extra, baseQuery) {
 				const inn = getActiveInn();
@@ -1192,6 +1220,9 @@ export const {
 	useGetSourcesQuery,
 	useToggleSourceMutation,
 	useUploadSourceFileMutation,
+	usePreviewOperationsImportMutation,
+	usePreviewReceiptImportMutation,
+	useConfirmOperationsImportMutation,
 	useGetStrategiesQuery,
 	useUpdateStrategiesMutation,
 	useCreateEventMutation,

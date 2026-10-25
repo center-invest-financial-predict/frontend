@@ -30,6 +30,16 @@ const rawBaseQuery = fetchBaseQuery({
 	},
 });
 
+const slowBaseQuery = fetchBaseQuery({
+	baseUrl: __API__,
+	timeout: 120_000,
+	prepareHeaders: (headers) => {
+		const token = getAccessToken();
+		if (token) headers.set("Authorization", authHeaderValue(token));
+		return headers;
+	},
+});
+
 const requestUrl = (args: string | FetchArgs): string =>
 	typeof args === "string" ? args : args.url;
 
@@ -37,6 +47,9 @@ const isAuthPath = (url: string) =>
 	url.includes("/api/auth/login") ||
 	url.includes("/api/auth/register") ||
 	url.includes("/api/auth/refresh");
+
+const isSlowPath = (url: string) =>
+	url.includes("/operations/import/preview") || url.includes("/operations/import/receipt");
 
 let refreshPromise: Promise<boolean> | null = null;
 
@@ -71,7 +84,8 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
 	api,
 	extra,
 ) => {
-	let result = await rawBaseQuery(args, api, extra);
+	const query = isSlowPath(requestUrl(args)) ? slowBaseQuery : rawBaseQuery;
+	let result = await query(args, api, extra);
 
 	if (result.error?.status !== 401 || isAuthPath(requestUrl(args))) {
 		return result;
@@ -85,7 +99,7 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
 
 	const refreshed = await refreshPromise;
 	if (refreshed) {
-		result = await rawBaseQuery(args, api, extra);
+		result = await query(args, api, extra);
 	} else {
 		api.dispatch(UserActions.logout());
 	}

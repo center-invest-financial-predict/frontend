@@ -297,6 +297,41 @@
 		line-height: 20px;
 	}
 
+	&__draft {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 8px;
+		padding: 12px 0;
+		border-top: 1px solid var(--color-border-soft);
+
+		label,
+		small {
+			grid-column: 1 / -1;
+		}
+
+		input,
+		select,
+		textarea {
+			min-width: 0;
+			padding: 9px 10px;
+			border: 1px solid var(--color-border);
+			border-radius: 10px;
+			background: var(--color-shape);
+			color: var(--color-text);
+			font: inherit;
+		}
+
+		textarea {
+			grid-column: 1 / -1;
+			min-height: 64px;
+			resize: vertical;
+		}
+
+		small {
+			color: var(--color-text-muted);
+		}
+	}
+
 	&__parsed-row {
 		display: grid;
 		grid-template-columns: 70px 1fr auto auto;

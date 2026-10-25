@@ -1,7 +1,15 @@
 import { FormEvent, memo, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown } from "lucide-react";
-import { useCreateEventMutation, useUploadSourceFileMutation } from "@/entities/Finance";
+import {
+	useConfirmOperationsImportMutation,
+	useCreateEventMutation,
+	usePreviewOperationsImportMutation,
+	usePreviewReceiptImportMutation,
+	useUploadSourceFileMutation,
+	type OperationImportDraftDto,
+	type OperationImportPreviewDto,
+} from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
 import { StateBanner } from "@/shared/ui/StateBanner";
@@ -13,6 +21,35 @@ type Tab = "hand" | "file";
 
 const CAT_IDS = ["sales", "suppliers", "taxes", "rent", "salary", "credit", "other"] as const;
 type CatId = (typeof CAT_IDS)[number];
+type ImportKind = "statement" | "receipt";
+type EditableDraft = {
+	rowNumber: number;
+	selected: boolean;
+	missingFields: string[];
+	warnings: string[];
+	operation: OperationImportDraftDto;
+};
+
+const valueFrom = (record: Record<string, unknown>, snake: string, camel: string): unknown =>
+	record[snake] ?? record[camel];
+
+const draftsFromPreview = (preview: OperationImportPreviewDto): EditableDraft[] =>
+	preview.rows.map((row) => {
+		const op = row.operation;
+		const rawDirection = String(valueFrom(op, "direction", "direction") ?? "");
+		const direction = /income|inflow|поступ/i.test(rawDirection) ? "Поступление" : "Списание";
+		const operation: OperationImportDraftDto = {
+			operationId: String(valueFrom(op, "operation_id", "operationId") ?? ""),
+			operationDate: String(valueFrom(op, "operation_date", "operationDate") ?? ""),
+			amount: String(valueFrom(op, "amount", "amount") ?? ""),
+			direction,
+			counterpartyInn: String(valueFrom(op, "counterparty_inn", "counterpartyInn") ?? ""),
+			counterpartyName: String(valueFrom(op, "counterparty_name", "counterpartyName") ?? ""),
+			paymentPurpose: String(valueFrom(op, "payment_purpose", "paymentPurpose") ?? ""),
+			balanceEod: valueFrom(op, "balance_eod", "balanceEod") as string | number | null | undefined,
+		};
+		return { ...row, selected: row.readyForReview, operation };
+	});
 
 /** Stable API values (legacy Russian labels stored on backend). */
 const CAT_API: Record<CatId, string> = {
@@ -39,6 +76,10 @@ export const AddPage = memo(() => {
 	const [error, setError] = useState(false);
 	const [uploadMessage, setUploadMessage] = useState<string | null>(null);
 	const [uploadOk, setUploadOk] = useState(false);
+	const [importKind, setImportKind] = useState<ImportKind>("statement");
+	const [drafts, setDrafts] = useState<EditableDraft[]>([]);
+	const [previewWarnings, setPreviewWarnings] = useState<string[]>([]);
+	const [fallbackFile, setFallbackFile] = useState<File | null>(null);
 
 	useEffect(() => {
 		if (!catOpen) return;
@@ -58,6 +99,10 @@ export const AddPage = memo(() => {
 
 	const [createEvent, { isLoading: saving }] = useCreateEventMutation();
 	const [uploadSourceFile, { isLoading: uploading }] = useUploadSourceFileMutation();
+	const [previewOperations, { isLoading: previewingOperations }] = usePreviewOperationsImportMutation();
+	const [previewReceipt, { isLoading: previewingReceipt }] = usePreviewReceiptImportMutation();
+	const [confirmOperations, { isLoading: confirming }] = useConfirmOperationsImportMutation();
+	const previewing = previewingOperations || previewingReceipt;
 
 	const onSaveHand = async (e: FormEvent) => {
 		e.preventDefault();
@@ -94,23 +139,56 @@ export const AddPage = memo(() => {
 		}
 		const formData = new FormData();
 		formData.append("file", file);
+		setFallbackFile(file);
 		try {
-			const result = await uploadSourceFile({ formData, inn }).unwrap();
-			if (result.inserted > 0) {
-				setUploadOk(true);
-				setUploadMessage(t("sources.uploadOkCount", { count: result.inserted }));
-			} else {
-				setUploadOk(false);
-				setUploadMessage(
-					t("sources.uploadEmpty", {
-						invalid: result.invalid,
-						skipped: result.skipped,
-					}),
-				);
-			}
+			const preview = importKind === "receipt"
+				? await previewReceipt({ formData, inn }).unwrap()
+				: await previewOperations({ formData, inn }).unwrap();
+			setDrafts(draftsFromPreview(preview));
+			setPreviewWarnings(preview.warnings ?? []);
 		} catch {
 			setError(true);
-			setUploadMessage(null);
+			setUploadMessage(t("add.mlUnavailable"));
+		}
+	};
+
+	const updateDraft = (index: number, patch: Partial<OperationImportDraftDto> & { selected?: boolean }) => {
+		setDrafts((current) => current.map((row, i) => i === index
+			? { ...row, selected: patch.selected ?? row.selected, operation: { ...row.operation, ...patch } }
+			: row));
+	};
+
+	const onConfirmImport = async () => {
+		const inn = (getActiveInn() || "").replace(/\D/g, "");
+		const accepted = drafts.filter((row) => row.selected && row.operation.operationDate && Number(row.operation.amount) > 0);
+		if (!inn || accepted.length === 0) {
+			setError(true);
+			return;
+		}
+		setError(false);
+		try {
+			const result = await confirmOperations({ inn, operations: accepted.map((row) => row.operation) }).unwrap();
+			setUploadOk(result.inserted > 0);
+			setUploadMessage(t("add.confirmed", { inserted: result.inserted, duplicates: result.duplicates, invalid: result.invalid }));
+			setDrafts([]);
+			setPreviewWarnings([]);
+		} catch {
+			setError(true);
+		}
+	};
+
+	const onLegacyFallback = async () => {
+		if (!fallbackFile) return;
+		const inn = (getActiveInn() || "").replace(/\D/g, "");
+		const formData = new FormData();
+		formData.append("file", fallbackFile);
+		try {
+			const result = await uploadSourceFile({ formData, inn }).unwrap();
+			setUploadOk(result.inserted > 0);
+			setUploadMessage(t("sources.uploadOkCount", { count: result.inserted }));
+			setDrafts([]);
+		} catch {
+			setError(true);
 		}
 	};
 
@@ -139,6 +217,8 @@ export const AddPage = memo(() => {
 								setError(false);
 								setUploadMessage(null);
 								setUploadOk(false);
+							setDrafts([]);
+							setPreviewWarnings([]);
 							}}
 						>
 							{t(label)}
@@ -241,28 +321,43 @@ export const AddPage = memo(() => {
 					</Card>
 				) : (
 					<Card className={styles["add-page__form"]}>
+						<div className={styles["add-page__chips"]}>
+							{([ ["statement", "add.statement"], ["receipt", "add.receipt"] ] as const).map(([kind, label]) => (
+								<button key={kind} type="button" className={cn(styles["add-page__chip"], importKind === kind && styles["add-page__chip--on"])} onClick={() => { setImportKind(kind); setDrafts([]); setUploadMessage(null); }}>
+									{t(label)}
+								</button>
+							))}
+						</div>
 						<label className={styles["add-page__drop"]}>
-							<span className={styles["add-page__drop-title"]}>{t("add.dropTitle")}</span>
-							{uploading ? (
-								<span className={styles["add-page__drop-hint"]}>{t("states.loading")}</span>
-							) : null}
-							<input
-								type="file"
-								accept=".csv,text/csv,text/plain"
-								className={styles["add-page__file"]}
-								disabled={uploading}
-								onChange={(e) => {
-									void onFile(e.target.files?.[0]);
-									e.target.value = "";
-								}}
-							/>
+							<span className={styles["add-page__drop-title"]}>{importKind === "receipt" ? t("add.receiptHint") : t("add.dropTitle")}</span>
+							{previewing ? <span className={styles["add-page__drop-hint"]}>{t("states.loading")}</span> : null}
+							<input type="file" accept={importKind === "receipt" ? "image/jpeg,image/png,image/webp" : ".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"} className={styles["add-page__file"]} disabled={previewing || confirming || uploading} onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ""; }} />
 						</label>
+						{previewWarnings.map((warning, index) => <StateBanner key={`${index}-${warning}`} variant="low" title={warning} />)}
+						{drafts.length > 0 ? (
+							<div className={styles["add-page__parsed"]}>
+								<div className={styles["add-page__parsed-meta"]}>{t("add.reviewRows", { count: drafts.length })}</div>
+								{drafts.map((row, index) => (
+									<div className={styles["add-page__draft"]} key={`${row.rowNumber}-${index}`}>
+										<label><input type="checkbox" checked={row.selected} onChange={(e) => updateDraft(index, { selected: e.target.checked })} /> {t("add.includeRow", { row: row.rowNumber })}</label>
+										<input aria-label={t("add.date")} type="date" value={row.operation.operationDate} onChange={(e) => updateDraft(index, { operationDate: e.target.value })} />
+										<input aria-label={t("add.amount")} inputMode="decimal" value={String(row.operation.amount)} onChange={(e) => updateDraft(index, { amount: e.target.value.replace(",", ".") })} />
+										<select aria-label={t("add.direction")} value={row.operation.direction} onChange={(e) => updateDraft(index, { direction: e.target.value as OperationImportDraftDto["direction"] })}><option value="Поступление">{t("add.typeIn")}</option><option value="Списание">{t("add.typeOut")}</option></select>
+										<input aria-label={t("add.name")} placeholder={t("add.name")} value={row.operation.counterpartyName ?? ""} onChange={(e) => updateDraft(index, { counterpartyName: e.target.value })} />
+										<textarea aria-label={t("add.purpose")} placeholder={t("add.purpose")} value={row.operation.paymentPurpose ?? ""} onChange={(e) => updateDraft(index, { paymentPurpose: e.target.value })} />
+										{row.missingFields.length > 0 || row.warnings.length > 0 ? <small>{[...row.missingFields, ...row.warnings].join(" · ")}</small> : null}
+									</div>
+								))}
+								<button type="button" className={styles["add-page__submit"]} disabled={confirming || drafts.filter((row) => row.selected && row.operation.operationDate && Number(row.operation.amount) > 0).length === 0} onClick={() => void onConfirmImport()}>{confirming ? t("states.loading") : t("add.confirmImport")}</button>
+							</div>
+						) : null}
 						{error ? <StateBanner variant="error" title={t("states.errorTitle")} /> : null}
 						{uploadMessage ? (
 							<div className={uploadOk ? styles["add-page__ok"] : styles["add-page__drop-hint"]}>
 								{uploadMessage}
 							</div>
 						) : null}
+						{fallbackFile && uploadMessage === t("add.mlUnavailable") && importKind === "statement" ? <button type="button" className={styles["add-page__link"]} disabled={uploading} onClick={() => void onLegacyFallback()}>{uploading ? t("states.loading") : t("add.legacyFallback")}</button> : null}
 					</Card>
 				)}
 			</div>

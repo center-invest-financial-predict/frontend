@@ -179,6 +179,29 @@ export type SyncResultDto = {
 	skipped: number;
 };
 
+export type OperationImportDraftDto = {
+	operationId?: string;
+	operationDate: string;
+	amount: string | number;
+	direction: "Поступление" | "Списание";
+	counterpartyInn?: string | null;
+	counterpartyName?: string | null;
+	paymentPurpose?: string | null;
+	balanceEod?: string | number | null;
+};
+
+export type OperationImportPreviewDto = {
+	rows: {
+		rowNumber: number;
+		operation: Record<string, unknown>;
+		missingFields: string[];
+		warnings: string[];
+		readyForReview: boolean;
+	}[];
+	columnMapping: Record<string, string | null>;
+	warnings: string[];
+};
+
 export type ForecastResultDto = {
 	cashflow: CashflowSeriesDto;
 	hasGap: boolean;
