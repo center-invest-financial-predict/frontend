@@ -29,7 +29,6 @@ import { formatMoneyAbs } from "@/shared/lib/format/formatMoney";
 import { toHeightLevel, toWidthLevel } from "@/shared/lib/format/toBarLevel";
 import {
 	getRouteAssistant,
-	getRouteEvents,
 	getRouteForecast,
 	getRouteSources,
 } from "@/shared/consts/router";
@@ -123,53 +122,7 @@ const TodayPage = memo(() => {
 	const periodError = period === "day" ? forecast.isError : weekly.isError;
 	const periodRefetch = period === "day" ? forecast.refetch : weekly.refetch;
 
-	const displayActions = useMemo(() => {
-		if (data.actions.length > 0) return data.actions;
-		const items: { id: string; title: string; conclusion: string; comparable: boolean }[] = [];
-		if (data.risk) {
-			items.push({
-				id: "gap",
-				title: t("today.rec.gapTitle"),
-				conclusion: t("today.rec.gapHint", {
-					sum: formatMoneyAbs(data.risk.amount, locale),
-					date: formatDayMonthShort(data.risk.date, locale),
-				}),
-				comparable: true,
-			});
-		}
-		if (data.upcoming.length > 0) {
-			items.push({
-				id: "upcoming",
-				title: t("today.rec.upcomingTitle"),
-				conclusion: t("today.rec.upcomingHint", { count: data.upcoming.length }),
-				comparable: false,
-			});
-		}
-		if (data.alerts.length > 0 && items.length < 2) {
-			const alert = data.alerts[0];
-			items.push({
-				id: `alert-${alert.id}`,
-				title: alert.title,
-				conclusion: alert.meta || t("today.rec.alertHint"),
-				comparable: true,
-			});
-		}
-		if (items.length === 0) {
-			items.push({
-				id: "forecast",
-				title: t("today.rec.forecastTitle"),
-				conclusion: t("today.rec.forecastHint"),
-				comparable: true,
-			});
-			items.push({
-				id: "sources",
-				title: t("today.rec.sourcesTitle"),
-				conclusion: t("today.rec.sourcesHint"),
-				comparable: false,
-			});
-		}
-		return items.slice(0, 3);
-	}, [data.actions, data.risk, data.upcoming, data.alerts, locale, t]);
+	const displayActions = data.actions;
 
 	if (allFailed) {
 		return (
@@ -391,41 +344,40 @@ const TodayPage = memo(() => {
 						</div>
 						{recommendationsQ.isLoading ? (
 							<Skeleton variant="row" count={3} label={t("states.loading")} />
+						) : recommendationsQ.isError ? (
+							<StateBanner
+								variant="error"
+								title={t("states.errorTitle")}
+								actionLabel={t("states.errorRetry")}
+								onAction={() => recommendationsQ.refetch()}
+							/>
+						) : displayActions.length === 0 ? (
+							<p className={styles["today-page__action-concl"]}>{t("states.emptyHint")}</p>
 						) : (
-							displayActions.map((a) => {
-								const primary =
-									a.id === "upcoming"
-										? { label: t("today.rec.openEvents"), to: getRouteEvents() }
-										: a.id === "sources"
-											? { label: t("today.rec.openSources"), to: getRouteSources() }
-											: a.comparable
-												? { label: t("today.compareScens"), to: getRouteForecast() }
-												: null;
-								return (
-									<div key={a.id} className={styles["today-page__action"]}>
-										<span className={styles["today-page__action-title"]}>{a.title}</span>
-										<span className={styles["today-page__action-concl"]}>{a.conclusion}</span>
-										<div className={styles["today-page__action-pills"]}>
-											{primary ? (
-												<button
-													type="button"
-													className={styles["today-page__action-pill--primary"]}
-													onClick={() => navigate(primary.to)}
-												>
-													{primary.label}
-												</button>
-											) : null}
+							displayActions.map((a) => (
+								<div key={a.id} className={styles["today-page__action"]}>
+									<span className={styles["today-page__action-title"]}>{a.title}</span>
+									<span className={styles["today-page__action-concl"]}>{a.conclusion}</span>
+									<div className={styles["today-page__action-pills"]}>
+										{a.comparable ? (
 											<button
 												type="button"
-												className={styles["today-page__action-pill"]}
-												onClick={() => navigate(getRouteAssistant())}
+												className={styles["today-page__action-pill--primary"]}
+												onClick={() => navigate(getRouteForecast())}
 											>
-												{t("today.askAssist")}
+												{t("today.compareScens")}
 											</button>
-										</div>
+										) : null}
+										<button
+											type="button"
+											className={styles["today-page__action-pill"]}
+											onClick={() => navigate(getRouteAssistant())}
+										>
+											{t("today.askAssist")}
+										</button>
 									</div>
-								);
-							})
+								</div>
+							))
 						)}
 					</Card>
 				</div>

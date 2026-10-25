@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAskAssistantMutation } from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
+import { StateBanner } from "@/shared/ui/StateBanner";
 import { getRouteForecast } from "@/shared/consts/router";
 import { cn } from "@/shared/lib/classNames/classNames";
 import {
@@ -24,8 +25,10 @@ export const AssistantPage = memo(() => {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const state = (location.state as LocState) || null;
 	const [thread, setThread] = useState<AssistantThread | null>(null);
+	const [askError, setAskError] = useState(false);
+	const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
 	const handledState = useRef<LocState>(null);
-	const [askAssistant] = useAskAssistantMutation();
+	const [askAssistant, askState] = useAskAssistantMutation();
 
 	const greeting = t("assist.welcome");
 
@@ -50,11 +53,32 @@ export const AssistantPage = memo(() => {
 		return createAssistantThread(greeting);
 	}, [greeting, searchParams]);
 
+	const sendQuestion = useCallback(
+		async (q: string, base: AssistantThread) => {
+			setAskError(false);
+			setPendingQuestion(q);
+			try {
+				const answer = await askAssistant({
+					question: q,
+					conversationId: base.id,
+				}).unwrap();
+				const updated = appendAssistantMessages(base.id, [{ from: "bot", text: answer }]);
+				if (updated) openThread(updated);
+				setPendingQuestion(null);
+			} catch {
+				setAskError(true);
+			}
+		},
+		[askAssistant, openThread],
+	);
+
 	useEffect(() => {
 		if (state && handledState.current === state) return;
 
 		if (state?.reset) {
 			handledState.current = state;
+			setAskError(false);
+			setPendingQuestion(null);
 			openThread(createAssistantThread(greeting));
 			navigate(location.pathname, { replace: true, state: null });
 			return;
@@ -62,6 +86,8 @@ export const AssistantPage = memo(() => {
 
 		if (state?.chatId) {
 			handledState.current = state;
+			setAskError(false);
+			setPendingQuestion(null);
 			const existing = getAssistantThread(state.chatId);
 			openThread(existing ?? createAssistantThread(greeting));
 			navigate(location.pathname, { replace: true, state: null });
@@ -76,32 +102,7 @@ export const AssistantPage = memo(() => {
 			const base = withUser ?? current;
 			openThread(base);
 			navigate(location.pathname, { replace: true, state: null });
-
-			void (async () => {
-				try {
-					const answer = await askAssistant({
-						question: q,
-						conversationId: base.id,
-					}).unwrap();
-					const updated = appendAssistantMessages(base.id, [
-						{
-							from: "bot",
-							text: answer,
-							refs: [t("assist.linkForecast")],
-						},
-					]);
-					if (updated) openThread(updated);
-				} catch {
-					const updated = appendAssistantMessages(base.id, [
-						{
-							from: "bot",
-							text: t("assist.fallback"),
-							refs: [t("assist.linkForecast")],
-						},
-					]);
-					if (updated) openThread(updated);
-				}
-			})();
+			void sendQuestion(q, base);
 			return;
 		}
 
@@ -110,14 +111,13 @@ export const AssistantPage = memo(() => {
 		}
 	}, [
 		state,
-		t,
 		navigate,
 		location.pathname,
 		greeting,
 		openThread,
 		resolveThread,
 		thread,
-		askAssistant,
+		sendQuestion,
 	]);
 
 	const messages = thread?.messages ?? [];
@@ -129,6 +129,22 @@ export const AssistantPage = memo(() => {
 					<h1 className={styles["assistant-page__title"]}>{t("assist.title")}</h1>
 					<p className={styles["assistant-page__sub"]}>{t("assist.pageHint")}</p>
 				</div>
+
+				{askError ? (
+					<StateBanner
+						variant="error"
+						title={t("assist.error")}
+						actionLabel={t("states.errorRetry")}
+						onAction={() => {
+							if (!thread || !pendingQuestion) return;
+							void sendQuestion(pendingQuestion, thread);
+						}}
+					/>
+				) : null}
+
+				{askState.isLoading ? (
+					<p className={styles["assistant-page__sub"]}>{t("states.loading")}</p>
+				) : null}
 
 				<div className={styles["assistant-page__thread"]}>
 					{messages.map((m) => (
@@ -146,18 +162,15 @@ export const AssistantPage = memo(() => {
 								)}
 							>
 								<span>{m.text}</span>
-								{m.refs?.length ? (
+								{m.from === "bot" ? (
 									<div className={styles["assistant-page__refs"]}>
-										{m.refs.map((ref) => (
-											<button
-												key={ref}
-												type="button"
-												className={styles["assistant-page__ref"]}
-												onClick={() => navigate(getRouteForecast())}
-											>
-												{ref}
-											</button>
-										))}
+										<button
+											type="button"
+											className={styles["assistant-page__ref"]}
+											onClick={() => navigate(getRouteForecast())}
+										>
+											{t("assist.linkForecast")}
+										</button>
 									</div>
 								) : null}
 							</div>

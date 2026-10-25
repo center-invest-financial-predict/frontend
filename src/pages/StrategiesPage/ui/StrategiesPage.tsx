@@ -12,6 +12,7 @@ import { Card } from "@/shared/ui/Card";
 import { Skeleton } from "@/shared/ui/Skeleton";
 import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
+import { formatDayMonthShort } from "@/shared/lib/format/formatDate";
 import { getRouteForecast } from "@/shared/consts/router";
 import { CashflowChart } from "@/pages/TodayPage/ui/CashflowChart/CashflowChart";
 import styles from "./StrategiesPage.module.scss";
@@ -23,12 +24,6 @@ const STRATS: { key: StrategyKey; labelKey: string }[] = [
 	{ key: "own", labelKey: "strategies.own" },
 ];
 
-const PRESET_SHAPE: Record<Exclude<StrategyKey, "own">, Pick<StrategyParamsDto, "haircutPct" | "delayDays">> = {
-	cons: { haircutPct: 15, delayDays: 14 },
-	base: { haircutPct: 5, delayDays: 7 },
-	opt: { haircutPct: 0, delayDays: 0 },
-};
-
 const ruleLabelKey = (id: string, label: string): string => {
 	if (label === "ruleA" || label === "ruleB" || label === "ruleC") return `strategies.${label}`;
 	if (/min|balance|остат/i.test(id)) return "strategies.ruleA";
@@ -38,7 +33,8 @@ const ruleLabelKey = (id: string, label: string): string => {
 };
 
 export const StrategiesPage = memo(() => {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
+	const locale = i18n.language?.startsWith("en") ? "en-US" : "ru-RU";
 	const navigate = useNavigate();
 	const { data, isLoading, isError, refetch, isFetching } = useGetStrategiesQuery();
 	const [updateStrategies, updateState] = useUpdateStrategiesMutation();
@@ -150,12 +146,7 @@ export const StrategiesPage = memo(() => {
 							className={cn(styles["strat-page__pill"], strat === s.key && styles["strat-page__pill--on"])}
 							onClick={() => {
 								const nextParams =
-									s.key === "own"
-										? params
-										: {
-												...PRESET_SHAPE[s.key],
-												minBalanceK: params.minBalanceK,
-											};
+									s.key === "own" ? params : (data.presets[s.key] ?? params);
 								setStrat(s.key);
 								setParams(nextParams);
 								void persist({ active: s.key, params: nextParams });
@@ -216,7 +207,13 @@ export const StrategiesPage = memo(() => {
 					<p className={styles["strat-page__hint"]}>{t("strategies.impactSub")}</p>
 					<div className={styles["strat-page__prob"]}>
 						<span>{data.impact.probabilityPct}%</span>
-						<span>{data.impact.gapLabel}</span>
+						<span>
+							{data.impact.gapLabel
+								? t("strategies.gapOn", {
+										date: formatDayMonthShort(data.impact.gapLabel, locale),
+									})
+								: t("strategies.gapNone")}
+						</span>
 					</div>
 					<CashflowChart series={data.impact.cashflow} showRisk={data.impact.showRisk} />
 				</Card>

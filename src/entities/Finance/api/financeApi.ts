@@ -29,6 +29,8 @@ import type {
 	SavedScenarioDto,
 	SourcesDto,
 	StrategiesDto,
+	StrategyKey,
+	StrategyParamsDto,
 	SyncResultDto,
 	UpdateStrategiesArgs,
 } from "../model/types";
@@ -40,6 +42,78 @@ const noInnError = (): FetchBaseQueryError => ({
 
 const asError = (result: { error?: FetchBaseQueryError }): FetchBaseQueryError =>
 	result.error ?? { status: 500, data: { message: "Request failed" } };
+
+const toProbabilityPct = (raw: number | null | undefined) => {
+	if (raw == null || Number.isNaN(Number(raw))) return 0;
+	const n = Number(raw);
+	return n <= 1 ? Math.round(n * 100) : Math.round(n);
+};
+
+const strategyKeyFromCode = (code?: string | null): StrategyKey | null => {
+	const c = (code ?? "").toLowerCase();
+	if (c === "cons" || c === "conservative") return "cons";
+	if (c === "base" || c === "balanced" || c === "moderate") return "base";
+	if (c === "opt" || c === "optimistic") return "opt";
+	if (c === "own" || c === "custom") return "own";
+	return null;
+};
+
+const cautionToStrategyKey = (cautionLevel?: string | null): StrategyKey =>
+	strategyKeyFromCode(cautionLevel) ?? "base";
+
+const cautionLevelName = (key: StrategyKey) =>
+	key === "cons" ? "conservative" : key === "opt" ? "optimistic" : key === "own" ? "custom" : "balanced";
+
+const DEFAULT_PRESET_PARAMS: Record<StrategyKey, Pick<StrategyParamsDto, "haircutPct" | "delayDays">> = {
+	cons: { haircutPct: 15, delayDays: 14 },
+	base: { haircutPct: 5, delayDays: 7 },
+	opt: { haircutPct: 0, delayDays: 0 },
+	own: { haircutPct: 5, delayDays: 7 },
+};
+
+const flattenConditions = (conditions: unknown): Record<string, string> => {
+	if (!conditions) return {};
+	if (Array.isArray(conditions)) {
+		return conditions.reduce<Record<string, string>>((acc, item) => {
+			if (item && typeof item === "object") {
+				Object.entries(item as Record<string, unknown>).forEach(([k, v]) => {
+					if (v != null && typeof v !== "object") acc[k] = String(v);
+				});
+			}
+			return acc;
+		}, {});
+	}
+	if (typeof conditions === "object") {
+		return Object.fromEntries(
+			Object.entries(conditions as Record<string, unknown>)
+				.filter(([, v]) => v != null && typeof v !== "object")
+				.map(([k, v]) => [k, String(v)]),
+		);
+	}
+	return {};
+};
+
+type RawForecastPreset = {
+	code?: string;
+	active?: boolean;
+	conditions?: unknown;
+	minBalance?: number;
+	gapDate?: string | null;
+	gapAmount?: number;
+	gapProbability?: number;
+};
+
+const paramsFromPreset = (key: StrategyKey, p: RawForecastPreset | undefined, minBalanceK: number): StrategyParamsDto => {
+	const cond = flattenConditions(p?.conditions);
+	const delay = Number(cond.delay ?? cond.delayDays);
+	const haircut = Number(cond.haircut ?? cond.haircutPct ?? cond.drop);
+	const fallback = DEFAULT_PRESET_PARAMS[key];
+	return {
+		haircutPct: Number.isFinite(haircut) ? haircut : fallback.haircutPct,
+		delayDays: Number.isFinite(delay) ? delay : fallback.delayDays,
+		minBalanceK: p?.minBalance != null ? Math.round(p.minBalance / 1000) : minBalanceK,
+	};
+};
 
 const asList = <T>(data: unknown): T[] => {
 	if (Array.isArray(data)) return data as T[];
@@ -140,42 +214,43 @@ const buildOpsBalancePoints = (
 	});
 };
 
-const DEFAULT_FORECAST_SCENARIOS: ForecastScenarioDto[] = [
+/** Condition keys accepted by `/scenarios/preview`; titles/labels come from i18n on the page. */
+const FORECAST_CONDITION_FIELDS: ForecastScenarioDto[] = [
 	{
 		key: "delay",
-		title: "Клиент заплатит позже",
+		title: "delay",
 		defaultValue: "14",
 		options: [
-			{ value: "7", label: "7 дн." },
-			{ value: "14", label: "14 дн." },
-			{ value: "21", label: "21 дн." },
+			{ value: "7", label: "7" },
+			{ value: "14", label: "14" },
+			{ value: "21", label: "21" },
 		],
 	},
 	{
 		key: "drop",
-		title: "Спад выручки",
+		title: "drop",
 		defaultValue: "10",
 		options: [
-			{ value: "10", label: "−10%" },
-			{ value: "20", label: "−20%" },
-			{ value: "30", label: "−30%" },
+			{ value: "10", label: "10" },
+			{ value: "20", label: "20" },
+			{ value: "30", label: "30" },
 		],
 	},
 	{
 		key: "fixed",
-		title: "Рост постоянных расходов",
+		title: "fixed",
 		defaultValue: "10",
 		options: [
-			{ value: "5", label: "+5%" },
-			{ value: "10", label: "+10%" },
-			{ value: "15", label: "+15%" },
+			{ value: "5", label: "5" },
+			{ value: "10", label: "10" },
+			{ value: "15", label: "15" },
 		],
 	},
 	{
 		key: "skip",
-		title: "Исключить просроченные поступления из риска",
+		title: "skip",
 		defaultValue: "1",
-		options: [{ value: "1", label: "Да" }],
+		options: [{ value: "1", label: "1" }],
 	},
 ];
 
@@ -305,21 +380,44 @@ const financeApi = rtkApi.injectEndpoints({
 								},
 							});
 				if (result.error) return { error: asError(result) };
-				const body = result.data as { points?: ForecastPointRaw[] };
+				const body = result.data as {
+					points?: ForecastPointRaw[];
+					summary?: {
+						gapDate?: string | null;
+						gapAmount?: number;
+						riskGapDate?: string | null;
+						riskGapAmount?: number;
+					};
+				};
 				const points = mapForecastPoints(body.points);
-				const gapPoint = points.find((p) => (p.pessimisticBalance ?? 0) < 0);
+				const summaryGapDate = body.summary?.gapDate || body.summary?.riskGapDate || null;
+				const summaryGapAmount = body.summary?.gapAmount ?? body.summary?.riskGapAmount;
+				const gapPoint =
+					summaryGapDate != null
+						? points.find((p) => p.date === summaryGapDate) ??
+							points.find((p) => (p.pessimisticBalance ?? 0) < 0)
+						: points.find((p) => (p.pessimisticBalance ?? 0) < 0);
+				const gapBalance =
+					summaryGapAmount != null
+						? -Math.abs(summaryGapAmount)
+						: (gapPoint?.pessimisticBalance ?? 0);
+				const hasGap = Boolean(summaryGapDate || gapPoint);
 				return {
 					data: {
 						cashflow: {
 							points,
-							gap: gapPoint
-								? { date: gapPoint.date, balance: gapPoint.pessimisticBalance ?? 0 }
-								: null,
+							gap:
+								hasGap && (summaryGapDate || gapPoint)
+									? {
+											date: summaryGapDate || gapPoint!.date,
+											balance: gapBalance,
+										}
+									: null,
 							todayIndex: 0,
 						},
-						hasGap: Boolean(gapPoint),
-						resultText: gapPoint ? "gap" : "ok",
-						scenarios: DEFAULT_FORECAST_SCENARIOS,
+						hasGap,
+						resultText: hasGap ? "gap" : "ok",
+						scenarios: FORECAST_CONDITION_FIELDS,
 					},
 				};
 			},
@@ -1139,9 +1237,10 @@ const financeApi = rtkApi.injectEndpoints({
 			async queryFn(_arg, _api, _extra, baseQuery) {
 				const inn = getActiveInn();
 				if (!inn) return { error: noInnError() };
-				const [settings, forecast] = await Promise.all([
+				const [settings, forecast, presetsRes] = await Promise.all([
 					baseQuery(`/api/companies/${inn}/forecast-settings`),
 					baseQuery({ url: `/api/companies/${inn}/forecast`, params: { horizonDays: 30 } }),
+					baseQuery(`/api/companies/${inn}/forecast-presets`),
 				]);
 				if (settings.error) return { error: asError(settings) };
 				const s = settings.data as {
@@ -1149,7 +1248,12 @@ const financeApi = rtkApi.injectEndpoints({
 					minBalance?: number;
 					salaryDay?: number;
 					notifyRules?: Record<string, boolean>;
+					presets?: Record<string, { haircutPct?: number; delayDays?: number; minBalanceK?: number }>;
 				};
+				const rawPresets =
+					presetsRes.error
+						? []
+						: (((presetsRes.data as { presets?: RawForecastPreset[] })?.presets ?? []) as RawForecastPreset[]);
 				const points =
 					forecast.error
 						? []
@@ -1160,51 +1264,75 @@ const financeApi = rtkApi.injectEndpoints({
 										baseBalance?: number;
 										negativeBalance?: number;
 									}[];
+									summary?: { gapDate?: string | null; gapAmount?: number; gapProbability?: number };
 								}).points ?? []
 							).map((p) => ({
 								date: p.date,
 								balance: p.baseBalance ?? 0,
 								pessimisticBalance: p.negativeBalance ?? null,
 							}));
-				const active =
-					s.cautionLevel === "conservative"
-						? "cons"
-						: s.cautionLevel === "optimistic"
-							? "opt"
-							: s.cautionLevel === "custom"
-								? "own"
-								: "base";
+				const forecastSummary = forecast.error
+					? undefined
+					: (forecast.data as { summary?: { gapDate?: string | null; gapAmount?: number; gapProbability?: number } })
+							?.summary;
+				const active = cautionToStrategyKey(s.cautionLevel);
 				const minBalanceK = Math.round((s.minBalance ?? 150_000) / 1000);
 				const salaryDay = s.salaryDay ?? 5;
-				const presets = {
-					cons: { haircutPct: 15, delayDays: 14, minBalanceK },
-					base: { haircutPct: 5, delayDays: 7, minBalanceK },
-					opt: { haircutPct: 0, delayDays: 0, minBalanceK },
-					own: { haircutPct: 5, delayDays: 7, minBalanceK },
+				const byKey = new Map<StrategyKey, RawForecastPreset>();
+				rawPresets.forEach((p) => {
+					const key = strategyKeyFromCode(p.code);
+					if (key) byKey.set(key, p);
+				});
+				const presets: Record<StrategyKey, StrategyParamsDto> = {
+					cons: paramsFromPreset("cons", byKey.get("cons"), minBalanceK),
+					base: paramsFromPreset("base", byKey.get("base"), minBalanceK),
+					opt: paramsFromPreset("opt", byKey.get("opt"), minBalanceK),
+					own: paramsFromPreset("own", byKey.get("own"), minBalanceK),
 				};
-				const ruleEntries = Object.entries(s.notifyRules ?? {});
-				const rules =
-					ruleEntries.length > 0
-						? ruleEntries.map(([id, enabled]) => ({
-								id,
-								label: id,
-								enabled: Boolean(enabled),
-							}))
-						: [
-								{ id: "min_balance", label: "ruleA", enabled: true },
-								{ id: "late_inflow", label: "ruleB", enabled: true },
-								{ id: "daily_digest", label: "ruleC", enabled: false },
-							];
+				if (s.presets && typeof s.presets === "object") {
+					(["cons", "base", "opt", "own"] as StrategyKey[]).forEach((key) => {
+						const fromSettings = s.presets?.[key] ?? s.presets?.[cautionLevelName(key)];
+						if (!fromSettings) return;
+						presets[key] = {
+							haircutPct: fromSettings.haircutPct ?? presets[key].haircutPct,
+							delayDays: fromSettings.delayDays ?? presets[key].delayDays,
+							minBalanceK: fromSettings.minBalanceK ?? presets[key].minBalanceK,
+						};
+					});
+				}
+				const activeRaw =
+					rawPresets.find((p) => p.active) ??
+					byKey.get(active) ??
+					rawPresets.find((p) => strategyKeyFromCode(p.code) === active);
+				const probabilityPct = toProbabilityPct(
+					activeRaw?.gapProbability ?? forecastSummary?.gapProbability,
+				);
+				const gapDate = activeRaw?.gapDate || forecastSummary?.gapDate || null;
+				const gapAmount = activeRaw?.gapAmount ?? forecastSummary?.gapAmount;
+				const rules = Object.entries(s.notifyRules ?? {}).map(([id, enabled]) => ({
+					id,
+					label: id,
+					enabled: Boolean(enabled),
+				}));
 				return {
 					data: {
 						active,
 						salaryDay,
 						presets,
 						impact: {
-							probabilityPct: 0,
-							gapLabel: "",
-							cashflow: { points },
-							showRisk: points.some((p) => (p.pessimisticBalance ?? 0) < 0),
+							probabilityPct,
+							gapLabel: gapDate ?? "",
+							cashflow: {
+								points,
+								gap:
+									gapDate != null
+										? {
+												date: gapDate,
+												balance: gapAmount != null ? -Math.abs(gapAmount) : 0,
+											}
+										: null,
+							},
+							showRisk: Boolean(gapDate) || points.some((p) => (p.pessimisticBalance ?? 0) < 0),
 						},
 						rules,
 					},
@@ -1217,14 +1345,7 @@ const financeApi = rtkApi.injectEndpoints({
 			async queryFn(body, _api, _extra, baseQuery) {
 				const inn = getActiveInn();
 				if (!inn) return { error: noInnError() };
-				const cautionLevel =
-					body.active === "cons"
-						? "conservative"
-						: body.active === "opt"
-							? "optimistic"
-							: body.active === "own"
-								? "custom"
-								: "balanced";
+				const cautionLevel = cautionLevelName(body.active);
 				const result = await baseQuery({
 					url: `/api/companies/${inn}/forecast-settings`,
 					method: "PUT",
@@ -1233,6 +1354,10 @@ const financeApi = rtkApi.injectEndpoints({
 						minBalance: body.params.minBalanceK * 1000,
 						salaryDay: body.salaryDay ?? 5,
 						notifyRules: Object.fromEntries((body.rules ?? []).map((r) => [r.id, r.enabled])),
+						presets: {
+							[body.active]: body.params,
+							[cautionLevel]: body.params,
+						},
 					},
 				});
 				if (result.error) return { error: asError(result) };
@@ -1246,7 +1371,7 @@ const financeApi = rtkApi.injectEndpoints({
 				const params = { ...body.params, minBalanceK };
 				return {
 					data: {
-						active: body.active,
+						active: cautionToStrategyKey(saved.cautionLevel) || body.active,
 						salaryDay: saved.salaryDay ?? body.salaryDay ?? 5,
 						presets: { cons: params, base: params, opt: params, own: params },
 						impact: {
@@ -1255,7 +1380,11 @@ const financeApi = rtkApi.injectEndpoints({
 							cashflow: { points: [] },
 							showRisk: false,
 						},
-						rules: (body.rules ?? []).map((r) => ({ id: r.id, label: r.id, enabled: r.enabled })),
+						rules: Object.entries(saved.notifyRules ?? {}).map(([id, enabled]) => ({
+							id,
+							label: id,
+							enabled: Boolean(enabled),
+						})),
 					},
 				};
 			},
@@ -1290,59 +1419,77 @@ const financeApi = rtkApi.injectEndpoints({
 				const inn = getActiveInn();
 				if (!inn) return { error: noInnError() };
 				const result = await baseQuery({
-					url: `/api/companies/${inn}/events/import`,
+					url: `/api/companies/${inn}/events/import/preview`,
 					method: "POST",
 					body,
 				});
 				if (result.error) return { error: asError(result) };
-				const rows = (result.data as {
-					eventDate?: string;
-					title?: string;
-					category?: string;
-					amount?: number;
-				}[]) ?? [];
-				return {
-					data: {
-						rows: rows.map((r) => ({
-							date: pickIsoDate(r.eventDate, (r as { date?: unknown }).date),
-							name: r.title ?? "",
-							category: r.category ?? "",
-							amount: r.amount ?? 0,
-							ok: true,
-						})),
-					},
+				const preview = result.data as {
+					rows?: {
+						rowNumber?: number;
+						operation?: Record<string, unknown>;
+						missingFields?: string[];
+						readyForReview?: boolean;
+					}[];
 				};
+				const rows = (preview.rows ?? []).map((r) => {
+					const op = r.operation ?? {};
+					const amount = Number(op.amount ?? 0);
+					return {
+						date: pickIsoDate(op.eventDate, op.date, op.dueDate),
+						name: String(op.title ?? op.name ?? ""),
+						category: String(op.category ?? ""),
+						amount,
+						ok: Boolean(r.readyForReview) && !(r.missingFields?.length),
+					};
+				});
+				return { data: { rows } };
 			},
-			invalidatesTags: ["Events", "Today", "Forecast", "Operations"],
 		}),
 
 		confirmParsedEvents: build.mutation<{ ok: boolean }, { rows: ParseEventsResultDto["rows"] }>({
-			// Import endpoint already persists events; confirm only acknowledges UI step.
-			queryFn: () => ({ data: { ok: true } }),
+			async queryFn({ rows }, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
+				const result = await baseQuery({
+					url: `/api/companies/${inn}/events/import/confirm`,
+					method: "POST",
+					body: {
+						rows: rows
+							.filter((r) => r.ok)
+							.map((r) => ({
+								eventDate: r.date,
+								title: r.name,
+								category: r.category,
+								amount: Math.abs(r.amount),
+								direction: r.amount >= 0 ? "Поступление" : "Списание",
+							})),
+					},
+				});
+				if (result.error) return { error: asError(result) };
+				return { data: { ok: true } };
+			},
 			invalidatesTags: ["Events", "Today", "Forecast", "Operations"],
 		}),
 
 		askAssistant: build.mutation<string, { question: string; conversationId?: string }>({
 			async queryFn({ question, conversationId }, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
 				const result = await baseQuery({
-					url: "/api/ai/ask",
-					params: {
+					url: `/api/companies/${inn}/assistant/ask`,
+					method: "POST",
+					body: {
 						question,
-						conversationId: conversationId || "default",
-					},
-					responseHandler: async (response) => {
-						const text = await response.text();
-						if (!text) return "";
-						try {
-							const parsed = JSON.parse(text) as unknown;
-							return typeof parsed === "string" ? parsed : text;
-						} catch {
-							return text;
-						}
+						conversationId: conversationId || undefined,
 					},
 				});
 				if (result.error) return { error: asError(result) };
-				const answer = String(result.data ?? "").trim();
+				const body = result.data as { answer?: string } | string | null;
+				const answer =
+					typeof body === "string"
+						? body.trim()
+						: String(body?.answer ?? "").trim();
 				if (!answer) {
 					return { error: { status: 502, data: { message: "Empty assistant reply" } } };
 				}

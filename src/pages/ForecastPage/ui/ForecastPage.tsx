@@ -108,7 +108,8 @@ export const ForecastPage = memo(() => {
 	};
 
 	const save = async () => {
-		const label = active.map((s) => `${s.title} ${s.opt}`).join(", ") || t("forecast.base");
+		const label =
+			active.map((s) => `${t(`forecast.scen.${s.key}`)} ${s.opt}`).join(", ") || t("forecast.base");
 		await saveScenario({
 			name: label,
 			params: queryArgs,
@@ -176,7 +177,7 @@ export const ForecastPage = memo(() => {
 								>
 									<button type="button" className={styles["forecast-page__scen-tog"]} onClick={() => toggle(s.key)}>
 										<span className={cn(styles["forecast-page__check"], s.on && styles["forecast-page__check--on"])} />
-										{s.title}
+										{t(`forecast.scen.${s.key}`)}
 									</button>
 									<div className={styles["forecast-page__opts"]}>
 										{s.options.map((o) => (
@@ -189,7 +190,13 @@ export const ForecastPage = memo(() => {
 												)}
 												onClick={() => setOpt(s.key, o.value)}
 											>
-												{o.label}
+												{s.key === "delay"
+													? t("forecast.optDays", { n: o.value })
+													: s.key === "drop"
+														? t("forecast.optPctDrop", { n: o.value })
+														: s.key === "fixed"
+															? t("forecast.optPctUp", { n: o.value })
+															: t("forecast.optYes")}
 											</button>
 										))}
 									</div>
@@ -224,7 +231,14 @@ export const ForecastPage = memo(() => {
 								) : (
 									active.map((s) => (
 										<span key={s.key} className={styles["forecast-page__chip"]}>
-											{s.title}: {s.options.find((o) => o.value === s.opt)?.label ?? s.opt}
+											{t(`forecast.scen.${s.key}`)}:{" "}
+											{s.key === "delay"
+												? t("forecast.optDays", { n: s.opt })
+												: s.key === "drop"
+													? t("forecast.optPctDrop", { n: s.opt })
+													: s.key === "fixed"
+														? t("forecast.optPctUp", { n: s.opt })
+														: t("forecast.optYes")}
 										</span>
 									))
 								)}
