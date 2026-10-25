@@ -97,20 +97,21 @@
 
 	&__weekdays {
 		color: var(--color-text-faint);
-		font-size: var(--font-size-base);
+		font-size: var(--font-size-lg);
 	}
 
 	&__day {
 		display: flex;
 		flex-direction: column;
-		gap: 3px;
-		min-height: 92px;
+		gap: 4px;
+		min-height: 104px;
 		min-width: 0;
-		padding: 6px var(--space-2);
+		padding: 8px var(--space-2);
 		border-radius: var(--radius-xl);
 		background: var(--color-shape);
-		font-size: var(--font-size-base);
-		line-height: 18px;
+		font-size: var(--font-size-lg);
+		font-weight: 500;
+		line-height: 22px;
 
 		&--weekend {
 			opacity: 0.85;
@@ -123,12 +124,12 @@
 
 	&__ev {
 		overflow: hidden;
-		padding: 1px 6px;
+		padding: 2px 8px;
 		border-radius: 6px;
 		background: var(--color-primary-soft);
 		color: var(--color-primary-on-soft);
-		font-size: var(--font-size-sm);
-		line-height: 16px;
+		font-size: var(--font-size-base);
+		line-height: 20px;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}

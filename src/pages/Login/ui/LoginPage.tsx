@@ -21,12 +21,17 @@ const MIN_PASSWORD = 8;
 
 const emailOk = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
+const namePartOk = (value: string) =>
+	/^[A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё'-]*$/.test(value.trim());
+
+const passwordOk = (value: string) => value.length >= MIN_PASSWORD && /\d/.test(value);
+
 const splitFio = (fio: string) => {
 	const parts = fio.trim().split(/\s+/).filter(Boolean);
 	return {
 		lastName: parts[0] || "",
 		firstName: parts[1] || "",
-		middleName: parts.slice(2).join(" ") || undefined,
+		middleName: parts[2] || "",
 	};
 };
 
@@ -52,17 +57,27 @@ const LoginPage = () => {
 	const [serverError, setServerError] = useState<string | null>(null);
 
 	const pending = signInState.isLoading || registerState.isLoading;
-	const pwBad = tab === "up" && !!password2 && password !== password2;
 	const fioParts = splitFio(fio);
-	const fioIncomplete = tab === "up" && (!fioParts.lastName || !fioParts.firstName);
+	const fioIncomplete = !fioParts.lastName || !fioParts.firstName || !fioParts.middleName;
+	const fioFormatBad =
+		!fioIncomplete &&
+		(!namePartOk(fioParts.lastName) ||
+			!namePartOk(fioParts.firstName) ||
+			!namePartOk(fioParts.middleName));
 
 	const canSubmit = useMemo(() => {
-		if (!emailOk(email) || password.length < MIN_PASSWORD) return false;
+		if (!emailOk(email)) return false;
 		if (tab === "up") {
-			return !fioIncomplete && password === password2;
+			return (
+				!fioIncomplete &&
+				!fioFormatBad &&
+				passwordOk(password) &&
+				password2.length > 0 &&
+				password === password2
+			);
 		}
-		return true;
-	}, [email, fioIncomplete, password, password2, tab]);
+		return password.length >= MIN_PASSWORD;
+	}, [email, fioFormatBad, fioIncomplete, password, password2, tab]);
 
 	if (auth) {
 		return <Navigate to={onboardingDone ? getRouteMain() : getRouteOnboarding()} replace />;
@@ -98,7 +113,7 @@ const LoginPage = () => {
 		e.preventDefault();
 		setTouched(true);
 		setServerError(null);
-		if (!canSubmit || pwBad || pending) return;
+		if (!canSubmit || pending) return;
 
 		const normalizedEmail = email.trim().toLowerCase();
 
@@ -110,7 +125,7 @@ const LoginPage = () => {
 					password,
 					firstName,
 					lastName,
-					middleName,
+					middleName: middleName || undefined,
 				}).unwrap();
 				setAuthData(mapApiUserToAuthData(data.user));
 				finishAuth(data.user.inns ?? []);
@@ -125,21 +140,46 @@ const LoginPage = () => {
 		}
 	};
 
-	const errorText = pwBad
-		? t("auth.passwordMismatch")
-		: serverError
-			? serverError
-			: touched && !canSubmit
-				? fioIncomplete
-					? t("auth.fioRequired")
-					: password.length > 0 && password.length < MIN_PASSWORD
-						? t("auth.passwordTooShort")
-						: t("auth.formInvalid")
-				: null;
+	const fioError =
+		touched && tab === "up"
+			? !fio.trim() || fioIncomplete
+				? t("auth.fioRequired")
+				: fioFormatBad
+					? t("auth.fioInvalid")
+					: null
+			: null;
+	const emailError = touched
+		? !email.trim()
+			? t("auth.emailRequired")
+			: !emailOk(email)
+				? t("auth.emailInvalid")
+				: null
+		: null;
+	const passwordError = touched
+		? !password
+			? t("auth.passwordRequired")
+			: tab === "up" && !passwordOk(password)
+				? password.length < MIN_PASSWORD
+					? t("auth.passwordTooShort")
+					: t("auth.passwordWeak")
+				: tab === "in" && password.length < MIN_PASSWORD
+					? t("auth.passwordTooShort")
+					: null
+		: null;
+	const password2Error =
+		touched && tab === "up"
+			? !password2
+				? t("auth.passwordRepeatRequired")
+				: password !== password2
+					? t("auth.passwordMismatch")
+					: null
+			: null;
+
+	const errorText = serverError;
 
 	return (
 		<AuthLayout>
-			<form className={styles["login-page"]} onSubmit={onSubmit}>
+			<form className={styles["login-page"]} onSubmit={onSubmit} noValidate>
 				<div className={styles["login-page__seg"]} role="tablist" aria-label={t("auth.loginTitle")}>
 					<button
 						type="button"
@@ -152,6 +192,7 @@ const LoginPage = () => {
 						onClick={() => {
 							setTab("in");
 							setServerError(null);
+							setTouched(false);
 						}}
 						disabled={pending}
 					>
@@ -168,6 +209,7 @@ const LoginPage = () => {
 						onClick={() => {
 							setTab("up");
 							setServerError(null);
+							setTouched(false);
 						}}
 						disabled={pending}
 					>
@@ -193,7 +235,13 @@ const LoginPage = () => {
 								}}
 								autoComplete="name"
 								disabled={pending}
+								aria-invalid={!!fioError}
 							/>
+							{fioError ? (
+								<span className={styles["login-page__error"]} role="alert">
+									{fioError}
+								</span>
+							) : null}
 						</label>
 					) : null}
 
@@ -209,7 +257,13 @@ const LoginPage = () => {
 							}}
 							autoComplete="email"
 							disabled={pending}
+							aria-invalid={!!emailError}
 						/>
+						{emailError ? (
+							<span className={styles["login-page__error"]} role="alert">
+								{emailError}
+							</span>
+						) : null}
 					</label>
 					<label className={styles["login-page__field"]}>
 						<span className={styles["login-page__label"]}>{t("auth.password")}</span>
@@ -224,7 +278,13 @@ const LoginPage = () => {
 							minLength={MIN_PASSWORD}
 							autoComplete={tab === "up" ? "new-password" : "current-password"}
 							disabled={pending}
+							aria-invalid={!!passwordError}
 						/>
+						{passwordError ? (
+							<span className={styles["login-page__error"]} role="alert">
+								{passwordError}
+							</span>
+						) : null}
 					</label>
 					{tab === "up" ? (
 						<label className={styles["login-page__field"]}>
@@ -239,7 +299,13 @@ const LoginPage = () => {
 								}}
 								autoComplete="new-password"
 								disabled={pending}
+								aria-invalid={!!password2Error}
 							/>
+							{password2Error ? (
+								<span className={styles["login-page__error"]} role="alert">
+									{password2Error}
+								</span>
+							) : null}
 						</label>
 					) : null}
 				</div>
@@ -250,15 +316,10 @@ const LoginPage = () => {
 					</div>
 				) : null}
 
-				<button
-					type="submit"
-					className={styles["login-page__submit"]}
-					disabled={pending || (touched && !canSubmit)}
-				>
+				<button type="submit" className={styles["login-page__submit"]} disabled={pending}>
 					{pending ? t("auth.submitting") : tab === "up" ? t("auth.createAccount") : t("auth.submit")}
 				</button>
 
-				{tab === "up" ? <div className={styles["login-page__terms"]}>{t("auth.terms")}</div> : null}
 			</form>
 		</AuthLayout>
 	);

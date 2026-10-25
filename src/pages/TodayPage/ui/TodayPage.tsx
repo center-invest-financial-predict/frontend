@@ -95,7 +95,7 @@ const TodayPage = memo(() => {
 	);
 
 	const queries = [overview, forecast, weekly, categoriesQ, alertsQ, upcomingQ, recommendationsQ];
-	const allSettled = queries.every((q) => !q.isLoading);
+	const allSettled = queries.every((q) => !q.isLoading && !q.isFetching);
 	const allFailed = queries.every((q) => q.isError);
 	const refetchAll = () => {
 		queries.forEach((q) => {
@@ -103,7 +103,18 @@ const TodayPage = memo(() => {
 		});
 	};
 
-	const periodLoading = period === "day" ? forecast.isLoading : weekly.isLoading;
+	const kpiLoading =
+		overview.isLoading ||
+		(overview.isFetching && data.kpis.length === 0) ||
+		(!overview.isError && data.kpis.length === 0 && !allSettled);
+	const chartLoading =
+		forecast.isLoading ||
+		(forecast.isFetching && data.cashflow.points.length === 0) ||
+		(!forecast.isError && data.cashflow.points.length === 0 && !allSettled);
+	const periodLoading =
+		period === "day"
+			? chartLoading
+			: weekly.isLoading || (weekly.isFetching && !(data.periods.week?.length));
 	const periodError = period === "day" ? forecast.isError : weekly.isError;
 	const periodRefetch = period === "day" ? forecast.refetch : weekly.refetch;
 
@@ -184,14 +195,14 @@ const TodayPage = memo(() => {
 				</div>
 			) : null}
 
-			{overview.isLoading ? (
+			{kpiLoading ? (
 				<div id="today-kpi" className={styles["today-page__kpi-skel"]} aria-busy="true" aria-label={t("states.loading")}>
 					{Array.from({ length: 4 }, (_, i) => (
 						<Skeleton key={i} variant="card" />
 					))}
 				</div>
 			) : null}
-			{!overview.isLoading && data.kpis.length > 0 ? (
+			{!kpiLoading && data.kpis.length > 0 ? (
 				<div id="today-kpi">
 					<KpiCards items={data.kpis} />
 				</div>
@@ -234,8 +245,8 @@ const TodayPage = memo(() => {
 
 					{aboutOpen ? <div className={styles["today-page__about"]}>{t("today.aboutText")}</div> : null}
 
-					{forecast.isLoading ? <Skeleton variant="chart" label={t("states.loading")} /> : null}
-					{forecast.isError ? (
+					{chartLoading ? <Skeleton variant="chart" label={t("states.loading")} /> : null}
+					{forecast.isError && !chartLoading ? (
 						<StateBanner
 							variant="error"
 							title={t("states.errorTitle")}
@@ -243,12 +254,12 @@ const TodayPage = memo(() => {
 							onAction={() => forecast.refetch()}
 						/>
 					) : null}
-					{!forecast.isLoading && !forecast.isError && view === "chart" ? (
+					{!chartLoading && !forecast.isError && view === "chart" ? (
 						<div className={styles["today-page__chart-plot"]}>
 							<CashflowChart series={data.cashflow} showRisk />
 						</div>
 					) : null}
-					{!forecast.isLoading && !forecast.isError && view === "days" ? (
+					{!chartLoading && !forecast.isError && view === "days" ? (
 						<div className={styles["today-page__days"]}>
 							<div className={styles["today-page__days-head"]}>
 								<span>{t("today.colDate")}</span>

@@ -211,16 +211,20 @@
 	}
 
 	&__days {
-		max-height: 300px;
+		max-height: 360px;
 		overflow: auto;
 		border: 1px solid var(--color-border);
 		border-radius: 14px;
+
+		@media (max-width: 700px) {
+			max-height: 60dvh;
+		}
 	}
 
 	&__days-head,
 	&__days-row {
 		display: grid;
-		grid-template-columns: 70px 1fr 1fr 1fr 1fr;
+		grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
 		gap: var(--space-2);
 		padding: 9px var(--space-3);
 		font-size: var(--font-size-base);
@@ -230,6 +234,7 @@
 	&__days-head {
 		position: sticky;
 		top: 0;
+		z-index: 1;
 		padding: var(--space-2) var(--space-3);
 		border-bottom: 1px solid var(--color-border);
 		background: var(--color-surface);
@@ -237,6 +242,11 @@
 		font-size: var(--font-size-sm);
 		line-height: 16px;
 		text-align: right;
+
+		span {
+			min-width: 0;
+			overflow-wrap: anywhere;
+		}
 
 		span:first-child {
 			text-align: left;
@@ -252,6 +262,11 @@
 		font-family: inherit;
 		text-align: right;
 		cursor: pointer;
+
+		span {
+			min-width: 0;
+			overflow-wrap: anywhere;
+		}
 
 		span:first-child {
 			text-align: left;

@@ -55,12 +55,6 @@ const WORK_LINKS: WorkLink[] = [
 		group: [getRouteEvents(), getRouteCalendar()],
 	},
 	{
-		labelKey: "nav.add",
-		path: getRouteAdd(),
-		icon: Plus,
-		group: [getRouteAdd()],
-	},
-	{
 		labelKey: "nav.operations",
 		path: getRouteOperations(),
 		icon: AlignLeft,
@@ -177,16 +171,23 @@ export const Sidebar: FC = memo(() => {
 				className={cn(styles.sidebar, navOpen && styles["sidebar--open"])}
 				aria-label={t("nav.work")}
 			>
-				<div className={styles["sidebar__company-wrap"]}>
-					<div className={styles.sidebar__company}>
-						<span className={styles["sidebar__company-name"]}>
-							{companyName || t("company.label")}
-						</span>
-						<span className={styles["sidebar__company-type"]}>
-							{activeInn ? t("company.innLabel", { inn: activeInn }) : t("company.innEmpty")}
-						</span>
-					</div>
+				<div className={styles.sidebar__company}>
+					<span className={styles["sidebar__company-name"]}>
+						{companyName || t("company.label")}
+					</span>
+					<span className={styles["sidebar__company-inn"]}>
+						{activeInn ? t("company.innLabel", { inn: activeInn }) : t("company.innEmpty")}
+					</span>
 				</div>
+
+				<button
+					type="button"
+					className={styles.sidebar__add}
+					onClick={() => go(getRouteAdd())}
+				>
+					<Plus size={18} strokeWidth={1.3} aria-hidden />
+					{t("nav.add")}
+				</button>
 
 				<nav className={styles.sidebar__nav}>
 					<button type="button" className={styles["sidebar__section"]} onClick={() => setWorkOpen((v) => !v)}>

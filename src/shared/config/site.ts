@@ -4,7 +4,7 @@ export const SITE_ORIGIN = (
 	(typeof window !== "undefined" ? window.location.origin : "http://localhost:5173")
 ).replace(/\/$/, "");
 
-export const SITE_NAME = "Кассовый прогноз";
+export const SITE_NAME = "Financial Assistant";
 
 export const DEFAULT_OG_IMAGE_PATH = "/og/og-default.jpg";
 

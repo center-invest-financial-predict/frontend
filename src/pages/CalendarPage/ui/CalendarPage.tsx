@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { useGetCalendarQuery } from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
-import { Skeleton } from "@/shared/ui/Skeleton";
 import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
 import { dayOfMonth } from "@/shared/lib/format/formatDate";
@@ -17,7 +16,7 @@ export const CalendarPage = memo(() => {
 	const now = useMemo(() => new Date(), []);
 	const year = now.getFullYear();
 	const month = now.getMonth() + 1;
-	const { data, isLoading, isError, refetch } = useGetCalendarQuery({ year, month });
+	const { data, isError, isFetching, refetch } = useGetCalendarQuery({ year, month });
 
 	const weekdays = useMemo(() => {
 		const locale = i18n.language?.startsWith("en") ? "en-US" : "ru-RU";
@@ -33,7 +32,8 @@ export const CalendarPage = memo(() => {
 		const map: Record<number, string> = {};
 		data?.events.forEach((e) => {
 			const day = dayOfMonth(e.date);
-			if (day) map[day] = e.label;
+			if (!day || !e.label) return;
+			map[day] = map[day] ? `${map[day]}; ${e.label}` : e.label;
 		});
 		return map;
 	}, [data?.events]);
@@ -64,8 +64,7 @@ export const CalendarPage = memo(() => {
 				</div>
 			</div>
 
-			{isLoading ? <Skeleton variant="chart" label={t("states.loading")} /> : null}
-			{isError ? (
+			{isError && !data ? (
 				<StateBanner
 					variant="error"
 					title={t("states.errorTitle")}
@@ -74,37 +73,35 @@ export const CalendarPage = memo(() => {
 				/>
 			) : null}
 
-			{!isLoading && !isError ? (
-				<Card className={styles["calendar-page__card"]}>
-					<div className={styles["calendar-page__weekdays"]}>
-						{weekdays.map((w) => (
-							<span key={w}>{w}</span>
-						))}
-					</div>
-					<div className={styles["calendar-page__grid"]}>
-						{Array.from({ length: 42 }, (_, i) => {
-							const day = i - startWeekday + 1;
-							const show = day >= 1 && day <= daysInMonth;
-							const ev = show ? eventsByDay[day] : "";
-							const weekend = i % 7 >= 5;
-							const today = show && day === todayDay;
-							return (
-								<div
-									key={i}
-									className={cn(
-										styles["calendar-page__day"],
-										weekend && styles["calendar-page__day--weekend"],
-										today && styles["calendar-page__day--today"],
-									)}
-								>
-									{show ? <span>{day}</span> : null}
-									{ev ? <span className={styles["calendar-page__ev"]}>{ev}</span> : null}
-								</div>
-							);
-						})}
-					</div>
-				</Card>
-			) : null}
+			<Card className={styles["calendar-page__card"]} aria-busy={isFetching && !data}>
+				<div className={styles["calendar-page__weekdays"]}>
+					{weekdays.map((w, i) => (
+						<span key={`${w}-${i}`}>{w}</span>
+					))}
+				</div>
+				<div className={styles["calendar-page__grid"]}>
+					{Array.from({ length: 42 }, (_, i) => {
+						const day = i - startWeekday + 1;
+						const show = day >= 1 && day <= daysInMonth;
+						const ev = show ? eventsByDay[day] : "";
+						const weekend = i % 7 >= 5;
+						const today = show && day === todayDay;
+						return (
+							<div
+								key={i}
+								className={cn(
+									styles["calendar-page__day"],
+									weekend && styles["calendar-page__day--weekend"],
+									today && styles["calendar-page__day--today"],
+								)}
+							>
+								{show ? <span>{day}</span> : null}
+								{ev ? <span className={styles["calendar-page__ev"]}>{ev}</span> : null}
+							</div>
+						);
+					})}
+				</div>
+			</Card>
 		</Page>
 	);
 });

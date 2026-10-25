@@ -17,13 +17,33 @@ import { cn } from "@/shared/lib/classNames/classNames";
 import { OnboardingDraft, OnboardingStep, readDraft, STEP_ORDER, stepIndex, writeDraft } from "../model/draft";
 import styles from "./OnboardingPage.module.scss";
 
-const PROGRESS_LABELS = ["business", "money"] as const;
+const PROGRESS_LABELS = ["business", "money", "assumptions"] as const;
 
 const digitsOnly = (value: string) => value.replace(/\D/g, "");
 
-const isInnValid = (inn: string) => {
-	const digits = digitsOnly(inn);
-	return digits.length === 10 || digits.length === 12;
+const innChecksumOk = (inn: string) => {
+	const n = digitsOnly(inn).split("").map(Number);
+	const check = (coeffs: number[]) => {
+		const sum = coeffs.reduce((acc, c, i) => acc + c * n[i], 0);
+		return (sum % 11) % 10;
+	};
+	if (n.length === 10) return check([2, 4, 10, 3, 5, 9, 4, 6, 8]) === n[9];
+	if (n.length === 12) {
+		return (
+			check([7, 2, 4, 10, 3, 5, 9, 4, 6, 8]) === n[10] &&
+			check([3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8]) === n[11]
+		);
+	}
+	return false;
+};
+
+const isInnValid = (inn: string) => innChecksumOk(inn);
+
+const isStubCompany = (company: { inn: string; name?: string | null }) => {
+	const inn = digitsOnly(company.inn);
+	const name = (company.name || "").trim();
+	if (!name || name === inn) return true;
+	return new RegExp(`^(компания|company)\\s*${inn}$`, "i").test(name);
 };
 
 const SOURCE_OPTIONS: {
@@ -89,30 +109,33 @@ const OnboardingPage = () => {
 
 	const goStep = (step: OnboardingStep) => update({ step });
 
+	const innLinkMessage = (err: unknown) => {
+		const raw = parseApiError(err, "");
+		if (/unknown inn/i.test(raw)) return t("onboarding.innNotFound");
+		return parseApiError(err, t("onboarding.innNotFound"));
+	};
+
 	const finishOnboarding = async () => {
 		if (!draft.business?.inn || setInnsState.isLoading || uploadState.isLoading) return;
 		if (draft.sources.includes("CSV") && !csvFile) return;
 		try {
-			await setMyInns({ inns: [draft.business.inn] }).unwrap();
 			setProfile({
 				business: draft.business,
 				sources: draft.sources,
 				assumptions: draft.assumptions,
 			});
 			if (csvFile) {
-				const body = new FormData();
-				body.append("file", csvFile);
-				await uploadSourceFile(body).unwrap();
+				const formData = new FormData();
+				formData.append("file", csvFile);
+				await uploadSourceFile({
+					formData,
+					inn: digitsOnly(draft.business.inn),
+				}).unwrap();
 			}
 			setOnboardingDone(true);
 			navigate(getRouteMain());
 		} catch (err) {
-			setLinkError(
-				parseApiError(
-					err,
-					csvFile ? t("onboarding.srcFileFailed") : t("onboarding.innLinkFailed"),
-				),
-			);
+			setLinkError(parseApiError(err, t("onboarding.srcFileFailed")));
 		}
 	};
 
@@ -135,27 +158,60 @@ const OnboardingPage = () => {
 	const onNext = async () => {
 		setLinkError(null);
 		if (draft.step === "business") {
-			if (!draft.business) return;
-			goStep("sources");
+			if (!draft.business?.inn || setInnsState.isLoading) return;
+			try {
+				await setMyInns({ inns: [draft.business.inn] }).unwrap();
+				goStep("sources");
+			} catch (err) {
+				update({ business: null });
+				setLinkError(innLinkMessage(err));
+			}
 			return;
 		}
 		if (draft.step === "sources") {
+			if (draft.sources.length === 0) return;
+			goStep("assumptions");
+			return;
+		}
+		if (draft.step === "assumptions") {
 			await finishOnboarding();
 		}
 	};
 
+	const innDigits = digitsOnly(draft.inn);
+	const innLengthOk = innDigits.length === 10 || innDigits.length === 12;
+	const lookupHit =
+		lookupState.isSuccess && lookupState.data && digitsOnly(lookupState.data.inn) === innDigits
+			? lookupState.data
+			: null;
+	const matchedCompany = lookupHit && !isStubCompany(lookupHit) ? lookupHit : null;
+	const stubCompany = lookupHit && isStubCompany(lookupHit) ? lookupHit : null;
+	const manualCompany =
+		!lookupHit &&
+		isInnValid(draft.inn) &&
+		!lookupState.isFetching &&
+		(lookupState.isError || lookupState.isSuccess)
+			? { inn: innDigits, name: innDigits, legalForm: "", industry: "" }
+			: null;
+	const selectableCompany = matchedCompany || stubCompany || manualCompany;
+	const isUnknownCompany = Boolean(stubCompany || manualCompany);
+	const showInnFormatError =
+		innDigits.length > 0 && !innLengthOk && (innTouched || innDigits.length === 11);
+	const showInnChecksumError = innLengthOk && !isInnValid(draft.inn);
+	const showInnUnknownHint =
+		isInnValid(draft.inn) && !lookupState.isFetching && isUnknownCompany;
+
 	const canContinue =
 		draft.step === "business"
-			? !!draft.business
-			: draft.sources.length > 0 &&
-				!!draft.business?.inn &&
-				!setInnsState.isLoading &&
-				!uploadState.isLoading &&
-				(!draft.sources.includes("CSV") || !!csvFile);
-
-	const innDigits = digitsOnly(draft.inn);
-	const showInnError =
-		innDigits.length > 0 && !isInnValid(draft.inn) && (innTouched || innDigits.length === 11);
+			? isInnValid(draft.inn) && !!draft.business?.inn && !setInnsState.isLoading
+			: draft.step === "sources"
+				? draft.sources.length > 0 &&
+					!!draft.business?.inn &&
+					(!draft.sources.includes("CSV") || !!csvFile)
+				: !!draft.business?.inn &&
+					!setInnsState.isLoading &&
+					!uploadState.isLoading &&
+					(!draft.sources.includes("CSV") || !!csvFile);
 
 	const toggleSource = (id: DataSourceKind) => {
 		const sources = draft.sources.includes(id)
@@ -167,6 +223,25 @@ const OnboardingPage = () => {
 
 	const progressIndex = stepIndex(draft.step);
 
+	const stepReachable = (i: number) => {
+		if (i <= 0) return true;
+		if (i === 1) return !!draft.business;
+		if (i === 2) {
+			return (
+				!!draft.business &&
+				draft.sources.length > 0 &&
+				(!draft.sources.includes("CSV") || !!csvFile)
+			);
+		}
+		return false;
+	};
+
+	const goToStep = (i: number) => {
+		if (!stepReachable(i) || i === progressIndex || setInnsState.isLoading) return;
+		setLinkError(null);
+		goStep(STEP_ORDER[i]);
+	};
+
 	return (
 		<AuthLayout>
 			<div className={styles.onboarding}>
@@ -174,18 +249,25 @@ const OnboardingPage = () => {
 					{PROGRESS_LABELS.map((key, i) => {
 						const done = i < progressIndex;
 						const current = i === progressIndex;
+						const locked = !stepReachable(i);
 						return (
-							<div
+							<button
 								key={key}
+								type="button"
 								className={cn(
 									styles.onboarding__step,
 									done && styles["onboarding__step--done"],
 									current && styles["onboarding__step--current"],
+									locked && styles["onboarding__step--locked"],
 								)}
 								title={t(`onboarding.steps.${key}`)}
+								aria-current={current ? "step" : undefined}
+								aria-disabled={locked}
+								disabled={locked || setInnsState.isLoading}
+								onClick={() => goToStep(i)}
 							>
 								<span className={styles["onboarding__step-dot"]}>{i + 1}</span>
-							</div>
+							</button>
 						);
 					})}
 				</div>
@@ -204,6 +286,7 @@ const OnboardingPage = () => {
 									value={draft.inn}
 									onChange={(e) => {
 										const inn = digitsOnly(e.target.value).slice(0, 12);
+										setLinkError(null);
 										update({ inn, business: null });
 									}}
 									onBlur={() => setInnTouched(true)}
@@ -212,9 +295,19 @@ const OnboardingPage = () => {
 									autoComplete="off"
 								/>
 							</label>
-							{showInnError ? (
+							{showInnFormatError ? (
 								<div className={styles.onboarding__error} role="alert">
 									{t("onboarding.innInvalid")}
+								</div>
+							) : null}
+							{showInnChecksumError ? (
+								<div className={styles.onboarding__error} role="alert">
+									{t("onboarding.innChecksum")}
+								</div>
+							) : null}
+							{showInnUnknownHint ? (
+								<div className={styles.onboarding__sub} role="status">
+									{t("onboarding.innUnknownHint")}
 								</div>
 							) : null}
 							{isInnValid(draft.inn) ? (
@@ -222,15 +315,14 @@ const OnboardingPage = () => {
 									{lookupState.isFetching ? (
 										<div className={styles.onboarding__sub}>{t("onboarding.lookupLoading")}</div>
 									) : null}
-									{lookupState.isError ? (
-										<div className={styles.onboarding__error} role="alert">
-											{parseApiError(lookupState.error, t("onboarding.lookupFailed"))}
-										</div>
-									) : null}
-									{lookupState.data
+									{selectableCompany && !linkError
 										? (() => {
-												const company = lookupState.data;
-												const active = draft.business?.inn === company.inn;
+												const company = selectableCompany;
+												const inn = digitsOnly(company.inn);
+												const active = digitsOnly(draft.business?.inn ?? "") === inn;
+												const title = isUnknownCompany
+													? t("onboarding.useEnteredInn")
+													: company.name || company.inn;
 												return (
 													<button
 														type="button"
@@ -238,26 +330,38 @@ const OnboardingPage = () => {
 															styles.onboarding__option,
 															active && styles["onboarding__option--active"],
 														)}
-														onClick={() =>
-															update({
-																inn: company.inn,
-																business: {
-																	inn: company.inn,
-																	name: company.name || company.inn,
-																	form: company.legalForm || "",
-																	tax: "",
-																	city: "",
-																},
-															})
-														}
+														disabled={setInnsState.isLoading}
+														onClick={() => {
+															void (async () => {
+																setLinkError(null);
+																try {
+																	await setMyInns({ inns: [inn] }).unwrap();
+																	update({
+																		inn,
+																		business: {
+																			inn,
+																			name: isUnknownCompany
+																				? inn
+																				: company.name || inn,
+																			form: company.legalForm || "",
+																			tax: "",
+																			city: "",
+																		},
+																	});
+																} catch (err) {
+																	update({ business: null });
+																	setLinkError(innLinkMessage(err));
+																}
+															})();
+														}}
 													>
 														<span>
-															<span className={styles["onboarding__option-title"]}>
-																{company.name || company.inn}
-															</span>
+															<span className={styles["onboarding__option-title"]}>{title}</span>
 															<span className={styles["onboarding__option-meta"]}>
-																{company.inn}
-																{company.industry ? ` · ${company.industry}` : ""}
+																{inn}
+																{!isUnknownCompany && company.industry
+																	? ` · ${company.industry}`
+																	: ""}
 															</span>
 														</span>
 														{active ? (
@@ -319,6 +423,95 @@ const OnboardingPage = () => {
 							) : null}
 						</>
 					) : null}
+
+					{draft.step === "assumptions" ? (
+						<>
+							<div className={styles.onboarding__head}>
+								<h1 className={styles.onboarding__title}>{t("onboarding.assTitle")}</h1>
+								<p className={styles.onboarding__sub}>{t("onboarding.assSub")}</p>
+							</div>
+							<label className={styles.onboarding__field}>
+								<span>{t("onboarding.minBalance")}</span>
+								<input
+									className={styles.onboarding__input}
+									value={draft.assumptions.minBalance}
+									onChange={(e) =>
+										update({
+											assumptions: {
+												...draft.assumptions,
+												minBalance: e.target.value,
+											},
+										})
+									}
+									inputMode="numeric"
+								/>
+							</label>
+							<div className={styles.onboarding__field}>
+								<span>{t("onboarding.payDay")}</span>
+								<div className={styles.onboarding__chips}>
+									{[5, 10, 15].map((day) => (
+										<button
+											key={day}
+											type="button"
+											className={cn(
+												styles.onboarding__chip,
+												draft.assumptions.payDay === day && styles["onboarding__chip--active"],
+											)}
+											onClick={() =>
+												update({
+													assumptions: {
+														...draft.assumptions,
+														payDay: day,
+													},
+												})
+											}
+										>
+											{t("onboarding.payDayChip", { day })}
+										</button>
+									))}
+								</div>
+							</div>
+							<div className={styles.onboarding__field}>
+								<span>{t("onboarding.notify")}</span>
+								<div className={styles.onboarding__chips}>
+									<button
+										type="button"
+										className={cn(
+											styles.onboarding__chip,
+											draft.assumptions.notifyApp && styles["onboarding__chip--active"],
+										)}
+										onClick={() =>
+											update({
+												assumptions: {
+													...draft.assumptions,
+													notifyApp: !draft.assumptions.notifyApp,
+												},
+											})
+										}
+									>
+										{t("onboarding.notifyApp")}
+									</button>
+									<button
+										type="button"
+										className={cn(
+											styles.onboarding__chip,
+											draft.assumptions.notifyMail && styles["onboarding__chip--active"],
+										)}
+										onClick={() =>
+											update({
+												assumptions: {
+													...draft.assumptions,
+													notifyMail: !draft.assumptions.notifyMail,
+												},
+											})
+										}
+									>
+										{t("onboarding.notifyMail")}
+									</button>
+								</div>
+							</div>
+						</>
+					) : null}
 				</div>
 
 				{linkError ? (
@@ -332,7 +525,7 @@ const OnboardingPage = () => {
 						? t("onboarding.srcFileUploading")
 						: setInnsState.isLoading
 							? t("onboarding.linking")
-							: draft.step === "sources"
+							: draft.step === "assumptions"
 								? t("onboarding.openToday")
 								: t("onboarding.continue")}
 				</button>

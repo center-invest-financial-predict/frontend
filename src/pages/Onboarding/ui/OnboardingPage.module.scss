@@ -16,6 +16,15 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		cursor: pointer;
+		font: inherit;
+
+		&:disabled {
+			cursor: not-allowed;
+		}
 	}
 
 	&__step-dot {
@@ -34,8 +43,29 @@
 			color 0.18s ease;
 	}
 
+	&__step:focus-visible &__step-dot {
+		outline: 2px solid var(--color-primary);
+		outline-offset: 2px;
+	}
+
 	&__step--done &__step-dot,
 	&__step--current &__step-dot {
+		background: var(--color-primary);
+		color: var(--color-on-primary);
+	}
+
+	&__step--locked &__step-dot {
+		background: var(--color-shape);
+		color: var(--color-text-faint);
+	}
+
+	&__step:not(:disabled):hover &__step-dot {
+		background: var(--color-primary-soft);
+		color: var(--color-primary-text);
+	}
+
+	&__step--done:not(:disabled):hover &__step-dot,
+	&__step--current:not(:disabled):hover &__step-dot {
 		background: var(--color-primary);
 		color: var(--color-on-primary);
 	}

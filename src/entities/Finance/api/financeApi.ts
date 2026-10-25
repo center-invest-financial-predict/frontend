@@ -40,8 +40,12 @@ const noInnError = (): FetchBaseQueryError => ({
 const asError = (result: { error?: FetchBaseQueryError }): FetchBaseQueryError =>
 	result.error ?? { status: 500, data: { message: "Request failed" } };
 
-const normalizeSourceCode = (value: string): string =>
-	value.trim().toUpperCase().replace(/-/g, "_");
+const normalizeSourceCode = (value: string): string => {
+	const raw = value.trim().toUpperCase().replace(/-/g, "_").replace(/\s+/g, "_");
+	if (raw === "1C" || raw === "1С" || raw === "ONEC" || raw === "1_C") return "ONE_C";
+	if (raw === "GOS" || raw === "GOSUSLUGI" || raw === "GOS_USLUGI") return "GOS_SERVICE";
+	return raw;
+};
 
 type OperationsPageMeta = {
 	totalElements?: number;
@@ -567,12 +571,22 @@ const financeApi = rtkApi.injectEndpoints({
 			async queryFn(args, _api, _extra, baseQuery) {
 				const inn = getActiveInn();
 				if (!inn) return { error: noInnError() };
+				const toApiSource = (value: string): string | undefined => {
+					const code = normalizeSourceCode(value);
+					if (code === "ONE_C") return "1C";
+					if (code === "GOS_SERVICE") return "Gos_service";
+					if (code === "CSV") return "csv";
+					return value || undefined;
+				};
+				const sourceParam =
+					args?.source ||
+					(args?.category && args.category !== "all" ? toApiSource(args.category) : undefined);
 				const result = await baseQuery({
 					url: `/api/companies/${inn}/operations`,
 					params: {
-						...(args?.source ? { source: args.source } : {}),
+						...(sourceParam ? { source: sourceParam } : {}),
 						page: args?.page ?? 0,
-						size: args?.size ?? 100,
+						size: args?.size ?? 2000,
 						sort: "operationDate,DESC",
 					},
 				});
@@ -580,35 +594,40 @@ const financeApi = rtkApi.injectEndpoints({
 				const page = result.data as OperationsPageMeta & {
 					content?: {
 						id?: number;
+						operationId?: string;
 						operationDate?: string;
 						counterpartyName?: string;
 						paymentPurpose?: string;
 						amount?: number;
 						direction?: string;
 						source?: string;
+						category?: string;
 					}[];
 				};
-				let items = (page.content ?? []).map((op) => {
-					const signed =
-						op.direction === "Списание" ? -Math.abs(op.amount ?? 0) : Math.abs(op.amount ?? 0);
+				let items = (page.content ?? []).map((op, index) => {
+					const rawAmount = Number(op.amount ?? 0);
+					const isOut =
+						op.direction === "Списание" ||
+						op.direction === "OUT" ||
+						op.direction === "EXPENSE" ||
+						rawAmount < 0;
 					return {
-						id: String(op.id),
+						id: String(op.id ?? op.operationId ?? `${op.operationDate ?? "op"}-${index}`),
 						date: op.operationDate ?? "",
 						name: op.counterpartyName || op.paymentPurpose || "",
-						amount: signed,
-						category: op.source || "",
+						amount: isOut ? -Math.abs(rawAmount) : Math.abs(rawAmount),
+						category: normalizeSourceCode(String(op.source ?? op.category ?? "")),
 					};
 				});
+				const categories = [...new Set(items.map((i) => i.category).filter(Boolean))];
 				if (args?.dir === "in") items = items.filter((i) => i.amount > 0);
 				if (args?.dir === "out") items = items.filter((i) => i.amount < 0);
 				if (args?.category && args.category !== "all") {
-					items = items.filter((i) => i.category === args.category);
+					const wanted = normalizeSourceCode(args.category);
+					items = items.filter((i) => i.category === wanted);
 				}
-				const categories = [...new Set(items.map((i) => i.category).filter(Boolean))];
-				const inflow = items.filter((i) => i.amount > 0).reduce((s, i) => s + i.amount, 0);
-				const outflow = items.filter((i) => i.amount < 0).reduce((s, i) => s + Math.abs(i.amount), 0);
-				const totalCount =
-					typeof page.totalElements === "number" ? page.totalElements : items.length;
+				const inflow = items.reduce((s, i) => (i.amount > 0 ? s + i.amount : s), 0);
+				const outflow = items.reduce((s, i) => (i.amount < 0 ? s + Math.abs(i.amount) : s), 0);
 				return {
 					data: {
 						items,
@@ -618,7 +637,7 @@ const financeApi = rtkApi.injectEndpoints({
 							total: inflow - outflow,
 							inflow,
 							outflow,
-							count: totalCount,
+							count: items.length,
 						},
 					},
 				};
@@ -710,26 +729,36 @@ const financeApi = rtkApi.injectEndpoints({
 			async queryFn({ year, month }, _api, _extra, baseQuery) {
 				const inn = getActiveInn();
 				if (!inn) return { error: noInnError() };
-				const monthPrefix = `${year}-${String(month).padStart(2, "0")}`;
+				const monthParam = `${year}-${String(month).padStart(2, "0")}`;
 				const n = new Date();
 				const today = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
-				const [events, upcoming] = await Promise.all([
-					baseQuery(`/api/companies/${inn}/events`),
-					baseQuery(`/api/companies/${inn}/payments/upcoming`),
-				]);
-				if (events.error) return { error: asError(events) };
-				const raw = [
-					...((events.data as unknown[]) ?? []),
-					...((upcoming.error ? [] : (upcoming.data as unknown[])) ?? []),
-				] as { eventDate?: string; title?: string }[];
+				const result = await baseQuery({
+					url: `/api/companies/${inn}/events/calendar`,
+					params: { month: monthParam },
+				});
+				if (result.error) return { error: asError(result) };
+				const body = result.data as {
+					month?: string;
+					days?: Record<string, { eventDate?: string; title?: string }[] | undefined>;
+				};
+				const events: { date: string; label: string }[] = [];
+				Object.entries(body.days ?? {}).forEach(([key, list]) => {
+					if (!Array.isArray(list) || list.length === 0) return;
+					list.forEach((e) => {
+						const date =
+							e.eventDate ||
+							(/^\d{4}-\d{2}-\d{2}/.test(key)
+								? key.slice(0, 10)
+								: `${monthParam}-${String(Number(key) || key).padStart(2, "0")}`);
+						events.push({ date, label: e.title ?? "" });
+					});
+				});
 				return {
 					data: {
 						year,
 						month,
 						today,
-						events: raw
-							.filter((e) => e.eventDate?.startsWith(monthPrefix))
-							.map((e) => ({ date: e.eventDate ?? "", label: e.title ?? "" })),
+						events,
 					},
 				};
 			},
@@ -793,14 +822,14 @@ const financeApi = rtkApi.injectEndpoints({
 			invalidatesTags: ["Sources", "Today", "Operations", "Events", "Forecast", "PlanFact"],
 		}),
 
-		uploadSourceFile: build.mutation<SyncResultDto, FormData>({
-			async queryFn(body, _api, _extra, baseQuery) {
-				const inn = getActiveInn();
+		uploadSourceFile: build.mutation<SyncResultDto, { formData: FormData; inn: string }>({
+			async queryFn({ formData, inn: innArg }, _api, _extra, baseQuery) {
+				const inn = (innArg || getActiveInn() || "").replace(/\D/g, "");
 				if (!inn) return { error: noInnError() };
 				const result = await baseQuery({
 					url: `/api/companies/${inn}/operations/csv`,
 					method: "POST",
-					body,
+					body: formData,
 				});
 				if (result.error) return { error: asError(result) };
 				const bodyData = result.data as Partial<SyncResultDto> | undefined;

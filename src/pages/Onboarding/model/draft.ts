@@ -1,7 +1,7 @@
 import { Business, DataSourceKind, UserAssumptions } from "@/entities/User";
 import { ONBOARDING_DRAFT } from "@/shared/consts/localStorage";
 
-export type OnboardingStep = "business" | "sources";
+export type OnboardingStep = "business" | "sources" | "assumptions";
 
 export type OnboardingDraft = {
 	step: OnboardingStep;
@@ -29,7 +29,7 @@ export const DEFAULT_DRAFT: OnboardingDraft = {
 };
 
 const isStep = (value: unknown): value is OnboardingStep =>
-	value === "business" || value === "sources";
+	value === "business" || value === "sources" || value === "assumptions";
 
 const isSource = (value: unknown): value is DataSourceKind =>
 	value === "ONE_C" || value === "GOS_SERVICE" || value === "CSV";
@@ -51,13 +51,18 @@ export const readDraft = (): OnboardingDraft => {
 	try {
 		const parsed = JSON.parse(raw) as Partial<OnboardingDraft> & { source?: unknown };
 		const sources = normalizeSources(parsed.sources ?? parsed.source);
+		const step = isStep(parsed.step)
+			? parsed.step
+			: parsed.step === "building"
+				? "assumptions"
+				: "business";
 		return {
 			...DEFAULT_DRAFT,
 			...parsed,
 			sources,
 			lowData: sources.includes("CSV"),
 			assumptions: { ...DEFAULT_ASSUMPTIONS, ...parsed.assumptions },
-			step: isStep(parsed.step) ? parsed.step : "sources",
+			step,
 		};
 	} catch {
 		return { ...DEFAULT_DRAFT, assumptions: { ...DEFAULT_ASSUMPTIONS } };
@@ -68,6 +73,6 @@ export const writeDraft = (draft: OnboardingDraft) => {
 	localStorage.setItem(ONBOARDING_DRAFT, JSON.stringify(draft));
 };
 
-export const STEP_ORDER: OnboardingStep[] = ["business", "sources"];
+export const STEP_ORDER: OnboardingStep[] = ["business", "sources", "assumptions"];
 
 export const stepIndex = (step: OnboardingStep) => STEP_ORDER.indexOf(step);

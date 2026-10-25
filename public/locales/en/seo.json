@@ -1,94 +1,94 @@
 {
-	"siteName": "Cashflow Forecast",
+	"siteName": "Financial Assistant",
 	"pages": {
 		"today": {
-			"title": "Today — Cashflow Forecast",
+			"title": "Today — Financial Assistant",
 			"description": "Cash balance, risks and actions for the next 30 days.",
-			"ogTitle": "Today — Cashflow Forecast",
+			"ogTitle": "Today — Financial Assistant",
 			"ogDescription": "See your cash position, upcoming gaps and recommended actions."
 		},
 		"forecast": {
-			"title": "Forecast — Cashflow Forecast",
+			"title": "Forecast — Financial Assistant",
 			"description": "Scenario modelling for receivables, revenue and expenses.",
-			"ogTitle": "Forecast — Cashflow Forecast",
+			"ogTitle": "Forecast — Financial Assistant",
 			"ogDescription": "Compare scenarios and see how delays and drops affect your cash."
 		},
 		"plan_fact": {
-			"title": "Plan vs fact — Cashflow Forecast",
+			"title": "Plan vs fact — Financial Assistant",
 			"description": "Compare planned cashflow with actuals and late items.",
-			"ogTitle": "Plan vs fact — Cashflow Forecast",
+			"ogTitle": "Plan vs fact — Financial Assistant",
 			"ogDescription": "Track plan-versus-fact deviations and overdue payments."
 		},
 		"events": {
-			"title": "Inflows and payments — Cashflow Forecast",
+			"title": "Inflows and payments — Financial Assistant",
 			"description": "Upcoming, overdue and completed cash events.",
-			"ogTitle": "Inflows and payments — Cashflow Forecast",
+			"ogTitle": "Inflows and payments — Financial Assistant",
 			"ogDescription": "Manage expected inflows, payments and overdue items."
 		},
 		"calendar": {
-			"title": "Calendar — Cashflow Forecast",
+			"title": "Calendar — Financial Assistant",
 			"description": "Cash events on a monthly calendar.",
-			"ogTitle": "Calendar — Cashflow Forecast",
+			"ogTitle": "Calendar — Financial Assistant",
 			"ogDescription": "See payments and inflows by day."
 		},
 		"add": {
-			"title": "Add data — Cashflow Forecast",
+			"title": "Add data — Financial Assistant",
 			"description": "Add future payments manually or import a file.",
-			"ogTitle": "Add data — Cashflow Forecast",
+			"ogTitle": "Add data — Financial Assistant",
 			"ogDescription": "Import or enter future payments into the forecast."
 		},
 		"operations": {
-			"title": "Operations history — Cashflow Forecast",
+			"title": "Operations history — Financial Assistant",
 			"description": "Bank operations and detected regular payments.",
-			"ogTitle": "Operations history — Cashflow Forecast",
+			"ogTitle": "Operations history — Financial Assistant",
 			"ogDescription": "Review history and recurring payment patterns."
 		},
 		"sources": {
-			"title": "Data sources — Cashflow Forecast",
+			"title": "Data sources — Financial Assistant",
 			"description": "Connect banks and upload statements for the forecast.",
-			"ogTitle": "Data sources — Cashflow Forecast",
+			"ogTitle": "Data sources — Financial Assistant",
 			"ogDescription": "Manage connections and statement imports."
 		},
 		"strategies": {
-			"title": "Forecast settings — Cashflow Forecast",
+			"title": "Forecast settings — Financial Assistant",
 			"description": "Assumptions and strategies for cashflow modelling.",
-			"ogTitle": "Forecast settings — Cashflow Forecast",
+			"ogTitle": "Forecast settings — Financial Assistant",
 			"ogDescription": "Tune probability and rules for the forecast."
 		},
 		"settings": {
-			"title": "Settings — Cashflow Forecast",
+			"title": "Settings — Financial Assistant",
 			"description": "Account and workspace settings.",
-			"ogTitle": "Settings — Cashflow Forecast",
+			"ogTitle": "Settings — Financial Assistant",
 			"ogDescription": "Manage profile and workspace preferences."
 		},
 		"assistant": {
-			"title": "Assistant — Cashflow Forecast",
+			"title": "Assistant — Financial Assistant",
 			"description": "Ask questions about cashflow, risks and scenarios.",
-			"ogTitle": "Assistant — Cashflow Forecast",
-			"ogDescription": "Get answers about your cash forecast."
+			"ogTitle": "Assistant — Financial Assistant",
+			"ogDescription": "Get answers about your finances and forecast."
 		},
 		"login": {
-			"title": "Sign in — Cashflow Forecast",
-			"description": "Sign in to your cashflow forecast workspace.",
-			"ogTitle": "Sign in — Cashflow Forecast",
-			"ogDescription": "Access your cashflow forecast."
+			"title": "Sign in — Financial Assistant",
+			"description": "Sign in to your Financial Assistant workspace.",
+			"ogTitle": "Sign in — Financial Assistant",
+			"ogDescription": "Access your Financial Assistant."
 		},
 		"register": {
-			"title": "Create account — Cashflow Forecast",
-			"description": "Create an account to start cashflow forecasting.",
-			"ogTitle": "Create account — Cashflow Forecast",
-			"ogDescription": "Start forecasting cashflow for your business."
+			"title": "Create account — Financial Assistant",
+			"description": "Create an account to start using Financial Assistant.",
+			"ogTitle": "Create account — Financial Assistant",
+			"ogDescription": "Start using Financial Assistant for your business."
 		},
 		"onboarding": {
-			"title": "Setup — Cashflow Forecast",
+			"title": "Setup — Financial Assistant",
 			"description": "Connect your business and data sources.",
-			"ogTitle": "Setup — Cashflow Forecast",
+			"ogTitle": "Setup — Financial Assistant",
 			"ogDescription": "Set up your company and cash data."
 		},
 		"not_found": {
-			"title": "Page not found — Cashflow Forecast",
+			"title": "Page not found — Financial Assistant",
 			"description": "This page does not exist.",
-			"ogTitle": "Page not found — Cashflow Forecast",
+			"ogTitle": "Page not found — Financial Assistant",
 			"ogDescription": "The requested page was not found."
 		}
 	}

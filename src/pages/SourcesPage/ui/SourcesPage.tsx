@@ -1,10 +1,11 @@
-import { ChangeEvent, memo, useMemo, useRef, useState } from "react";
+import { ChangeEvent, memo, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	useGetSourcesQuery,
 	useSyncCompanyMutation,
 	useUploadSourceFileMutation,
 } from "@/entities/Finance";
+import { DataSourceKind, useUserActions } from "@/entities/User";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
 import { Skeleton } from "@/shared/ui/Skeleton";
@@ -16,9 +17,14 @@ import { useAppSelector } from "@/shared/lib/hooks";
 import styles from "./SourcesPage.module.scss";
 
 const SOURCE_CODES = ["ONE_C", "CSV", "GOS_SERVICE"] as const;
+const TOGGLEABLE = new Set<string>(["ONE_C", "GOS_SERVICE"]);
 
-const normalizeSourceCode = (value: string): string =>
-	value.trim().toUpperCase().replace(/-/g, "_");
+const normalizeSourceCode = (value: string): string => {
+	const raw = value.trim().toUpperCase().replace(/-/g, "_").replace(/\s+/g, "_");
+	if (raw === "1C" || raw === "1С" || raw === "ONEC" || raw === "1_C") return "ONE_C";
+	if (raw === "GOS" || raw === "GOSUSLUGI" || raw === "GOS_USLUGI") return "GOS_SERVICE";
+	return raw;
+};
 
 const sourceLabel = (id: string, name: string, t: (key: string) => string): string => {
 	const code = [id, name]
@@ -30,10 +36,14 @@ const sourceLabel = (id: string, name: string, t: (key: string) => string): stri
 	return name || id;
 };
 
+const isToggleable = (code: string): code is "ONE_C" | "GOS_SERVICE" => TOGGLEABLE.has(code);
+
 export const SourcesPage = memo(() => {
 	const { t } = useTranslation();
 	const fileRef = useRef<HTMLInputElement>(null);
-	const profileSources = useAppSelector((state) => state.user.profile?.sources ?? []);
+	const profile = useAppSelector((state) => state.user.profile);
+	const profileSources = profile?.sources ?? [];
+	const { setProfile } = useUserActions();
 	const chosenAtReg = useMemo(
 		() => new Set(profileSources.map((s) => normalizeSourceCode(s))),
 		[profileSources],
@@ -43,17 +53,76 @@ export const SourcesPage = memo(() => {
 	const [uploadSourceFile, uploadState] = useUploadSourceFileMutation();
 	const [uploadMessage, setUploadMessage] = useState<string | null>(null);
 	const [uploadOk, setUploadOk] = useState(false);
+	const [pendingId, setPendingId] = useState<string | null>(null);
+	const [actionError, setActionError] = useState<string | null>(null);
+
+	useEffect(() => {
+		if (!data || profile?.sources !== undefined) return;
+		const seeded = data.items
+			.map((c) => normalizeSourceCode(c.id || c.name))
+			.filter((code): code is DataSourceKind =>
+				isToggleable(code) &&
+				Boolean(
+					data.items.find((item) => normalizeSourceCode(item.id || item.name) === code)
+						?.connected,
+				),
+			);
+		if (!seeded.length) return;
+		setProfile({
+			...profile,
+			sources: seeded,
+		});
+	}, [data, profile, setProfile]);
 
 	const items = useMemo(() => {
 		if (!data) return [];
 		return data.items.map((c) => {
 			const code = normalizeSourceCode(c.id || c.name);
-			const connected = c.connected || chosenAtReg.has(code) || (uploadOk && code === "CSV");
+			const connected =
+				code === "CSV"
+					? Boolean(c.connected || uploadOk)
+					: isToggleable(code)
+						? chosenAtReg.has(code)
+						: Boolean(c.connected);
 			return { ...c, id: code || c.id, connected };
 		});
 	}, [chosenAtReg, data, uploadOk]);
 
 	const hasActive = items.some((c) => c.connected) || chosenAtReg.size > 0;
+
+	const setSourceEnabled = (code: "ONE_C" | "GOS_SERVICE", enabled: boolean) => {
+		const nextSources = enabled
+			? (Array.from(new Set([...profileSources.map(normalizeSourceCode), code])) as DataSourceKind[])
+			: profileSources.filter((s) => normalizeSourceCode(s) !== code);
+		setProfile({
+			...profile,
+			sources: nextSources,
+		});
+	};
+
+	const onConnect = async (code: "ONE_C" | "GOS_SERVICE") => {
+		setActionError(null);
+		setPendingId(code);
+		try {
+			setSourceEnabled(code, true);
+			await syncCompany().unwrap();
+			void refetch();
+		} catch (err) {
+			setSourceEnabled(code, false);
+			setActionError(
+				isApiUnreachableError(err)
+					? t("states.apiUnreachable")
+					: parseApiError(err, t("sources.connectFail")),
+			);
+		} finally {
+			setPendingId(null);
+		}
+	};
+
+	const onDisconnect = (code: "ONE_C" | "GOS_SERVICE") => {
+		setActionError(null);
+		setSourceEnabled(code, false);
+	};
 
 	const onCsvPick = async (e: ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
@@ -61,10 +130,15 @@ export const SourcesPage = memo(() => {
 		if (!file) return;
 		setUploadMessage(null);
 		setUploadOk(false);
-		const body = new FormData();
-		body.append("file", file);
+		const inn = profile?.business?.inn?.trim();
+		if (!inn) {
+			setUploadMessage(t("sources.uploadFail"));
+			return;
+		}
+		const formData = new FormData();
+		formData.append("file", file);
 		try {
-			const result = await uploadSourceFile(body).unwrap();
+			const result = await uploadSourceFile({ formData, inn }).unwrap();
 			if (result.inserted > 0) {
 				setUploadOk(true);
 				setUploadMessage(t("sources.uploadOkCount", { count: result.inserted }));
@@ -107,6 +181,12 @@ export const SourcesPage = memo(() => {
 				/>
 			) : null}
 
+			{actionError ? (
+				<div className={cn(styles["sources-page__ok"], styles["sources-page__ok--err"])} role="alert">
+					{actionError}
+				</div>
+			) : null}
+
 			{uploadMessage ? (
 				<div
 					className={cn(styles["sources-page__ok"], !uploadOk && styles["sources-page__ok--err"])}
@@ -134,14 +214,15 @@ export const SourcesPage = memo(() => {
 						const opsCount =
 							c.operationCount ??
 							(c.description !== "" ? Number(c.description) : Number.NaN);
-						const desc = Number.isFinite(opsCount)
-							? t("sources.opsCount", { count: opsCount })
-							: "";
-						const lastSync = c.lastDataDate
-							? t("sources.lastSync", { date: formatIsoDateDots(c.lastDataDate) })
-							: "";
-						const showConnect = !c.connected && !isCsv;
-						const showUpload = isCsv;
+						const desc =
+							c.connected && Number.isFinite(opsCount)
+								? t("sources.opsCount", { count: opsCount })
+								: "";
+						const lastSync =
+							c.connected && c.lastDataDate
+								? t("sources.lastSync", { date: formatIsoDateDots(c.lastDataDate) })
+								: "";
+						const busy = pendingId === c.id;
 
 						return (
 							<Card key={c.id} className={styles["sources-page__card"]}>
@@ -160,20 +241,30 @@ export const SourcesPage = memo(() => {
 								) : c.connected && !isCsv ? (
 									<p className={styles["sources-page__foot"]}>{t("sources.connectedHint")}</p>
 								) : null}
-								{showConnect ? (
+								{isToggleable(c.id) && c.connected ? (
+									<button
+										type="button"
+										className={styles["sources-page__btn"]}
+										disabled={busy}
+										onClick={() => onDisconnect(c.id)}
+									>
+										{t("sources.disconnect")}
+									</button>
+								) : null}
+								{isToggleable(c.id) && !c.connected ? (
 									<button
 										type="button"
 										className={cn(
 											styles["sources-page__btn"],
 											styles["sources-page__btn--primary"],
 										)}
-										disabled={isSyncing}
-										onClick={() => void syncCompany()}
+										disabled={busy || isSyncing}
+										onClick={() => void onConnect(c.id)}
 									>
-										{t("sources.connect")}
+										{busy ? t("sources.connecting") : t("sources.connect")}
 									</button>
 								) : null}
-								{showUpload ? (
+								{isCsv ? (
 									<button
 										type="button"
 										className={cn(

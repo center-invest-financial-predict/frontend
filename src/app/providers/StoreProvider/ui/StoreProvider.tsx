@@ -1,4 +1,4 @@
-import { FC, ReactNode } from "react";
+import { FC, ReactNode, useState } from "react";
 import { Provider } from "react-redux";
 import { createReduxStore } from "../config/store";
 import { StateSchema } from "../config/StateSchema";
@@ -13,10 +13,12 @@ interface Props {
 export const StoreProvider: FC<Props> = ({ children, initialSchema, asyncReducers }) => {
 	// const nav = useNavigate()
 
-	const store = createReduxStore(
-		initialSchema as StateSchema,
-		asyncReducers as ReducersMapObject<StateSchema>,
-		// nav
+	const [store] = useState(() =>
+		createReduxStore(
+			initialSchema as StateSchema,
+			asyncReducers as ReducersMapObject<StateSchema>,
+			// nav
+		),
 	);
 
 	return <Provider store={store}>{children}</Provider>;
