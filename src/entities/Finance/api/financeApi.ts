@@ -122,12 +122,12 @@ const mapForecastPoints = (raw: ForecastPointRaw[] | undefined) =>
 	}));
 
 const forecastConditions = (args: ForecastQueryArgs | void | undefined) => {
-	const conditions: Record<string, string> = {};
-	if (!args) return conditions;
-	(["delay", "drop", "fixed", "skip"] as const).forEach((key) => {
-		const value = args[key];
-		if (value != null && String(value).length > 0) conditions[key] = String(value);
-	});
+	if (!args) return [];
+	const conditions: Record<string, string | number>[] = [];
+	if (args.delay != null) conditions.push({ type: "delay_payment", days: Number(args.delay) });
+	if (args.drop != null) conditions.push({ type: "revenue_drop", pct: Number(args.drop) });
+	if (args.fixed != null) conditions.push({ type: "fixed_cost_growth", pct: Number(args.fixed) });
+	// Overdue receipts are already excluded from the forecast by the backend.
 	return conditions;
 };
 
@@ -224,11 +224,11 @@ const financeApi = rtkApi.injectEndpoints({
 				const conditions = forecastConditions(args);
 				const scenarioId = args?.scenarioId;
 				const result =
-					Object.keys(conditions).length > 0
+					conditions.length > 0
 						? await baseQuery({
 								url: `/api/companies/${inn}/scenarios/preview`,
 								method: "POST",
-								body: { conditions },
+								body: { conditions, horizonDays: horizon },
 							})
 						: await baseQuery({
 								url: `/api/companies/${inn}/forecast`,
@@ -1162,25 +1162,15 @@ const financeApi = rtkApi.injectEndpoints({
 
 		askAssistant: build.mutation<string, { question: string; conversationId?: string }>({
 			async queryFn({ question, conversationId }, _api, _extra, baseQuery) {
+				const inn = getActiveInn();
+				if (!inn) return { error: noInnError() };
 				const result = await baseQuery({
-					url: "/api/ai/ask",
-					params: {
-						question,
-						conversationId: conversationId || "default",
-					},
-					responseHandler: async (response) => {
-						const text = await response.text();
-						if (!text) return "";
-						try {
-							const parsed = JSON.parse(text) as unknown;
-							return typeof parsed === "string" ? parsed : text;
-						} catch {
-							return text;
-						}
-					},
+					url: `/api/companies/${inn}/assistant/ask`,
+					method: "POST",
+					body: { question, conversationId: conversationId || "default" },
 				});
 				if (result.error) return { error: asError(result) };
-				const answer = String(result.data ?? "").trim();
+				const answer = String((result.data as { answer?: unknown } | null)?.answer ?? "").trim();
 				if (!answer) {
 					return { error: { status: 502, data: { message: "Empty assistant reply" } } };
 				}

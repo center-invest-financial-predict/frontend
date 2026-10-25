@@ -49,7 +49,9 @@ const isAuthPath = (url: string) =>
 	url.includes("/api/auth/refresh");
 
 const isSlowPath = (url: string) =>
-	url.includes("/operations/import/preview") || url.includes("/operations/import/receipt");
+	url.includes("/operations/import/preview") ||
+	url.includes("/operations/import/receipt") ||
+	url.includes("/assistant/ask");
 
 let refreshPromise: Promise<boolean> | null = null;
 
