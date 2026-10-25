@@ -116,7 +116,7 @@
 	&__tr-head,
 	&__tr {
 		display: grid;
-		grid-template-columns: 72px minmax(0, 1.2fr) minmax(90px, 0.6fr) minmax(90px, 0.6fr) 140px;
+		grid-template-columns: 96px minmax(0, 1.2fr) minmax(90px, 0.6fr) minmax(90px, 0.6fr) 140px;
 		gap: var(--space-3);
 		align-items: center;
 		padding: 11px 0;

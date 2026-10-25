@@ -1,18 +1,12 @@
 ﻿import { FormEvent, memo, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown } from "lucide-react";
-import {
-	useConfirmParsedEventsMutation,
-	useCreateEventMutation,
-	useParseEventsFileMutation,
-	type ParsedEventRowDto,
-} from "@/entities/Finance";
+import { useCreateEventMutation, useUploadSourceFileMutation } from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
 import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
-import { formatDayMonth } from "@/shared/lib/format/formatDate";
-import { formatMoney } from "@/shared/lib/format/formatMoney";
+import { getActiveInn } from "@/shared/lib/companyInn";
 import styles from "./AddPage.module.scss";
 
 type Tab = "hand" | "file";
@@ -32,8 +26,7 @@ const CAT_API: Record<CatId, string> = {
 };
 
 export const AddPage = memo(() => {
-	const { t, i18n } = useTranslation();
-	const locale = i18n.language?.startsWith("en") ? "en-US" : "ru-RU";
+	const { t } = useTranslation();
 	const [tab, setTab] = useState<Tab>("hand");
 	const [evType, setEvType] = useState<"in" | "out">("out");
 	const [name, setName] = useState("");
@@ -42,9 +35,10 @@ export const AddPage = memo(() => {
 	const [category, setCategory] = useState<CatId>("other");
 	const [catOpen, setCatOpen] = useState(false);
 	const catRef = useRef<HTMLDivElement>(null);
-	const [rows, setRows] = useState<ParsedEventRowDto[]>([]);
 	const [saved, setSaved] = useState(false);
 	const [error, setError] = useState(false);
+	const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+	const [uploadOk, setUploadOk] = useState(false);
 
 	useEffect(() => {
 		if (!catOpen) return;
@@ -63,8 +57,7 @@ export const AddPage = memo(() => {
 	}, [catOpen]);
 
 	const [createEvent, { isLoading: saving }] = useCreateEventMutation();
-	const [parseFile, { isLoading: parsing }] = useParseEventsFileMutation();
-	const [confirmParsed, { isLoading: confirming }] = useConfirmParsedEventsMutation();
+	const [uploadSourceFile, { isLoading: uploading }] = useUploadSourceFileMutation();
 
 	const onSaveHand = async (e: FormEvent) => {
 		e.preventDefault();
@@ -92,24 +85,29 @@ export const AddPage = memo(() => {
 		if (!file) return;
 		setSaved(false);
 		setError(false);
-		const body = new FormData();
-		body.append("file", file);
-		try {
-			const res = await parseFile(body).unwrap();
-			setRows(res.rows);
-		} catch {
+		setUploadMessage(null);
+		setUploadOk(false);
+		const inn = (getActiveInn() || "").replace(/\D/g, "");
+		if (!inn) {
 			setError(true);
-			setRows([]);
+			return;
 		}
-	};
-
-	const onConfirm = async () => {
-		setError(false);
+		const formData = new FormData();
+		formData.append("file", file);
 		try {
-			await confirmParsed({ rows }).unwrap();
-			setSaved(true);
+			const result = await uploadSourceFile({ formData, inn }).unwrap();
+			setUploadOk(true);
+			setUploadMessage(
+				result.inserted > 0
+					? t("sources.uploadOkCount", { count: result.inserted })
+					: result.duplicates > 0
+						? t("sources.uploadOkDup", { count: result.duplicates })
+						: t("sources.uploadOk"),
+			);
 		} catch {
 			setError(true);
+			setUploadOk(false);
+			setUploadMessage(null);
 		}
 	};
 
@@ -136,6 +134,8 @@ export const AddPage = memo(() => {
 								setTab(k);
 								setSaved(false);
 								setError(false);
+								setUploadMessage(null);
+								setUploadOk(false);
 							}}
 						>
 							{t(label)}
@@ -240,8 +240,9 @@ export const AddPage = memo(() => {
 					<Card className={styles["add-page__form"]}>
 						<label className={styles["add-page__drop"]}>
 							<span className={styles["add-page__drop-title"]}>{t("add.dropTitle")}</span>
-							{parsing ? (
-								<span className={styles["add-page__drop-hint"]}>{t("states.loading")}</span>
+							<span className={styles["add-page__drop-hint"]}>{t("sources.uploadHint")}</span>
+							{uploading ? (
+								<span className={styles["add-page__drop-hint"]}>{t("sources.uploading")}</span>
 							) : null}
 							<input
 								type="file"
@@ -250,36 +251,17 @@ export const AddPage = memo(() => {
 								onChange={(e) => void onFile(e.target.files?.[0])}
 							/>
 						</label>
-						{rows.length > 0 ? (
-							<div className={styles["add-page__parsed"]}>
-								<div className={styles["add-page__parsed-meta"]}>
-									{t("add.parsedMeta", { count: rows.length })}
-								</div>
-								{rows.map((r) => (
-									<div key={`${r.date}-${r.name}-${r.amount}`} className={styles["add-page__parsed-row"]}>
-										<span>{formatDayMonth(r.date, locale)}</span>
-										<span className={styles["add-page__parsed-name"]}>{r.name}</span>
-										<span className={styles["add-page__parsed-cat"]}>{r.category}</span>
-										<b className={r.ok ? styles["add-page__parsed-amt--in"] : undefined}>
-											{formatMoney(r.amount, locale)}
-										</b>
-									</div>
-								))}
-								<button
-									type="button"
-									className={styles["add-page__submit"]}
-									disabled={confirming}
-									onClick={() => void onConfirm()}
-								>
-									{t("add.saveForecast")}
-								</button>
-								{error ? <StateBanner variant="error" title={t("states.errorTitle")} /> : null}
-								{saved ? <div className={styles["add-page__ok"]}>{t("add.savedOk")}</div> : null}
+						{uploadMessage ? (
+							<div
+								className={cn(
+									styles["add-page__ok"],
+									!uploadOk && styles["add-page__drop-hint"],
+								)}
+							>
+								{uploadMessage}
 							</div>
 						) : null}
-						{error && rows.length === 0 ? (
-							<StateBanner variant="error" title={t("states.errorTitle")} />
-						) : null}
+						{error ? <StateBanner variant="error" title={t("states.errorTitle")} /> : null}
 					</Card>
 				)}
 			</div>

@@ -1,7 +1,8 @@
 import type { FetchBaseQueryError } from "@reduxjs/toolkit/query";
+import { authHeaderValue, getAccessToken } from "@/shared/api/authTokens";
 import { rtkApi } from "@/shared/api/rtkApi";
 import { getActiveInn } from "@/shared/lib/companyInn";
-import { pickIsoDate } from "@/shared/lib/format/formatDate";
+import { pickIsoDate, toIsoDate } from "@/shared/lib/format/formatDate";
 import type {
 	AlertDto,
 	CategoryBucket,
@@ -113,6 +114,117 @@ const paramsFromPreset = (key: StrategyKey, p: RawForecastPreset | undefined, mi
 		delayDays: Number.isFinite(delay) ? delay : fallback.delayDays,
 		minBalanceK: p?.minBalance != null ? Math.round(p.minBalance / 1000) : minBalanceK,
 	};
+};
+
+const pickCount = (obj: Record<string, unknown>, keys: string[]) => {
+	for (const key of keys) {
+		const value = obj[key];
+		if (typeof value === "number" && Number.isFinite(value)) return value;
+		if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
+	}
+	return 0;
+};
+
+const mapImportResult = (data: unknown): SyncResultDto => {
+	if (Array.isArray(data)) {
+		return { inserted: data.length, duplicates: 0, invalid: 0, skipped: 0 };
+	}
+	if (!data || typeof data !== "object") {
+		return { inserted: 0, duplicates: 0, invalid: 0, skipped: 0 };
+	}
+	const obj = data as Record<string, unknown>;
+	const nested =
+		obj.result && typeof obj.result === "object" ? (obj.result as Record<string, unknown>) : obj;
+	return {
+		inserted: pickCount(nested, ["inserted", "created", "added", "successCount", "count"]),
+		duplicates: pickCount(nested, ["duplicates", "duplicate", "dupCount"]),
+		invalid: pickCount(nested, ["invalid", "failed", "errorCount"]),
+		skipped: pickCount(nested, ["skipped", "skipCount"]),
+	};
+};
+
+const pickOpName = (op: Record<string, unknown>) => {
+	const keys = [
+		"counterpartyName",
+		"counterparty_name",
+		"paymentPurpose",
+		"payment_purpose",
+		"title",
+		"name",
+		"description",
+		"comment",
+		"purpose",
+		"label",
+	];
+	for (const key of keys) {
+		const value = op[key];
+		if (typeof value === "string" && value.trim()) return value.trim();
+	}
+	return "";
+};
+
+type ConfirmOperationBody = {
+	companyInn: string;
+	operationId: string;
+	operationDate: string;
+	amount: number;
+	direction: "Поступление" | "Списание";
+	counterpartyName: string;
+	paymentPurpose: string;
+};
+
+const parseCsvAmount = (raw: string): number | null => {
+	const normalized = String(raw)
+		.trim()
+		.replace(/\u00A0/g, " ")
+		.replace(/\s/g, "")
+		.replace(/₽|руб\.?/gi, "")
+		.replace(/[−–—]/g, "-")
+		.replace(/^\+/, "")
+		.replace(",", ".");
+	if (!normalized) return null;
+	const value = Number(normalized);
+	return Number.isFinite(value) ? value : null;
+};
+
+/** Simple statement rows: `date;name;amount` (semicolon). */
+const parseSimpleOpsCsv = (text: string, inn: string): ConfirmOperationBody[] | null => {
+	const lines = text
+		.replace(/^\uFEFF/, "")
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter(Boolean);
+	if (!lines.length) return null;
+
+	let start = 0;
+	if (/дата|date|сумма|amount|назван|контрагент|назначен/i.test(lines[0]) && !/^\d/.test(lines[0])) {
+		start = 1;
+	}
+
+	const rows: ConfirmOperationBody[] = [];
+	let lookedLikeSimple = false;
+	for (let i = start; i < lines.length; i += 1) {
+		const parts = lines[i].split(";").map((part) => part.trim());
+		if (parts.length < 3) {
+			if (lookedLikeSimple) continue;
+			return null;
+		}
+		lookedLikeSimple = true;
+		const [dateRaw, nameRaw, amountRaw] = parts;
+		const date = toIsoDate(dateRaw);
+		const amountNum = parseCsvAmount(amountRaw);
+		if (!date || amountNum == null || !nameRaw) continue;
+		rows.push({
+			companyInn: inn,
+			operationId: `${inn}-${date}-${i}-${Math.round(Math.abs(amountNum) * 100)}`,
+			operationDate: date,
+			amount: Math.abs(amountNum),
+			direction: amountNum < 0 ? "Списание" : "Поступление",
+			counterpartyName: nameRaw,
+			paymentPurpose: nameRaw,
+		});
+	}
+	return rows.length ? rows : null;
 };
 
 const asList = <T>(data: unknown): T[] => {
@@ -863,41 +975,21 @@ const financeApi = rtkApi.injectEndpoints({
 				});
 				if (result.error) return { error: asError(result) };
 				const page = result.data as OperationsPageMeta & {
-					content?: {
-						id?: number;
-						operationId?: string;
-						operationDate?: unknown;
-						date?: unknown;
-						createdAt?: unknown;
-						counterpartyName?: string;
-						paymentPurpose?: string;
-						title?: string;
-						name?: string;
-						description?: string;
-						amount?: number;
-						direction?: string;
-						source?: string;
-						category?: string;
-					}[];
+					content?: Record<string, unknown>[];
 				};
 				let items = (page.content ?? []).map((op, index) => {
 					const rawAmount = Number(op.amount ?? 0);
+					const direction = String(op.direction ?? "");
 					const isOut =
-						op.direction === "Списание" ||
-						op.direction === "OUT" ||
-						op.direction === "EXPENSE" ||
+						direction === "Списание" ||
+						direction === "OUT" ||
+						direction === "EXPENSE" ||
 						rawAmount < 0;
 					const date = pickIsoDate(op.operationDate, op.date, op.createdAt);
 					return {
 						id: String(op.id ?? op.operationId ?? `${date || "op"}-${index}`),
 						date,
-						name:
-							op.counterpartyName ||
-							op.paymentPurpose ||
-							op.title ||
-							op.name ||
-							op.description ||
-							"",
+						name: pickOpName(op),
 						amount: isOut ? -Math.abs(rawAmount) : Math.abs(rawAmount),
 						category: String(op.category ?? "").trim(),
 						source: normalizeSourceCode(String(op.source ?? "")),
@@ -1211,26 +1303,95 @@ const financeApi = rtkApi.injectEndpoints({
 		}),
 
 		uploadSourceFile: build.mutation<SyncResultDto, { formData: FormData; inn: string }>({
-			async queryFn({ formData, inn: innArg }, _api, _extra, baseQuery) {
+			async queryFn({ formData, inn: innArg }) {
 				const inn = (innArg || getActiveInn() || "").replace(/\D/g, "");
 				if (!inn) return { error: noInnError() };
-				const result = await baseQuery({
-					url: `/api/companies/${inn}/operations/csv`,
-					method: "POST",
-					body: formData,
-				});
-				if (result.error) return { error: asError(result) };
-				const bodyData = result.data as Partial<SyncResultDto> | undefined;
-				return {
-					data: {
-						inserted: bodyData?.inserted ?? 0,
-						duplicates: bodyData?.duplicates ?? 0,
-						invalid: bodyData?.invalid ?? 0,
-						skipped: bodyData?.skipped ?? 0,
-					},
+				const controller = new AbortController();
+				const timer = window.setTimeout(() => controller.abort(), 120_000);
+				const token = getAccessToken();
+				const authHeaders = token ? { Authorization: authHeaderValue(token) } : undefined;
+
+				const readJson = async (response: Response) => {
+					const rawText = await response.text();
+					let parsed: unknown = null;
+					if (rawText.trim()) {
+						try {
+							parsed = JSON.parse(rawText) as unknown;
+						} catch {
+							parsed = rawText;
+						}
+					}
+					return { rawText, parsed };
 				};
+
+				try {
+					const file = formData.get("file");
+					if (file instanceof Blob) {
+						const text = await file.text();
+						const simpleRows = parseSimpleOpsCsv(text, inn);
+						if (simpleRows?.length) {
+							const response = await fetch(`/api/companies/${inn}/operations/import/confirm`, {
+								method: "POST",
+								headers: {
+									...(authHeaders ?? {}),
+									"Content-Type": "application/json",
+								},
+								body: JSON.stringify({ operations: simpleRows }),
+								signal: controller.signal,
+							});
+							const { rawText, parsed } = await readJson(response);
+							if (response.ok) {
+								const mapped = mapImportResult(parsed);
+								if (mapped.inserted === 0 && mapped.duplicates === 0) {
+									mapped.inserted = simpleRows.length;
+								}
+								return { data: mapped };
+							}
+							// Confirm rejected — fall through to multipart /operations/csv.
+							if (response.status !== 400 && response.status !== 422) {
+								return {
+									error: {
+										status: response.status,
+										data: parsed ?? { message: rawText || response.statusText },
+									},
+								};
+							}
+						}
+					}
+
+					const response = await fetch(`/api/companies/${inn}/operations/csv`, {
+						method: "POST",
+						headers: authHeaders,
+						body: formData,
+						signal: controller.signal,
+					});
+					const { rawText, parsed } = await readJson(response);
+					if (!response.ok) {
+						return {
+							error: {
+								status: response.status,
+								data: parsed ?? { message: rawText || response.statusText },
+							},
+						};
+					}
+					const mapped = mapImportResult(parsed);
+					if (mapped.inserted === 0 && mapped.duplicates === 0 && Array.isArray(parsed)) {
+						mapped.inserted = parsed.length;
+					}
+					return { data: mapped };
+				} catch (err) {
+					const aborted = err instanceof DOMException && err.name === "AbortError";
+					return {
+						error: {
+							status: aborted ? "TIMEOUT_ERROR" : "FETCH_ERROR",
+							error: aborted ? "CSV upload timed out" : String(err),
+						},
+					};
+				} finally {
+					window.clearTimeout(timer);
+				}
 			},
-			invalidatesTags: ["Sources", "Today", "Operations", "Events"],
+			invalidatesTags: ["Sources", "Today", "Operations", "Events", "Forecast"],
 		}),
 
 		getStrategies: build.query<StrategiesDto, void>({

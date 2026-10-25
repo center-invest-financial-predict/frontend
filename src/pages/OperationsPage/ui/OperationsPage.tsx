@@ -6,7 +6,7 @@ import { Card } from "@/shared/ui/Card";
 import { Skeleton } from "@/shared/ui/Skeleton";
 import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
-import { formatDayMonth } from "@/shared/lib/format/formatDate";
+import { formatIsoDateDots } from "@/shared/lib/format/formatDate";
 import { formatMoney } from "@/shared/lib/format/formatMoney";
 import { useAppSelector } from "@/shared/lib/hooks";
 import { CashflowChart } from "@/pages/TodayPage/ui/CashflowChart/CashflowChart";
@@ -286,7 +286,7 @@ export const OperationsPage = memo(() => {
 							items.map((r) => (
 								<div key={r.id} className={styles["ops-page__tr"]}>
 									<span className={styles["ops-page__tr-date"]}>
-										{r.date ? formatDayMonth(r.date, locale) : "—"}
+										{r.date ? formatIsoDateDots(r.date) : "—"}
 									</span>
 									<span className={styles["ops-page__tr-name"]}>{r.name || "—"}</span>
 									<span className={styles["ops-page__tr-src"]}>

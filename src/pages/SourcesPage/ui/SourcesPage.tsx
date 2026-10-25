@@ -130,6 +130,7 @@ export const SourcesPage = memo(() => {
 		if (!file) return;
 		setUploadMessage(null);
 		setUploadOk(false);
+		setActionError(null);
 		const inn = (profile?.business?.inn || "").replace(/\D/g, "");
 		if (!inn) {
 			setUploadMessage(t("sources.uploadFail"));
@@ -139,28 +140,26 @@ export const SourcesPage = memo(() => {
 		formData.append("file", file);
 		try {
 			const result = await uploadSourceFile({ formData, inn }).unwrap();
-			if (result.inserted > 0) {
-				setUploadOk(true);
-				setUploadMessage(t("sources.uploadOkCount", { count: result.inserted }));
-				if (!chosenAtReg.has("CSV")) {
-					setProfile({
-						...profile,
-						sources: Array.from(
-							new Set([...profileSources.map(normalizeSourceCode), "CSV"]),
-						) as DataSourceKind[],
-					});
-				}
-			} else {
-				setUploadOk(false);
-				setUploadMessage(
-					t("sources.uploadEmpty", {
-						invalid: result.invalid,
-						skipped: result.skipped,
-					}),
-				);
+			const accepted = result.inserted + result.duplicates;
+			setUploadOk(true);
+			setUploadMessage(
+				result.inserted > 0
+					? t("sources.uploadOkCount", { count: result.inserted })
+					: accepted > 0
+						? t("sources.uploadOkDup", { count: result.duplicates })
+						: t("sources.uploadOk"),
+			);
+			if (!chosenAtReg.has("CSV")) {
+				setProfile({
+					...profile,
+					sources: Array.from(
+						new Set([...profileSources.map(normalizeSourceCode), "CSV"]),
+					) as DataSourceKind[],
+				});
 			}
 			void refetch();
 		} catch (err) {
+			setUploadOk(false);
 			setUploadMessage(
 				isApiUnreachableError(err)
 					? t("states.apiUnreachable")

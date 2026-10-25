@@ -14,6 +14,12 @@ export const toIsoDate = (value: unknown): string => {
 			const [, dd, mm, yyyy] = dots;
 			return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
 		}
+		const dotsShort = trimmed.match(/^(\d{1,2})\.(\d{1,2})$/);
+		if (dotsShort) {
+			const [, dd, mm] = dotsShort;
+			const year = new Date().getFullYear();
+			return `${year}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+		}
 		const d = new Date(trimmed);
 		if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
 		return "";
