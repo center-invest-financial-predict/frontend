@@ -1419,56 +1419,36 @@ const financeApi = rtkApi.injectEndpoints({
 				const inn = getActiveInn();
 				if (!inn) return { error: noInnError() };
 				const result = await baseQuery({
-					url: `/api/companies/${inn}/events/import/preview`,
+					url: `/api/companies/${inn}/events/import`,
 					method: "POST",
 					body,
 				});
 				if (result.error) return { error: asError(result) };
-				const preview = result.data as {
-					rows?: {
-						rowNumber?: number;
-						operation?: Record<string, unknown>;
-						missingFields?: string[];
-						readyForReview?: boolean;
-					}[];
+				const list = asList<{
+					eventDate?: string;
+					date?: unknown;
+					title?: string;
+					category?: string;
+					amount?: number;
+				}>(result.data);
+				return {
+					data: {
+						rows: list.map((r) => ({
+							date: pickIsoDate(r.eventDate, r.date),
+							name: r.title ?? "",
+							category: r.category ?? "",
+							amount: r.amount ?? 0,
+							ok: true,
+						})),
+					},
 				};
-				const rows = (preview.rows ?? []).map((r) => {
-					const op = r.operation ?? {};
-					const amount = Number(op.amount ?? 0);
-					return {
-						date: pickIsoDate(op.eventDate, op.date, op.dueDate),
-						name: String(op.title ?? op.name ?? ""),
-						category: String(op.category ?? ""),
-						amount,
-						ok: Boolean(r.readyForReview) && !(r.missingFields?.length),
-					};
-				});
-				return { data: { rows } };
 			},
+			invalidatesTags: ["Events", "Today", "Forecast", "Operations"],
 		}),
 
 		confirmParsedEvents: build.mutation<{ ok: boolean }, { rows: ParseEventsResultDto["rows"] }>({
-			async queryFn({ rows }, _api, _extra, baseQuery) {
-				const inn = getActiveInn();
-				if (!inn) return { error: noInnError() };
-				const result = await baseQuery({
-					url: `/api/companies/${inn}/events/import/confirm`,
-					method: "POST",
-					body: {
-						rows: rows
-							.filter((r) => r.ok)
-							.map((r) => ({
-								eventDate: r.date,
-								title: r.name,
-								category: r.category,
-								amount: Math.abs(r.amount),
-								direction: r.amount >= 0 ? "Поступление" : "Списание",
-							})),
-					},
-				});
-				if (result.error) return { error: asError(result) };
-				return { data: { ok: true } };
-			},
+			// `/events/import` already persists; confirm acknowledges the UI step.
+			queryFn: () => ({ data: { ok: true } }),
 			invalidatesTags: ["Events", "Today", "Forecast", "Operations"],
 		}),
 
