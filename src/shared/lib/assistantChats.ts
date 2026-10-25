@@ -109,6 +109,26 @@ export const appendAssistantMessages = (
 	return thread;
 };
 
+export const updateAssistantMessage = (
+	threadId: string,
+	messageId: string,
+	text: string,
+): AssistantThread | undefined => {
+	const threads = loadAssistantThreads();
+	const idx = threads.findIndex((t) => t.id === threadId);
+	if (idx < 0) return undefined;
+	const thread = {
+		...threads[idx],
+		messages: threads[idx].messages.map((message) =>
+			message.id === messageId ? { ...message, text } : message,
+		),
+		updatedAt: Date.now(),
+	};
+	threads[idx] = thread;
+	persist(threads.sort((a, b) => b.updatedAt - a.updatedAt));
+	return thread;
+};
+
 /** Threads that have at least one user message (shown in sidebar history). */
 export const listAssistantHistory = (): AssistantThread[] =>
 	loadAssistantThreads().filter((t) => t.messages.some((m) => m.from === "user"));

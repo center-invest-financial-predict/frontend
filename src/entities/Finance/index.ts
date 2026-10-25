@@ -1,4 +1,5 @@
 export { mapTodayDashboard } from "./api/mapTodayDashboard";
+export { streamAssistantAnswer } from "./api/assistantStream";
 
 export {
 	useGetTodayOverviewQuery,

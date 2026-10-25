@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { useAskAssistantMutation } from "@/entities/Finance";
+import { streamAssistantAnswer, useAskAssistantMutation } from "@/entities/Finance";
 import { Page } from "@/widgets/Page";
 import { getRouteForecast } from "@/shared/consts/router";
 import { cn } from "@/shared/lib/classNames/classNames";
@@ -11,6 +11,7 @@ import {
 	getActiveAssistantChatId,
 	getAssistantThread,
 	setActiveAssistantChatId,
+	updateAssistantMessage,
 	type AssistantThread,
 } from "@/shared/lib/assistantChats";
 import styles from "./AssistantPage.module.scss";
@@ -24,6 +25,7 @@ export const AssistantPage = memo(() => {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const state = (location.state as LocState) || null;
 	const [thread, setThread] = useState<AssistantThread | null>(null);
+	const [isStreaming, setIsStreaming] = useState(false);
 	const handledState = useRef<LocState>(null);
 	const [askAssistant] = useAskAssistantMutation();
 
@@ -49,6 +51,41 @@ export const AssistantPage = memo(() => {
 		}
 		return createAssistantThread(greeting);
 	}, [greeting, searchParams]);
+
+	const sendQuestion = useCallback(
+		async (question: string, base: AssistantThread) => {
+			const withPlaceholder = appendAssistantMessages(base.id, [
+				{ from: "bot", text: "", refs: [t("assist.linkForecast")] },
+			]);
+			const placeholder = withPlaceholder?.messages[withPlaceholder.messages.length - 1];
+			if (!placeholder || !withPlaceholder) return;
+			setThread(withPlaceholder);
+			setIsStreaming(true);
+
+			let answer = "";
+			const update = (text: string) => {
+				const updated = updateAssistantMessage(base.id, placeholder.id, text);
+				if (updated) setThread(updated);
+			};
+			try {
+				await streamAssistantAnswer({ question, conversationId: base.id }, (chunk) => {
+					answer += chunk;
+					update(answer);
+				});
+				if (!answer.trim()) throw new Error("Assistant returned an empty stream");
+			} catch {
+				try {
+					answer = await askAssistant({ question, conversationId: base.id }).unwrap();
+					update(answer);
+				} catch {
+					update(t("assist.fallback"));
+				}
+			} finally {
+				setIsStreaming(false);
+			}
+		},
+		[askAssistant, t],
+	);
 
 	useEffect(() => {
 		if (state && handledState.current === state) return;
@@ -76,32 +113,7 @@ export const AssistantPage = memo(() => {
 			const base = withUser ?? current;
 			openThread(base);
 			navigate(location.pathname, { replace: true, state: null });
-
-			void (async () => {
-				try {
-					const answer = await askAssistant({
-						question: q,
-						conversationId: base.id,
-					}).unwrap();
-					const updated = appendAssistantMessages(base.id, [
-						{
-							from: "bot",
-							text: answer,
-							refs: [t("assist.linkForecast")],
-						},
-					]);
-					if (updated) openThread(updated);
-				} catch {
-					const updated = appendAssistantMessages(base.id, [
-						{
-							from: "bot",
-							text: t("assist.fallback"),
-							refs: [t("assist.linkForecast")],
-						},
-					]);
-					if (updated) openThread(updated);
-				}
-			})();
+			void sendQuestion(q, base);
 			return;
 		}
 
@@ -117,7 +129,7 @@ export const AssistantPage = memo(() => {
 		openThread,
 		resolveThread,
 		thread,
-		askAssistant,
+		sendQuestion,
 	]);
 
 	const messages = thread?.messages ?? [];
@@ -145,7 +157,12 @@ export const AssistantPage = memo(() => {
 									m.from === "user" ? styles["assistant-page__bubble--user"] : styles["assistant-page__bubble--bot"],
 								)}
 							>
-								<span>{m.text}</span>
+								<span>
+									{m.text ||
+										(isStreaming && m.from === "bot" && m.id === messages[messages.length - 1]?.id
+											? t("states.loading")
+											: "")}
+								</span>
 								{m.refs?.length ? (
 									<div className={styles["assistant-page__refs"]}>
 										{m.refs.map((ref) => (
