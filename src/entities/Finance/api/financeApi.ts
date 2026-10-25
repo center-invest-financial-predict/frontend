@@ -208,7 +208,7 @@ const financeApi = rtkApi.injectEndpoints({
 				if (!inn) return { error: noInnError() };
 				const result = await baseQuery(`/api/companies/${inn}/recommendations`);
 				if (result.error) return { error: asError(result) };
-				return { data: (result.data as RecommendationDto[]) ?? [] };
+				return { data: asList<RecommendationDto>(result.data) };
 			},
 			providesTags: ["Today"],
 		}),

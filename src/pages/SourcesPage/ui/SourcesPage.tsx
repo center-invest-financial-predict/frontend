@@ -130,7 +130,7 @@ export const SourcesPage = memo(() => {
 		if (!file) return;
 		setUploadMessage(null);
 		setUploadOk(false);
-		const inn = profile?.business?.inn?.trim();
+		const inn = (profile?.business?.inn || "").replace(/\D/g, "");
 		if (!inn) {
 			setUploadMessage(t("sources.uploadFail"));
 			return;
