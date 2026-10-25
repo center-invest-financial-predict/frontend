@@ -187,6 +187,18 @@ const parseCsvAmount = (raw: string): number | null => {
 	return Number.isFinite(value) ? value : null;
 };
 
+const readCsvText = async (file: Blob): Promise<string> => {
+	const buffer = await file.arrayBuffer();
+	const bytes = new Uint8Array(buffer);
+	if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
+		return new TextDecoder("utf-16le").decode(bytes);
+	}
+	if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+		return new TextDecoder("utf-16be").decode(bytes);
+	}
+	return new TextDecoder("utf-8").decode(bytes);
+};
+
 /** Simple statement rows: `date;name;amount` (semicolon). */
 const parseSimpleOpsCsv = (text: string, inn: string): ConfirmOperationBody[] | null => {
 	const lines = text
@@ -1327,7 +1339,7 @@ const financeApi = rtkApi.injectEndpoints({
 				try {
 					const file = formData.get("file");
 					if (file instanceof Blob) {
-						const text = await file.text();
+						const text = await readCsvText(file);
 						const simpleRows = parseSimpleOpsCsv(text, inn);
 						if (simpleRows?.length) {
 							const response = await fetch(`/api/companies/${inn}/operations/import/confirm`, {
@@ -1359,10 +1371,21 @@ const financeApi = rtkApi.injectEndpoints({
 						}
 					}
 
+					const csvBody = new FormData();
+					const original = formData.get("file");
+					if (original instanceof Blob) {
+						csvBody.append(
+							"file",
+							original,
+							original instanceof File ? original.name : "operations.csv",
+						);
+					} else {
+						formData.forEach((value, key) => csvBody.append(key, value));
+					}
 					const response = await fetch(`/api/companies/${inn}/operations/csv`, {
 						method: "POST",
 						headers: authHeaders,
-						body: formData,
+						body: csvBody,
 						signal: controller.signal,
 					});
 					const { rawText, parsed } = await readJson(response);

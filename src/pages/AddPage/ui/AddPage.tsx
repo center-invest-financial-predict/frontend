@@ -6,6 +6,7 @@ import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
 import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
+import { parseApiError } from "@/shared/api/parseApiError";
 import { getActiveInn } from "@/shared/lib/companyInn";
 import styles from "./AddPage.module.scss";
 
@@ -97,6 +98,7 @@ export const AddPage = memo(() => {
 		try {
 			const result = await uploadSourceFile({ formData, inn }).unwrap();
 			setUploadOk(true);
+			setError(false);
 			setUploadMessage(
 				result.inserted > 0
 					? t("sources.uploadOkCount", { count: result.inserted })
@@ -104,10 +106,10 @@ export const AddPage = memo(() => {
 						? t("sources.uploadOkDup", { count: result.duplicates })
 						: t("sources.uploadOk"),
 			);
-		} catch {
+		} catch (err) {
 			setError(true);
 			setUploadOk(false);
-			setUploadMessage(null);
+			setUploadMessage(parseApiError(err, t("sources.uploadFail")));
 		}
 	};
 
