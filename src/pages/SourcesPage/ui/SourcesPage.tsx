@@ -139,20 +139,23 @@ export const SourcesPage = memo(() => {
 		formData.append("file", file);
 		try {
 			const result = await uploadSourceFile({ formData, inn }).unwrap();
-			if (result.inserted > 0) {
-				setUploadOk(true);
-				setUploadMessage(t("sources.uploadOkCount", { count: result.inserted }));
-			} else {
-				setUploadOk(false);
-				setUploadMessage(
-					t("sources.uploadEmpty", {
-						invalid: result.invalid,
-						skipped: result.skipped,
-					}),
-				);
+			setUploadOk(result.inserted > 0 || result.duplicates > 0);
+			setUploadMessage(
+				result.inserted > 0
+					? t("sources.uploadOkCount", { count: result.inserted })
+					: result.duplicates > 0
+						? t("sources.uploadOkDup", { count: result.duplicates })
+						: t("sources.uploadEmpty", { invalid: result.invalid, skipped: result.skipped }),
+			);
+			if (!chosenAtReg.has("CSV")) {
+				setProfile({
+					...profile,
+					sources: Array.from(new Set([...profileSources.map(normalizeSourceCode), "CSV"])) as DataSourceKind[],
+				});
 			}
 			void refetch();
 		} catch (err) {
+			setUploadOk(false);
 			setUploadMessage(
 				isApiUnreachableError(err)
 					? t("states.apiUnreachable")

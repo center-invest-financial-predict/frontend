@@ -14,6 +14,7 @@ import { Page } from "@/widgets/Page";
 import { Card } from "@/shared/ui/Card";
 import { StateBanner } from "@/shared/ui/StateBanner";
 import { cn } from "@/shared/lib/classNames/classNames";
+import { parseApiError } from "@/shared/api/parseApiError";
 import { getActiveInn } from "@/shared/lib/companyInn";
 import styles from "./AddPage.module.scss";
 
@@ -184,11 +185,19 @@ export const AddPage = memo(() => {
 		formData.append("file", fallbackFile);
 		try {
 			const result = await uploadSourceFile({ formData, inn }).unwrap();
-			setUploadOk(result.inserted > 0);
-			setUploadMessage(t("sources.uploadOkCount", { count: result.inserted }));
+			setUploadOk(true);
+			setUploadMessage(
+				result.inserted > 0
+					? t("sources.uploadOkCount", { count: result.inserted })
+					: result.duplicates > 0
+						? t("sources.uploadOkDup", { count: result.duplicates })
+						: t("sources.uploadEmpty", { invalid: result.invalid, skipped: result.skipped }),
+			);
+			if (result.inserted === 0 && result.duplicates === 0) setUploadOk(false);
 			setDrafts([]);
-		} catch {
+		} catch (err) {
 			setError(true);
+			setUploadMessage(parseApiError(err, t("sources.uploadFail")));
 		}
 	};
 

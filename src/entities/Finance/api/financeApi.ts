@@ -1,7 +1,7 @@
 import type { FetchBaseQueryError } from "@reduxjs/toolkit/query";
 import { rtkApi } from "@/shared/api/rtkApi";
 import { getActiveInn } from "@/shared/lib/companyInn";
-import { pickIsoDate } from "@/shared/lib/format/formatDate";
+import { pickIsoDate, toIsoDate } from "@/shared/lib/format/formatDate";
 import type {
 	AlertDto,
 	CategoryBucket,
@@ -42,6 +42,78 @@ const noInnError = (): FetchBaseQueryError => ({
 
 const asError = (result: { error?: FetchBaseQueryError }): FetchBaseQueryError =>
 	result.error ?? { status: 500, data: { message: "Request failed" } };
+
+type SimpleImportOperation = {
+	companyInn: string;
+	operationId: string;
+	operationDate: string;
+	amount: number;
+	direction: "Поступление" | "Списание";
+	counterpartyName: string;
+	paymentPurpose: string;
+};
+
+const parseCsvAmount = (raw: string): number | null => {
+	const normalized = raw
+		.trim()
+		.replace(/\u00a0/g, " ")
+		.replace(/\s/g, "")
+		.replace(/₽|руб\.?/gi, "")
+		.replace(/[−–—]/g, "-")
+		.replace(/^\+/, "")
+		.replace(",", ".");
+	if (!normalized) return null;
+	const amount = Number(normalized);
+	return Number.isFinite(amount) ? amount : null;
+};
+
+const readCsvText = async (file: Blob): Promise<string> => {
+	const bytes = new Uint8Array(await file.arrayBuffer());
+	if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder("utf-16le").decode(bytes);
+	if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder("utf-16be").decode(bytes);
+	return new TextDecoder("utf-8").decode(bytes);
+};
+
+/** Supports a simple semicolon CSV; bank exports continue through the server importer. */
+const parseSimpleOpsCsv = (text: string, inn: string): SimpleImportOperation[] | null => {
+	const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+	if (!lines.length) return null;
+	const start = /дата|date|сумма|amount|назван|контрагент|назначен/i.test(lines[0]) && !/^\d/.test(lines[0]) ? 1 : 0;
+	const rows: SimpleImportOperation[] = [];
+	let simpleFormat = false;
+	for (let i = start; i < lines.length; i += 1) {
+		const parts = lines[i].split(";").map((part) => part.trim());
+		if (parts.length < 3) {
+			if (simpleFormat) continue;
+			return null;
+		}
+		simpleFormat = true;
+		const [dateRaw, name, amountRaw] = parts;
+		const date = toIsoDate(dateRaw);
+		const amount = parseCsvAmount(amountRaw);
+		if (!date || amount == null || !name) continue;
+		rows.push({
+			companyInn: inn,
+			operationId: `${inn}-${date}-${i}-${Math.round(Math.abs(amount) * 100)}`,
+			operationDate: date,
+			amount: Math.abs(amount),
+			direction: amount < 0 ? "Списание" : "Поступление",
+			counterpartyName: name,
+			paymentPurpose: name,
+		});
+	}
+	return rows.length ? rows : null;
+};
+
+const mapImportResult = (data: unknown): SyncResultDto => {
+	const value = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+	return {
+		inserted: Number(value.inserted ?? 0),
+		duplicates: Number(value.duplicates ?? 0),
+		invalid: Number(value.invalid ?? 0),
+		skipped: Number(value.skipped ?? 0),
+	};
+};
 
 const asList = <T>(data: unknown): T[] => {
 	if (Array.isArray(data)) return data as T[];
@@ -928,23 +1000,34 @@ const financeApi = rtkApi.injectEndpoints({
 			async queryFn({ formData, inn: innArg }, _api, _extra, baseQuery) {
 				const inn = (innArg || getActiveInn() || "").replace(/\D/g, "");
 				if (!inn) return { error: noInnError() };
-				const result = await baseQuery({
+				const file = formData.get("file");
+				if (file instanceof Blob) {
+					try {
+						const simpleRows = parseSimpleOpsCsv(await readCsvText(file), inn);
+						if (simpleRows?.length) {
+							const confirmed = await baseQuery({
+								url: `/api/companies/${inn}/operations/import/confirm`,
+								method: "POST",
+								body: { operations: simpleRows },
+							});
+							if (!confirmed.error) return { data: mapImportResult(confirmed.data) };
+							const status = confirmed.error.status;
+							if (status !== 400 && status !== 422) return { error: confirmed.error };
+						}
+					} catch {
+						// Keep bank-specific formats on the server-side CSV importer.
+					}
+				}
+
+				const uploaded = await baseQuery({
 					url: `/api/companies/${inn}/operations/csv`,
 					method: "POST",
 					body: formData,
 				});
-				if (result.error) return { error: asError(result) };
-				const bodyData = result.data as Partial<SyncResultDto> | undefined;
-				return {
-					data: {
-						inserted: bodyData?.inserted ?? 0,
-						duplicates: bodyData?.duplicates ?? 0,
-						invalid: bodyData?.invalid ?? 0,
-						skipped: bodyData?.skipped ?? 0,
-					},
-				};
+				if (uploaded.error) return { error: asError(uploaded) };
+				return { data: mapImportResult(uploaded.data) };
 			},
-			invalidatesTags: ["Sources", "Today", "Operations", "Events"],
+			invalidatesTags: ["Sources", "Today", "Operations", "Events", "Forecast", "PlanFact"],
 		}),
 
 		previewOperationsImport: build.mutation<OperationImportPreviewDto, { formData: FormData; inn: string; sheetName?: string }>({
@@ -977,9 +1060,10 @@ const financeApi = rtkApi.injectEndpoints({
 			async queryFn(_arg, _api, _extra, baseQuery) {
 				const inn = getActiveInn();
 				if (!inn) return { error: noInnError() };
-				const [settings, forecast] = await Promise.all([
+				const [settings, forecast, presetResult] = await Promise.all([
 					baseQuery(`/api/companies/${inn}/forecast-settings`),
 					baseQuery({ url: `/api/companies/${inn}/forecast`, params: { horizonDays: 30 } }),
+					baseQuery(`/api/companies/${inn}/forecast-presets`),
 				]);
 				if (settings.error) return { error: asError(settings) };
 				const s = settings.data as {
@@ -1009,9 +1093,16 @@ const financeApi = rtkApi.injectEndpoints({
 						? "cons"
 						: s.cautionLevel === "optimistic"
 							? "opt"
-							: s.cautionLevel === "custom"
+							: s.cautionLevel === "custom" || s.cautionLevel === "own"
 								? "own"
 								: "base";
+				const presetData = presetResult.error ? null : (presetResult.data as {
+					presets?: { code?: string; active?: boolean; gapDate?: string | null; gapAmount?: number; gapProbability?: number }[];
+				} | null);
+				const activePreset = presetData?.presets?.find((preset) => preset.active)
+					?? presetData?.presets?.find((preset) => preset.code === active);
+				const rawProbability = activePreset?.gapProbability ?? 0;
+				const probabilityPct = rawProbability <= 1 ? Math.round(rawProbability * 100) : Math.round(rawProbability);
 				const minBalanceK = Math.round((s.minBalance ?? 150_000) / 1000);
 				const salaryDay = s.salaryDay ?? 5;
 				const presets = {
@@ -1020,29 +1111,26 @@ const financeApi = rtkApi.injectEndpoints({
 					opt: { haircutPct: 0, delayDays: 0, minBalanceK },
 					own: { haircutPct: 5, delayDays: 7, minBalanceK },
 				};
-				const ruleEntries = Object.entries(s.notifyRules ?? {});
-				const rules =
-					ruleEntries.length > 0
-						? ruleEntries.map(([id, enabled]) => ({
-								id,
-								label: id,
-								enabled: Boolean(enabled),
-							}))
-						: [
-								{ id: "min_balance", label: "ruleA", enabled: true },
-								{ id: "late_inflow", label: "ruleB", enabled: true },
-								{ id: "daily_digest", label: "ruleC", enabled: false },
-							];
+				const rules = Object.entries(s.notifyRules ?? {}).map(([id, enabled]) => ({
+					id,
+					label: id,
+					enabled: Boolean(enabled),
+				}));
 				return {
 					data: {
 						active,
 						salaryDay,
 						presets,
 						impact: {
-							probabilityPct: 0,
-							gapLabel: "",
-							cashflow: { points },
-							showRisk: points.some((p) => (p.pessimisticBalance ?? 0) < 0),
+							probabilityPct,
+							gapLabel: activePreset?.gapDate ?? "",
+							cashflow: {
+								points,
+								gap: activePreset?.gapDate
+									? { date: activePreset.gapDate, balance: -Math.abs(activePreset.gapAmount ?? 0) }
+									: null,
+							},
+							showRisk: Boolean(activePreset?.gapDate) || points.some((p) => (p.pessimisticBalance ?? 0) < 0),
 						},
 						rules,
 					},
@@ -1061,7 +1149,7 @@ const financeApi = rtkApi.injectEndpoints({
 						: body.active === "opt"
 							? "optimistic"
 							: body.active === "own"
-								? "custom"
+							? "own"
 								: "balanced";
 				const result = await baseQuery({
 					url: `/api/companies/${inn}/forecast-settings`,

@@ -309,6 +309,7 @@
 		"uploadCta": "Upload statement",
 		"uploadOk": "Statement uploaded",
 		"uploadOkCount": "Imported {{count}} operations",
+		"uploadOkDup": "No new operations; already imported: {{count}}",
 		"uploadEmpty": "No operations imported (invalid rows: {{invalid}}, skipped: {{skipped}}). Format: date;description;amount with semicolon delimiter",
 		"futureCta": "Import future payments"
 	},
