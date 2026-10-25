@@ -211,6 +211,7 @@ export const SourcesPage = memo(() => {
 					{items.map((c) => {
 						const name = sourceLabel(c.id, c.name, t);
 						const isCsv = c.id === "CSV";
+						const toggleCode = isToggleable(c.id) ? c.id : null;
 						const opsCount =
 							c.operationCount ??
 							(c.description !== "" ? Number(c.description) : Number.NaN);
@@ -241,17 +242,17 @@ export const SourcesPage = memo(() => {
 								) : c.connected && !isCsv ? (
 									<p className={styles["sources-page__foot"]}>{t("sources.connectedHint")}</p>
 								) : null}
-								{isToggleable(c.id) && c.connected ? (
+								{toggleCode && c.connected ? (
 									<button
 										type="button"
 										className={styles["sources-page__btn"]}
 										disabled={busy}
-										onClick={() => onDisconnect(c.id)}
+										onClick={() => onDisconnect(toggleCode)}
 									>
 										{t("sources.disconnect")}
 									</button>
 								) : null}
-								{isToggleable(c.id) && !c.connected ? (
+								{toggleCode && !c.connected ? (
 									<button
 										type="button"
 										className={cn(
@@ -259,7 +260,7 @@ export const SourcesPage = memo(() => {
 											styles["sources-page__btn--primary"],
 										)}
 										disabled={busy || isSyncing}
-										onClick={() => void onConnect(c.id)}
+										onClick={() => void onConnect(toggleCode)}
 									>
 										{busy ? t("sources.connecting") : t("sources.connect")}
 									</button>
