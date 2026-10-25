@@ -648,49 +648,58 @@
 
 	&__bottom {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 		gap: var(--space-4);
-		align-items: stretch;
+		align-items: start;
+
+		@media (max-width: 1100px) {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		@media (max-width: 700px) {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	&__weeks {
+		grid-column: 1 / -1;
 	}
 
 	&__weeks,
-	&__cats {
+	&__cats,
+	&__pays,
+	&__flows {
 		display: flex;
 		flex-direction: column;
+		align-self: start;
 		gap: 10px;
+		width: 100%;
 		min-width: 0;
+		height: auto;
 		padding: var(--space-5);
 	}
 
 	&__pays {
-		display: flex;
-		flex-direction: column;
 		gap: 6px;
-		min-width: 0;
-		padding: var(--space-5);
 	}
 
 	&__flows {
-		display: flex;
-		flex-direction: column;
 		gap: 14px;
-		min-width: 0;
-		padding: var(--space-5);
 	}
 
 	&__week-chart {
 		display: flex;
 		position: relative;
 		align-items: flex-end;
-		gap: 14px;
-		min-height: 170px;
+		gap: 8px;
+		width: 100%;
+		min-height: 140px;
 		padding-top: 20px;
 		padding-bottom: 4px;
-		overflow-x: auto;
-		overflow-y: visible;
+		overflow: visible;
 
 		&--dense {
-			gap: 6px;
+			gap: 4px;
 		}
 	}
 
@@ -773,22 +782,18 @@
 
 	&__week {
 		display: flex;
-		flex: 1 0 auto;
+		flex: 1 1 0;
 		flex-direction: column;
 		align-items: center;
 		justify-content: flex-end;
 		gap: 4px;
-		min-width: 44px;
+		min-width: 0;
 		height: 100%;
 		padding: 0;
 		border: 0;
 		background: none;
 		font-family: inherit;
 		cursor: pointer;
-	}
-
-	&__week-chart--dense &__week {
-		min-width: 36px;
 	}
 
 	&__week-bars {
@@ -880,10 +885,13 @@
 
 	&__week-label {
 		flex-shrink: 0;
+		max-width: 100%;
+		overflow: hidden;
 		color: var(--color-text-faint);
 		font-size: var(--font-size-sm);
 		line-height: 16px;
 		text-align: center;
+		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
