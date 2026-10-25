@@ -134,6 +134,13 @@ export const mapTodayDashboard = (args: {
 
 	const gapAmount = d?.gapAmount ?? 0;
 	const gapDate = d?.gapDate ?? "";
+	const gapProbabilityRaw = d?.gapProbability;
+	const probabilityPct =
+		gapProbabilityRaw == null || Number.isNaN(Number(gapProbabilityRaw))
+			? null
+			: Number(gapProbabilityRaw) <= 1
+				? Math.round(Number(gapProbabilityRaw) * 100)
+				: Math.round(Number(gapProbabilityRaw));
 
 	const weekBars = weeks.map((w, i) => ({
 		id: `w${i}`,
@@ -215,6 +222,7 @@ export const mapTodayDashboard = (args: {
 					date: gapDate,
 					subtitle: "",
 					calculatedAt: d.calculatedAt ?? undefined,
+					probabilityPct,
 				}
 			: null,
 		kpis,

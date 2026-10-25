@@ -69,6 +69,75 @@ type ForecastPointRaw = {
 	negativeBalance?: number;
 	confidenceLow?: number;
 	confidenceHigh?: number;
+	income?: number;
+	expense?: number;
+	balance?: number;
+	factBalance?: number;
+};
+
+const pointFactBalance = (p: ForecastPointRaw) =>
+	Number(p.baseBalance ?? p.balance ?? p.factBalance ?? 0);
+
+const mapPlanFactFactPoints = (raw: ForecastPointRaw[] | undefined) => {
+	const list = raw ?? [];
+	const hasBalance = list.some((p) => pointFactBalance(p) !== 0);
+	const hasFlow = list.some((p) => (p.income ?? 0) !== 0 || (p.expense ?? 0) !== 0);
+	if (!hasBalance && hasFlow) {
+		let run = 0;
+		return list.map((p) => {
+			run += (p.income ?? 0) - (p.expense ?? 0);
+			return {
+				date: p.date,
+				balance: run,
+				pessimisticBalance: null as number | null,
+				lowerBound: null as number | null,
+				upperBound: null as number | null,
+			};
+		});
+	}
+	return list.map((p) => ({
+		date: p.date,
+		balance: pointFactBalance(p),
+		pessimisticBalance: null as number | null,
+		lowerBound: null as number | null,
+		upperBound: null as number | null,
+	}));
+};
+
+const buildOpsBalancePoints = (
+	ops: {
+		operationDate?: string;
+		date?: string;
+		createdAt?: string;
+		amount?: number;
+		direction?: string;
+	}[],
+) => {
+	const byDate = new Map<string, number>();
+	ops.forEach((op) => {
+		const date = pickIsoDate(op.operationDate, op.date, op.createdAt);
+		if (!date) return;
+		const rawAmount = Number(op.amount ?? 0);
+		const isOut =
+			op.direction === "Списание" ||
+			op.direction === "OUT" ||
+			op.direction === "EXPENSE" ||
+			rawAmount < 0;
+		const signed = isOut ? -Math.abs(rawAmount) : Math.abs(rawAmount);
+		byDate.set(date, (byDate.get(date) ?? 0) + signed);
+	});
+	const dates = [...byDate.keys()].sort();
+	let running = 0;
+	return dates.map((date) => {
+		running += byDate.get(date) ?? 0;
+		return {
+			date,
+			balance: running,
+			pessimisticBalance: null as number | null,
+			lowerBound: null as number | null,
+			upperBound: null as number | null,
+		};
+	});
 };
 
 const DEFAULT_FORECAST_SCENARIOS: ForecastScenarioDto[] = [
@@ -397,18 +466,109 @@ const financeApi = rtkApi.injectEndpoints({
 			async queryFn(_arg, _api, _extra, baseQuery) {
 				const inn = getActiveInn();
 				if (!inn) return { error: noInnError() };
-				const [planFact, journal] = await Promise.all([
+				const [planFact, journal, forecast] = await Promise.all([
 					baseQuery(`/api/companies/${inn}/plan-fact`),
 					baseQuery(`/api/companies/${inn}/recalc-journal`),
+					baseQuery({
+						url: `/api/companies/${inn}/forecast`,
+						params: { horizonDays: 30 },
+					}),
 				]);
 				if (planFact.error) return { error: asError(planFact) };
 				const body = planFact.data as {
+					from?: string;
+					to?: string;
 					factBalance?: number;
 					planBalance?: number;
 					deviation?: number;
+					planAvailable?: boolean;
 					points?: ForecastPointRaw[];
-					missedOnTime?: { title?: string; amount?: number; expectedDate?: string; overdueDays?: number }[];
+					missedOnTime?: {
+						title?: string;
+						amount?: number;
+						expectedDate?: string;
+						overdueDays?: number;
+					}[];
 				};
+				const planAvailable = Boolean(body.planAvailable);
+				const forecastPoints = mapForecastPoints(
+					(forecast.error ? [] : ((forecast.data as { points?: ForecastPointRaw[] })?.points ?? [])),
+				);
+				const planByDate = new Map(forecastPoints.map((p) => [p.date, p.balance]));
+
+				let factPoints = mapPlanFactFactPoints(body.points);
+				const factBroken =
+					factPoints.length === 0 || factPoints.every((p) => p.balance === 0);
+				if (factBroken) {
+					const opsRes = await baseQuery({
+						url: `/api/companies/${inn}/operations`,
+						params: { page: 0, size: 2000, sort: "operationDate,ASC" },
+					});
+					if (!opsRes.error) {
+						const page = opsRes.data as {
+							content?: {
+								operationDate?: string;
+								date?: string;
+								createdAt?: string;
+								amount?: number;
+								direction?: string;
+							}[];
+						};
+						factPoints = buildOpsBalancePoints(page.content ?? []);
+					}
+				}
+
+				const factOn =
+					body.factBalance ??
+					(factPoints.length ? factPoints[factPoints.length - 1].balance : 0);
+
+				if (factPoints.length === 0 && factOn !== 0) {
+					const day = new Date().toISOString().slice(0, 10);
+					const axis =
+						forecastPoints.length > 0
+							? forecastPoints
+							: [
+									{ date: body.from ?? day, balance: 0 },
+									{ date: body.to ?? day, balance: 0 },
+								];
+					factPoints = axis.map((p) => ({
+						date: p.date,
+						balance: factOn,
+						pessimisticBalance: null,
+						lowerBound: null,
+						upperBound: null,
+					}));
+				} else if (factPoints.length > 0 && body.factBalance != null) {
+					const last = factPoints[factPoints.length - 1].balance;
+					const offset = factOn - last;
+					if (offset !== 0) {
+						factPoints = factPoints.map((p) => ({
+							...p,
+							balance: p.balance + offset,
+						}));
+					}
+				}
+
+				const today = new Date().toISOString().slice(0, 10);
+				let todayIndex = factPoints.findIndex((p) => p.date >= today);
+				if (todayIndex < 0) todayIndex = Math.max(factPoints.length - 1, 0);
+
+				const points = factPoints.map((p) => ({
+					...p,
+					pessimisticBalance: planByDate.has(p.date) ? planByDate.get(p.date)! : null,
+				}));
+
+				const planFromForecast =
+					planByDate.get(today) ??
+					(forecastPoints.length ? forecastPoints[0].balance : 0);
+				const planOn = planAvailable
+					? (body.planBalance ?? 0)
+					: planFromForecast;
+				const diff =
+					planAvailable && body.deviation != null
+						? body.deviation
+						: factOn - planOn;
+
 				const missed = body.missedOnTime?.[0];
 				const journalItems = journal.error
 					? []
@@ -419,11 +579,13 @@ const financeApi = rtkApi.injectEndpoints({
 				return {
 					data: {
 						cashflow: {
-							points: mapForecastPoints(body.points),
+							points,
+							todayIndex,
 						},
-						factOn: body.factBalance ?? 0,
-						planOn: body.planBalance ?? 0,
-						diff: body.deviation ?? 0,
+						factOn,
+						planOn,
+						diff,
+						planAvailable,
 						late: missed
 							? {
 									name: missed.title ?? "",

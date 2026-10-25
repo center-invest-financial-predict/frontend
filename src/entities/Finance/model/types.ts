@@ -91,6 +91,7 @@ export type TodayRiskDto = {
 	date: string;
 	subtitle: string;
 	calculatedAt?: string;
+	probabilityPct?: number | null;
 };
 
 export type TodayStripDto = {
@@ -200,6 +201,8 @@ export type PlanFactDto = {
 	factOn: number;
 	planOn: number;
 	diff: number;
+	/** Backend has no stored plan yet when false. */
+	planAvailable: boolean;
 	late?: { name: string; amount: number; meta: string } | null;
 	journal: { at: string; text: string }[];
 };

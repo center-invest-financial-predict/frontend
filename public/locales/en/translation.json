@@ -122,7 +122,7 @@
 		"searchInSettings": "Settings",
 		"searchInPage": "{{page}}",
 		"searchSectionTitles": {
-			"risk": "Cash shortfall risk",
+			"risk": "Risk assessment",
 			"alerts": "Alerts",
 			"kpi": "Key metrics"
 		},
@@ -141,7 +141,7 @@
 			"faq": "help faq questions accordion how to use",
 			"account": "account profile sign out linked businesses",
 			"business": "business company tin",
-			"todayRisk": "risk shortfall gap cash warning",
+			"todayRisk": "risk shortfall gap cash warning assessment probability",
 			"todayKpi": "kpi metrics cards balance today",
 			"todayBalance": "balance 30 days chart forecast cash",
 			"todayVariants": "variants recommendations actions scenarios",
@@ -245,8 +245,10 @@
 		"subtitle": "How actual differs from the plan",
 		"chartTitle": "Balance: plan and actual",
 		"chartSub": "By day",
+		"chartSubForecast": "Actual from operations, plan from base forecast",
 		"fact": "Actual",
 		"plan": "Plan",
+		"planForecast": "Forecast",
 		"factOn": "Actual",
 		"planOn": "Plan",
 		"diff": "Variance",
@@ -254,7 +256,8 @@
 		"lateSub": "Not included in the base forecast",
 		"lateMeta": "Overdue inflow",
 		"journal": "Recalculation log",
-		"journalSub": "Latest entries"
+		"journalSub": "Latest entries",
+		"journalEmpty": "No entries yet"
 	},
 	"events": {
 		"title": "Events",
@@ -319,7 +322,9 @@
 	},
 	"today": {
 		"title": "Overview",
+		"riskAssessLabel": "Risk assessment",
 		"riskTitle": "Possible shortfall {{sum}}, {{date}}",
+		"riskProbability": "Gap probability {{pct}}%",
 		"riskCalcAt": "Calculated {{date}}",
 		"riskCheck": "Check options",
 		"riskAsk": "Explain in assistant",

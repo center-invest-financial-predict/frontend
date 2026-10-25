@@ -213,12 +213,18 @@ const TodayPage = memo(() => {
 			{data.risk ? (
 				<div id="today-risk" className={styles["today-page__risk"]}>
 					<div className={styles["today-page__risk-text"]}>
+						<div className={styles["today-page__risk-label"]}>{t("today.riskAssessLabel")}</div>
 						<div className={styles["today-page__risk-title"]}>
 							{t("today.riskTitle", {
 								sum: formatMoneyAbs(Math.abs(data.risk.amount), locale),
 								date: formatDayMonthShort(data.risk.date, locale),
 							})}
 						</div>
+						{data.risk.probabilityPct != null ? (
+							<div className={styles["today-page__risk-sub"]}>
+								{t("today.riskProbability", { pct: data.risk.probabilityPct })}
+							</div>
+						) : null}
 						{data.risk.calculatedAt ? (
 							<div className={styles["today-page__risk-sub"]}>
 								{t("today.riskCalcAt", {

@@ -41,6 +41,16 @@
 		min-width: 240px;
 	}
 
+	&__risk-label {
+		margin-bottom: var(--space-1);
+		color: var(--color-danger);
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		letter-spacing: 0.02em;
+		line-height: 18px;
+		text-transform: uppercase;
+	}
+
 	&__risk-title {
 		color: var(--color-text);
 		font-size: var(--font-size-lg);

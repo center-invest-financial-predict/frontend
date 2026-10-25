@@ -17,6 +17,9 @@ export const PlanFactPage = memo(() => {
 	const locale = i18n.language?.startsWith("en") ? "en-US" : "ru-RU";
 	const navigate = useNavigate();
 	const { data, isLoading, isError, refetch } = useGetPlanFactQuery();
+	const hasPlanLine = Boolean(
+		data?.cashflow.points.some((p) => p.pessimisticBalance != null),
+	);
 
 	return (
 		<Page className={styles["plan-fact-page"]}>
@@ -79,32 +82,46 @@ export const PlanFactPage = memo(() => {
 						<div className={styles["plan-fact-page__chart-head"]}>
 							<div>
 								<div className={styles["plan-fact-page__card-title"]}>{t("planFact.chartTitle")}</div>
-								<p className={styles["plan-fact-page__card-sub"]}>{t("planFact.chartSub")}</p>
+								<p className={styles["plan-fact-page__card-sub"]}>
+									{data.planAvailable ? t("planFact.chartSub") : t("planFact.chartSubForecast")}
+								</p>
 							</div>
 							<div className={styles["plan-fact-page__legend"]}>
 								<span>
 									<span className={styles["plan-fact-page__leg-fact"]} />
 									{t("planFact.fact")}
 								</span>
-								<span>
-									<span className={styles["plan-fact-page__leg-plan"]} />
-									{t("planFact.plan")}
-								</span>
+								{hasPlanLine ? (
+									<span>
+										<span className={styles["plan-fact-page__leg-plan"]} />
+										{data.planAvailable ? t("planFact.plan") : t("planFact.planForecast")}
+									</span>
+								) : null}
 							</div>
 						</div>
-						<CashflowChart series={data.cashflow} showRisk />
+						<CashflowChart series={data.cashflow} showRisk={hasPlanLine} />
 						<div className={styles["plan-fact-page__stats"]}>
 							<div>
 								<div className={styles["plan-fact-page__stat-label"]}>{t("planFact.factOn")}</div>
 								<b className={styles["plan-fact-page__stat-val"]}>{formatMoneyAbs(data.factOn, locale)}</b>
 							</div>
 							<div>
-								<div className={styles["plan-fact-page__stat-label"]}>{t("planFact.planOn")}</div>
+								<div className={styles["plan-fact-page__stat-label"]}>
+									{data.planAvailable ? t("planFact.planOn") : t("planFact.planForecast")}
+								</div>
 								<b className={styles["plan-fact-page__stat-val"]}>{formatMoneyAbs(data.planOn, locale)}</b>
 							</div>
 							<div>
 								<div className={styles["plan-fact-page__stat-label"]}>{t("planFact.diff")}</div>
-								<b className={styles["plan-fact-page__stat-bad"]}>{formatMoneyAbs(data.diff, locale)}</b>
+								<b
+									className={
+										data.diff < 0
+											? styles["plan-fact-page__stat-bad"]
+											: styles["plan-fact-page__stat-val"]
+									}
+								>
+									{formatMoneyAbs(data.diff, locale)}
+								</b>
 							</div>
 						</div>
 					</Card>
@@ -129,12 +146,18 @@ export const PlanFactPage = memo(() => {
 						<Card className={styles["plan-fact-page__journal"]}>
 							<div className={styles["plan-fact-page__card-title"]}>{t("planFact.journal")}</div>
 							<p className={styles["plan-fact-page__card-sub"]}>{t("planFact.journalSub")}</p>
-							{data.journal.map((j) => (
-								<div key={`${j.at}-${j.text}`} className={styles["plan-fact-page__j-row"]}>
-									<div className={styles["plan-fact-page__j-time"]}>{j.at}</div>
-									<div>{j.text}</div>
-								</div>
-							))}
+							<div className={styles["plan-fact-page__journal-list"]}>
+								{data.journal.length === 0 ? (
+									<p className={styles["plan-fact-page__card-sub"]}>{t("planFact.journalEmpty")}</p>
+								) : (
+									data.journal.map((j) => (
+										<div key={`${j.at}-${j.text}`} className={styles["plan-fact-page__j-row"]}>
+											<div className={styles["plan-fact-page__j-time"]}>{j.at}</div>
+											<div>{j.text}</div>
+										</div>
+									))
+								)}
+							</div>
 						</Card>
 					</div>
 				</div>

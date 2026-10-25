@@ -194,6 +194,13 @@
 		padding: var(--space-5);
 	}
 
+	&__journal-list {
+		display: flex;
+		flex-direction: column;
+		max-height: 360px;
+		overflow: auto;
+	}
+
 	&__late-row {
 		display: flex;
 		justify-content: space-between;
