@@ -20,6 +20,7 @@ const normalizeSource = (raw: string): string => {
 	if (code === "GOS" || code === "GOSUSLUGI" || code === "GOS_USLUGI" || code === "GOS_SERVICE") {
 		return "GOS_SERVICE";
 	}
+	if (code === "CSV" || code === "FILE") return "CSV";
 	return code;
 };
 
@@ -31,11 +32,34 @@ const sourceLabel = (raw: string, t: (key: string) => string): string => {
 	return raw;
 };
 
+const CAT_KEYS = ["sales", "suppliers", "taxes", "rent", "salary", "credit", "other"] as const;
+
+const categoryLabel = (raw: string, t: (key: string) => string): string => {
+	const value = raw.trim();
+	if (!value) return "—";
+	const lower = value.toLowerCase();
+	const byId = (CAT_KEYS as readonly string[]).find((k) => k === lower);
+	if (byId) return t(`add.cats.${byId}`);
+	const ruToId: Record<string, (typeof CAT_KEYS)[number]> = {
+		продажи: "sales",
+		поставщики: "suppliers",
+		налоги: "taxes",
+		аренда: "rent",
+		зарплата: "salary",
+		кредит: "credit",
+		прочее: "other",
+	};
+	const mapped = ruToId[lower];
+	if (mapped) return t(`add.cats.${mapped}`);
+	return value;
+};
+
 export const OperationsPage = memo(() => {
 	const { t, i18n } = useTranslation();
 	const locale = i18n.language?.startsWith("en") ? "en-US" : "ru-RU";
 	const [dir, setDir] = useState<Dir>("all");
 	const [cat, setCat] = useState("all");
+	const [src, setSrc] = useState("all");
 	const profileSources = useAppSelector((state) => state.user.profile?.sources);
 
 	const { data, isLoading, isError, refetch } = useGetOperationsQuery({ size: 2000 });
@@ -50,49 +74,68 @@ export const OperationsPage = memo(() => {
 
 		const active = new Set<string>();
 		(["ONE_C", "GOS_SERVICE", "CSV"] as const).forEach((code) => {
-			if (code === "CSV") {
-				if (fromApi.has("CSV") || fromProfile.has("CSV")) active.add("CSV");
-				return;
-			}
-			if (profileSources !== undefined) {
-				if (fromProfile.has(code)) active.add(code);
-				return;
-			}
-			if (fromApi.has(code)) active.add(code);
+			if (fromProfile.has(code) || fromApi.has(code)) active.add(code);
 		});
 		return active;
 	}, [profileSources, sourcesData?.items]);
 
 	const activeItems = useMemo(() => {
 		const list = data?.items ?? [];
+		if (activeSourceCodes.size === 0) return list;
 		return list.filter((i) => {
-			const code = normalizeSource(i.category);
-			if (!code) return false;
-			if (activeSourceCodes.has(code)) return true;
-			// unknown source codes: keep only when no explicit profile filter yet
-			if (profileSources === undefined && !["ONE_C", "GOS_SERVICE", "CSV"].includes(code)) {
-				return true;
-			}
-			return false;
+			const code = normalizeSource(i.source || "");
+			if (!code) return true;
+			return activeSourceCodes.has(code);
 		});
-	}, [data?.items, activeSourceCodes, profileSources]);
+	}, [data?.items, activeSourceCodes]);
 
 	const categories = useMemo(
-		() => [...new Set(activeItems.map((i) => i.category).filter(Boolean))],
+		() => [...new Set(activeItems.map((i) => i.category).filter(Boolean))].sort(),
 		[activeItems],
 	);
+
+	const sourceFilters = useMemo(() => {
+		const fromItems = [...new Set(
+			(data?.items ?? []).map((i) => normalizeSource(i.source || "")).filter(Boolean),
+		)];
+		const known = (["ONE_C", "GOS_SERVICE", "CSV"] as const).filter(
+			(code) => activeSourceCodes.has(code) || fromItems.includes(code),
+		);
+		const extra = fromItems.filter((code) => !(["ONE_C", "GOS_SERVICE", "CSV"] as string[]).includes(code));
+		return [...known, ...extra];
+	}, [data?.items, activeSourceCodes]);
 
 	useEffect(() => {
 		if (cat !== "all" && !categories.includes(cat)) setCat("all");
 	}, [cat, categories]);
 
+	useEffect(() => {
+		if (src !== "all" && !sourceFilters.includes(src)) setSrc("all");
+	}, [src, sourceFilters]);
+
 	const items = useMemo(() => {
 		let list = activeItems;
 		if (dir === "in") list = list.filter((i) => i.amount > 0);
 		if (dir === "out") list = list.filter((i) => i.amount < 0);
+		if (src !== "all") list = list.filter((i) => normalizeSource(i.source || "") === src);
 		if (cat !== "all") list = list.filter((i) => i.category === cat);
 		return [...list].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-	}, [activeItems, dir, cat]);
+	}, [activeItems, dir, src, cat]);
+
+	const balanceHistory = useMemo(() => {
+		const byDate = new Map<string, number>();
+		activeItems.forEach((op) => {
+			if (!op.date) return;
+			byDate.set(op.date, (byDate.get(op.date) ?? 0) + op.amount);
+		});
+		const dates = [...byDate.keys()].sort();
+		let running = 0;
+		const points = dates.map((date) => {
+			running += byDate.get(date) ?? 0;
+			return { date, balance: running };
+		});
+		return { points, todayIndex: Math.max(points.length - 1, 0) };
+	}, [activeItems]);
 
 	const totals = useMemo(() => {
 		const inflow = items.filter((i) => i.amount > 0).reduce((s, i) => s + i.amount, 0);
@@ -128,13 +171,7 @@ export const OperationsPage = memo(() => {
 					<Card className={styles["ops-page__chart"]}>
 						<div className={styles["ops-page__card-title"]}>{t("operations.balTitle")}</div>
 						<p className={styles["ops-page__hint"]}>{t("operations.balSub")}</p>
-						<CashflowChart
-							series={{
-								...data.balanceHistory,
-								todayIndex: Math.max((data.balanceHistory.points?.length ?? 1) - 1, 0),
-							}}
-							showRisk={false}
-						/>
+						<CashflowChart series={balanceHistory} showRisk={false} />
 					</Card>
 
 					<Card className={styles["ops-page__list"]}>
@@ -156,33 +193,68 @@ export const OperationsPage = memo(() => {
 								</button>
 							))}
 						</div>
-						<div className={styles["ops-page__chips"]}>
-							<button
-								type="button"
-								className={cn(
-									styles["ops-page__chip"],
-									styles["ops-page__chip--sm"],
-									cat === "all" && styles["ops-page__chip--on"],
-								)}
-								onClick={() => setCat("all")}
-							>
-								{t("operations.filterAllCats")}
-							</button>
-							{categories.map((c) => (
+						<div className={styles["ops-page__filter"]}>
+							<div className={styles["ops-page__filter-title"]}>{t("operations.filterSources")}</div>
+							<div className={styles["ops-page__chips"]}>
 								<button
-									key={c}
 									type="button"
 									className={cn(
 										styles["ops-page__chip"],
 										styles["ops-page__chip--sm"],
-										cat === c && styles["ops-page__chip--on"],
+										src === "all" && styles["ops-page__chip--on"],
 									)}
-									onClick={() => setCat(c)}
+									onClick={() => setSrc("all")}
 								>
-									{sourceLabel(c, t)}
+									{t("operations.filterAllSources")}
 								</button>
-							))}
+								{sourceFilters.map((code) => (
+									<button
+										key={code}
+										type="button"
+										className={cn(
+											styles["ops-page__chip"],
+											styles["ops-page__chip--sm"],
+											src === code && styles["ops-page__chip--on"],
+										)}
+										onClick={() => setSrc(code)}
+									>
+										{sourceLabel(code, t)}
+									</button>
+								))}
+							</div>
 						</div>
+						{categories.length > 0 ? (
+							<div className={styles["ops-page__filter"]}>
+								<div className={styles["ops-page__filter-title"]}>{t("operations.filterCats")}</div>
+								<div className={styles["ops-page__chips"]}>
+									<button
+										type="button"
+										className={cn(
+											styles["ops-page__chip"],
+											styles["ops-page__chip--sm"],
+											cat === "all" && styles["ops-page__chip--on"],
+										)}
+										onClick={() => setCat("all")}
+									>
+										{t("operations.filterAllCats")}
+									</button>
+									{categories.map((c) => (
+										<button
+											key={c}
+											type="button"
+											className={cn(
+												styles["ops-page__chip"],
+												styles["ops-page__chip--sm"],
+												cat === c && styles["ops-page__chip--on"],
+											)}
+											onClick={() => setCat(c)}
+										>
+											{categoryLabel(c, t)}
+										</button>
+									))}
+								</div>
+							</div>
+						) : null}
 						<div className={styles["ops-page__kpis"]}>
 							<div>
 								<span>{t("operations.total")}</span>
@@ -204,17 +276,23 @@ export const OperationsPage = memo(() => {
 						<div className={styles["ops-page__tr-head"]}>
 							<span>{t("operations.colDate")}</span>
 							<span>{t("operations.colCp")}</span>
+							<span>{t("operations.colSrc")}</span>
 							<span>{t("operations.colCat")}</span>
-							<span>{t("operations.colAmt")}</span>
+							<span className={styles["ops-page__tr-amt"]}>{t("operations.colAmt")}</span>
 						</div>
 						{items.length === 0 ? (
 							<StateBanner variant="empty" title={t("states.emptyTitle")} hint={t("states.emptyHint")} />
 						) : (
 							items.map((r) => (
 								<div key={r.id} className={styles["ops-page__tr"]}>
-									<span className={styles["ops-page__tr-date"]}>{formatDayMonth(r.date, locale)}</span>
-									<span className={styles["ops-page__tr-name"]}>{r.name}</span>
-									<span className={styles["ops-page__tr-cat"]}>{sourceLabel(r.category, t)}</span>
+									<span className={styles["ops-page__tr-date"]}>
+										{r.date ? formatDayMonth(r.date, locale) : "—"}
+									</span>
+									<span className={styles["ops-page__tr-name"]}>{r.name || "—"}</span>
+									<span className={styles["ops-page__tr-src"]}>
+										{r.source ? sourceLabel(r.source, t) : "—"}
+									</span>
+									<span className={styles["ops-page__tr-cat"]}>{categoryLabel(r.category, t)}</span>
 									<span
 										className={cn(
 											styles["ops-page__tr-amt"],

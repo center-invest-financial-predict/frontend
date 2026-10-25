@@ -210,6 +210,7 @@ export type OperationDto = {
 	name: string;
 	amount: number;
 	category: string;
+	source: string;
 };
 
 export type OperationsQueryArgs = {
@@ -234,6 +235,7 @@ export type RegularOperationDto = {
 	category: string;
 	period: string;
 	next: string;
+	amount: number;
 	amountLabel: string;
 	status: string;
 	needsReview: boolean;
@@ -260,6 +262,7 @@ export type EventsDto = {
 export type CalendarEventDto = {
 	date: string;
 	label: string;
+	amount?: number;
 };
 
 export type CalendarDto = {

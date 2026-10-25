@@ -142,6 +142,14 @@ export const SourcesPage = memo(() => {
 			if (result.inserted > 0) {
 				setUploadOk(true);
 				setUploadMessage(t("sources.uploadOkCount", { count: result.inserted }));
+				if (!chosenAtReg.has("CSV")) {
+					setProfile({
+						...profile,
+						sources: Array.from(
+							new Set([...profileSources.map(normalizeSourceCode), "CSV"]),
+						) as DataSourceKind[],
+					});
+				}
 			} else {
 				setUploadOk(false);
 				setUploadMessage(

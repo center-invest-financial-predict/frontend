@@ -84,8 +84,42 @@
 	&__card {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-2);
+		gap: var(--space-3);
 		padding: var(--space-4);
+	}
+
+	&__month {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+	}
+
+	&__month-title {
+		flex: 1;
+		font-size: 20px;
+		font-weight: 600;
+		line-height: 28px;
+		text-align: center;
+		text-transform: capitalize;
+	}
+
+	&__month-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 40px;
+		height: 40px;
+		border: 0;
+		border-radius: 100px;
+		background: var(--color-shape);
+		color: var(--color-text);
+		cursor: pointer;
+		transition: background-color 0.18s ease;
+
+		&:hover {
+			background: var(--color-neutral-soft);
+		}
 	}
 
 	&__weekdays,
@@ -96,7 +130,7 @@
 	}
 
 	&__weekdays {
-		color: var(--color-text-faint);
+		color: var(--color-text-muted);
 		font-size: var(--font-size-lg);
 	}
 
@@ -123,14 +157,30 @@
 	}
 
 	&__ev {
-		overflow: hidden;
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 6px;
+		min-width: 0;
 		padding: 2px 8px;
 		border-radius: 6px;
 		background: var(--color-primary-soft);
 		color: var(--color-primary-on-soft);
 		font-size: var(--font-size-base);
 		line-height: 20px;
+	}
+
+	&__ev-name {
+		overflow: hidden;
+		min-width: 0;
 		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	&__ev-amt {
+		flex-shrink: 0;
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
 		white-space: nowrap;
 	}
 }
@@ -139,7 +189,8 @@
 	.calendar-page {
 		&__pill,
 		&__pill--on,
-		&__add {
+		&__add,
+		&__month-btn {
 			transition-duration: 0s;
 		}
 	}

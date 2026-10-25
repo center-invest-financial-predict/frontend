@@ -39,6 +39,19 @@
 		padding: var(--space-5);
 	}
 
+	&__filter {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	&__filter-title {
+		color: var(--color-text);
+		font-size: var(--font-size-lg);
+		font-weight: 600;
+		line-height: 22px;
+	}
+
 	&__chips {
 		display: flex;
 		flex-wrap: wrap;
@@ -103,9 +116,9 @@
 	&__tr-head,
 	&__tr {
 		display: grid;
-		grid-template-columns: 90px minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 1.2fr);
+		grid-template-columns: 72px minmax(0, 1.2fr) minmax(90px, 0.6fr) minmax(90px, 0.6fr) 140px;
 		gap: var(--space-3);
-		align-items: start;
+		align-items: center;
 		padding: 11px 0;
 		border-bottom: 1px solid var(--color-border);
 		font-size: var(--font-size-lg);
@@ -119,6 +132,7 @@
 
 	&__tr-date,
 	&__tr-name,
+	&__tr-src,
 	&__tr-cat,
 	&__tr-amt {
 		min-width: 0;
@@ -128,18 +142,27 @@
 		overflow: hidden;
 		font-weight: 500;
 		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
+	&__tr-src,
 	&__tr-cat {
 		overflow: hidden;
 		color: var(--color-text-muted);
 		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	&__tr-head > :last-child,
+	&__tr-amt {
+		justify-self: end;
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
 	}
 
 	&__tr-amt {
-		text-align: right;
 		font-weight: 600;
-		white-space: nowrap;
 	}
 
 	&__in {
@@ -192,8 +215,14 @@
 			white-space: normal;
 		}
 
-		&__tr-cat {
+		&__tr-src {
 			order: 4;
+			grid-column: 1 / -1;
+			font-size: var(--font-size-base);
+		}
+
+		&__tr-cat {
+			order: 5;
 			grid-column: 1 / -1;
 			font-size: var(--font-size-base);
 		}

@@ -67,8 +67,12 @@ export const CashflowChart: FC<Props> = memo(
 		const isHistory = !showRisk && dayCount > 0 && series.todayIndex === dayCount - 1;
 
 		const W = compact ? 340 : isHistory ? 1100 : 740;
-		const H = compact ? 150 : isHistory ? 200 : 340;
-		const pad = compact ? { left: 56, right: 10, top: 10, bottom: 18 } : { left: 64, right: 16, top: 26, bottom: 26 };
+		const H = compact ? 150 : isHistory ? 240 : 340;
+		const pad = compact
+			? { left: 56, right: 10, top: 10, bottom: 18 }
+			: isHistory
+				? { left: 72, right: 36, top: 36, bottom: 36 }
+				: { left: 64, right: 16, top: 26, bottom: 26 };
 		const cW = W - pad.left - pad.right;
 		const cH = H - pad.top - pad.bottom;
 
@@ -98,8 +102,6 @@ export const CashflowChart: FC<Props> = memo(
 		const showBand = showRisk && !compact && points.some((p) => p.upperBound != null && p.lowerBound != null);
 		const gapIndex = series.gap ? points.findIndex((p) => p.date === series.gap!.date) : -1;
 		const showGap = showRisk && !compact && gapIndex >= 0 && series.gap != null;
-
-		const xEvery = isHistory ? 2 : compact ? Math.max(dayCount - 1, 1) : Math.max(1, Math.floor((dayCount - 1) / 6));
 
 		let bandPoly = "";
 		if (showBand) {
@@ -146,12 +148,20 @@ export const CashflowChart: FC<Props> = memo(
 				? String(new Date(`${iso}T00:00:00`).getDate()).padStart(2, "0")
 				: formatDayMonth(iso, locale);
 
+		const labelSlotPx = isHistory ? 36 : 56;
+		const maxLabels = Math.max(3, Math.floor(cW / labelSlotPx));
+		const xEvery = compact
+			? Math.max(dayCount - 1, 1)
+			: Math.max(1, Math.ceil((dayCount - 1) / Math.max(maxLabels - 1, 1)));
+		const todayClear = showToday ? Math.max(1, Math.ceil(xEvery * 0.6)) : 0;
+
 		const dateTicks: { label: string; i: number }[] = [];
 		for (let i = 0; i < dayCount; i += xEvery) {
+			if (showToday && Math.abs(i - todayIndex) < todayClear) continue;
 			dateTicks.push({ label: axisLabel(points[i].date), i });
 		}
 		const lastI = dayCount - 1;
-		if (dayCount > 0) {
+		if (dayCount > 0 && !(showToday && todayIndex === lastI)) {
 			const prev = dateTicks[dateTicks.length - 1];
 			if (!prev || prev.i !== lastI) {
 				const minGap = Math.max(1, Math.ceil(xEvery * 0.75));
@@ -234,6 +244,7 @@ export const CashflowChart: FC<Props> = memo(
 							const y = getY(tick);
 							const isZero = tick === 0;
 							const thousands = Math.round(tick / 1000);
+							const labelY = Math.min(H - 12, Math.max(14, y + 4));
 							return (
 								<g key={tick}>
 									<line
@@ -244,7 +255,13 @@ export const CashflowChart: FC<Props> = memo(
 										stroke={isZero ? "var(--color-text)" : "var(--color-border)"}
 										strokeWidth={isZero ? 1.5 : 1}
 									/>
-									<text x={pad.left - 8} y={y + 4} textAnchor="end" fontSize={labelFs} fill="var(--color-text-faint)">
+									<text
+										x={pad.left - 10}
+										y={labelY}
+										textAnchor="end"
+										fontSize={labelFs}
+										fill="var(--color-text-muted)"
+									>
 										{tick === 0
 											? "0"
 											: t("today.chartThousands", {
@@ -277,20 +294,18 @@ export const CashflowChart: FC<Props> = memo(
 							strokeLinejoin="round"
 						/>
 
-						{dateTicks
-							.filter((item) => !(showToday && item.i === todayIndex))
-							.map((item) => (
-								<text
-									key={`${item.label}-${item.i}`}
-									x={getX(item.i)}
-									y={H - 6}
-									textAnchor={item.i === dayCount - 1 ? "end" : "middle"}
-									fontSize={labelFs}
-									fill="var(--color-text-faint)"
-								>
-									{item.label}
-								</text>
-							))}
+						{dateTicks.map((item) => (
+							<text
+								key={`${item.label}-${item.i}`}
+								x={getX(item.i)}
+								y={H - 12}
+								textAnchor={item.i === 0 ? "start" : item.i === dayCount - 1 ? "end" : "middle"}
+								fontSize={labelFs}
+								fill="var(--color-text-muted)"
+							>
+								{item.label}
+							</text>
+						))}
 
 						{showToday ? (
 							<>
@@ -304,9 +319,9 @@ export const CashflowChart: FC<Props> = memo(
 									strokeDasharray="3 3"
 								/>
 								<text
-									x={todayLabelX}
-									y={H - 6}
-									textAnchor={todayLabelAnchor}
+									x={isHistory ? Math.max(pad.left, todayX - 8) : todayLabelX}
+									y={isHistory ? pad.top - 8 : H - 12}
+									textAnchor={isHistory ? "end" : todayLabelAnchor}
 									fontSize={labelFs}
 									fontWeight="600"
 									fill="var(--color-text)"
